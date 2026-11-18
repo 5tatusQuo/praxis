@@ -1,0 +1,27 @@
+{
+  "@timestamp": "2026-11-01T10:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "payload.exe",
+    "executable": "C:\\Temp\\payload.exe",
+    "parent": {
+      "name": "service.exe",
+      "executable": "C:\\Temp\\service.exe",
+      "pe": {
+        "original_file_name": "dns.exe"
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "@timestamp": "2026-11-01T10:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "payload.exe",
+    "executable": "\\Device\\HarddiskVolume3\\Program Files\\ReasonLabs\\payload.exe",
+    "parent": {
+      "name": "dns.exe",
+      "executable": "\\Device\\HarddiskVolume3\\Windows\\System32\\dns.exe"
+    }
+  }
+}

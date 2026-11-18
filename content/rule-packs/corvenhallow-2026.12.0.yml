@@ -1,0 +1,110 @@
+id: corvenhallow-2026.12.0
+client: corvenhallow
+month: 2026-12
+created: '2026-11-19'
+status: proposed
+budget: 2
+snapshot:
+  taken_at: '2026-11-18T16:00:25Z'
+  summary:
+    rules:
+      blind: 0
+      shadow: 0
+      healthy: 4
+      disabled: 0
+    covered: 9
+    blind_rule: 0
+    techniques: 706
+    visible_pct: 74.93
+    coverage_pct: 1.27
+    detection_gap: 520
+    visibility_gap: 177
+    weighted_coverage_pct: 6.7
+brief:
+  headline: This pack detects changes to package sources and unexpected processes that a DNS service starts.
+  adds:
+  - Detects the addition of package sources.
+  - Detects unexpected execution from a DNS service.
+  leaves_open:
+  - Remote service abuse remains without a new detection.
+  - The pack does not detect misuse of valid accounts.
+  - Most exploitation of public applications remains outside this pack.
+picks:
+- detection: PRX-000021
+  name: Winget source addition
+  candidate: sigma:05ebafc8-7aa2-4bcd-a269-2aec93f9e842
+  technique: T1059
+  weight: 0.833
+  why: This rule detects a change to a download source instead of a specific malicious package.
+  caveat: Confirm which package sources administrators can add.
+  justification: ''
+  changed: Required adjacent commands in Windows process starts and added tab and quote handling to reduce
+    unrelated matches while retaining renamed binary coverage.
+  quality:
+    score: 94
+    passes: true
+    tier: ttp
+    parts:
+      specificity: 30
+      pyramid: 25
+      durability: 10
+      maturity: 9
+      overlap: 10
+      backtest: 10
+    closest_existing: PRX-000008
+    closest_similarity: 0.12
+    flags: []
+    backtest:
+      hits: 0
+      days: 30
+  lab:
+    passed: true
+    cases: 13
+- detection: PRX-000022
+  name: Unexpected child of the Windows DNS service
+  candidate: elastic:8c37dc0e-e3ac-4c97-8aa0-cf6a9122de45
+  technique: T1190
+  weight: 0.833
+  why: This rule detects unexpected execution from a service instead of a specific exploit payload.
+  caveat: The rule can also detect legitimate crash reporting.
+  justification: ''
+  changed: Added original PE identity and missing-field handling, narrowed vendor exclusions, and tested
+    benign look-alikes to reduce evasion without suppressing unexpected children.
+  quality:
+    score: 84
+    passes: true
+    tier: tool
+    parts:
+      specificity: 30
+      pyramid: 15
+      durability: 10
+      maturity: 9
+      overlap: 10
+      backtest: 10
+    closest_existing: PRX-000008
+    closest_similarity: 0.17
+    flags: []
+    backtest:
+      hits: 0
+      days: 30
+  lab:
+    passed: true
+    cases: 13
+rejected: []
+review:
+  verdict: fail
+  summary: The package source detection has an unsupported technique mapping that invalidates its selection
+    rationale.
+  comments:
+  - detection_id: PRX-000021
+    severity: blocker
+    issue: Adding a package source does not demonstrate command interpreter execution, so the technique
+      mapping claims coverage that the query does not provide.
+    action: Correct the technique mapping and reassess the selection against the coverage gaps.
+agents:
+  model: gpt-6.1-sol
+usage:
+  llm_calls: 25
+  input_tokens: 332258
+  output_tokens: 8073
+  tool_calls: 46
