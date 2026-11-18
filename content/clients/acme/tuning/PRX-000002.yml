@@ -1,0 +1,40 @@
+rule: PRX-000002
+reason: MedBackup repeatedly deletes the oldest shadow copy on drive D. Limit the exclusion
+  to the exact parent path, child path, and command.
+evidence:
+- alert:32095228f985
+- alert:29978be864c4
+- alert:1168d3845f3e
+- alert:190e7adf425b
+- alert:ae519bb94632
+author: ai:tuner (awaiting human approval)
+expires: '2027-02-18'
+exclude:
+- field: process.parent.executable
+  op: equals
+  value: C:\Program Files\MedBackup\mbagent.exe
+  also:
+  - field: process.executable
+    op: equals
+    value: C:\Windows\System32\vssadmin.exe
+  - field: process.command_line
+    op: equals
+    value: 'vssadmin.exe delete shadows /for=D: /oldest /quiet'
+examples:
+- event:
+    category:
+    - process
+    type:
+    - start
+  host:
+    os:
+      type: windows
+  process:
+    name: vssadmin.exe
+    executable: C:\Windows\System32\vssadmin.exe
+    command_line: 'vssadmin.exe delete shadows /for=D: /oldest /quiet'
+    pe:
+      original_file_name: VSSADMIN.EXE
+    parent:
+      name: mbagent.exe
+      executable: C:\Program Files\MedBackup\mbagent.exe
