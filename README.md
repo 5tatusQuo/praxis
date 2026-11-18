@@ -10,8 +10,9 @@ with that client's tuning, tests it in a lab, and deploys it through CI/CD.
 Deterministic code measures visibility and ATT&CK coverage; AI agents curate,
 write and explain; humans review and approve.
 
-**Status: early build.** Elastic is the only SIEM for now; Splunk and Microsoft
-Sentinel come later. [PLAN.md](PLAN.md) is the architecture and roadmap, and
+**Status: v1.0.** Elastic is the only SIEM for now; Splunk, Microsoft Sentinel
+and cloud deployment come next. It runs on one server with Docker Compose and
+has been proven with fictional clients on lab telemetry, not in production. [PLAN.md](PLAN.md) is the architecture and roadmap, and
 [PROGRESS.md](PROGRESS.md) records what is built and proven so far.
 
 ## How it fits together

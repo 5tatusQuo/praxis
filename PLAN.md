@@ -458,8 +458,8 @@ The mark is an original pair of explorer's goggles, not Jak's: those are Naughty
 | 1 · Multi-client core | 4–7 | Content packs + tuning overlays · platform interface · lab tests per client render · Connect mode (Elastic) · CD with `packs.lock` | One rule, tuned differently for 2 clients, live on Elastic |
 | 2 · Visibility and gaps | 8–10 | Collectors · data-component mapping · gap engine · Navigator layers · dashboard v1 | Coverage snapshot matches a manual audit of one client |
 | 3 · AI agents | 11–15 | MCP server · Curator, Reviewer, Tuner · Pack review + Tuning studio · monthly packs | **First AI-curated pack merged after human review** |
-| 4 · Hunts and launch | 16–20 | Hunt Planner + hunt packs · brand and docs · demo video | v1.0 public release on GitHub |
-| 5 · More SIEMs and cloud | 21–26 | Splunk and Sentinel platform implementations · parity tests across platforms · Connect mode for both · Helm + Terraform (AWS first) proven on real infrastructure | One rule, tuned differently for 2 clients, live on 3 SIEMs; core running on a cloud deployment |
+| 4 · Hunts and launch | 16–20 | Hunt Planner + hunt packs · brand and docs | v1.0 public release on GitHub |
+| 5 · More SIEMs and cloud | 21–26 | Splunk and Sentinel platform implementations · parity tests across platforms · Connect mode for both · Helm + Terraform (AWS first) proven on real infrastructure · demo video, last of all | One rule, tuned differently for 2 clients, live on 3 SIEMs; core running on a cloud deployment |
 
 Each gate is a demo you can post: a short video or write-up per gate builds an audience while you build the product.
 
