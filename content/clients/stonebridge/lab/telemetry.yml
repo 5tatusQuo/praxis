@@ -1,0 +1,8 @@
+# Synthetic telemetry for the lab: every source this client's rules read.
+sources:
+- source: logs-endpoint.events.process
+  hosts: 60
+  events_per_day: 300
+- source: logs-endpoint.events.registry
+  hosts: 60
+  events_per_day: 150
