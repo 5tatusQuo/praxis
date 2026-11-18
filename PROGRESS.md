@@ -9,14 +9,55 @@ is the state of the build.
 2026-11-18 and v1.0.0 is released. Phase 5 does not start until the PLAN.md
 items listed under "Not built yet" below are done.
 
-## Paused for an operator test (2026-11-18)
+## Operator test: PRAXIS driven by an AI (passed 2026-11-18)
 
-Build work is paused at the owner's request. The owner is onboarding one new
-fictional client (building and engineering sector) on the lab server and
-running it as if it were real, to find gaps. `docs/runbook.md` is the
-step-by-step guide for that test. Its example files were validated, and its
-example detection lab-tested, in a scratch copy of the content. Gaps the test
-finds go into the list below before any more building.
+Goal set by the owner: make PRAXIS fully operable by an AI agent with no
+rough spots, and prove it with a fresh sub-agent that takes a new fictional
+client through its whole life using only documented commands.
+
+**Passed on the third run.** Reports, with every finding and its fix:
+
+| Run | Client | Result | Report |
+| --- | --- | --- | --- |
+| 1 | `stonebridge` | 10 steps done, 2 workarounds (`git switch main` twice), one serious finding (a tuning proposal carried an unapproved pack) | `docs/audits/2026-11-18-operator-test-1.md` |
+| 2 | `vantmoor` | 11 steps done, 0 workarounds; 5 commands run by the main session because the sub-agent's session refused relayed approvals | `docs/audits/2026-11-18-operator-test-2.md` |
+| 3 | `brindlewick` | 11 steps done by the agent alone: `WORKAROUNDS: 0`, `STEPS NOT RUN BY ME: 0` | `docs/audits/2026-11-18-operator-test-3.md` |
+
+Pull requests:
+
+- Platform: #29 (operator commands, `./px`, MCP server, runbook), #36 (fixes
+  from run 1), #38 (dashboard sign-in), #46 (fixes from run 2), and the fixes
+  from run 3 (this change).
+- Run 1: #30 to #35 merged by the sub-agent, the agent-opened #33, #34, #35
+  on the main session's approval as the user; #37 (offboarding) by the main
+  session.
+- Run 2: #39 to #42 merged by the sub-agent; #43 (tuning), #44 (hunt) and
+  #45 (offboarding) merged by the main session as the user.
+- Run 3: #47 to #53 all merged by the sub-agent, under approvals written
+  into its task.
+
+What an operator reads: `CLAUDE.md`, then `docs/runbook.md`. Every step is a
+`./px` command; the same actions are MCP tools (`.mcp.json`).
+
+Checked outside the sub-agent runs: the MCP server over stdio through
+`./px mcp` (18 tools listed; `status` and `get_coverage` called). A
+sub-agent does not load a project's MCP servers, so the runs used `./px`.
+After run 3 a direct read-only query of the SIEM showed only `acme` and
+`globex` namespaces, keys and spaces.
+
+Still open from the test:
+
+- Runbook limits that could not be fixed here, each stated there with its
+  reason: lab telemetry is synthetic (no Fleet Server or Elastic Agent in the
+  stack); one SIEM connection (no second SIEM here to test against); Elastic
+  and EQL only (other SIEMs are Phase 5); an offboarded client cannot be
+  re-checked later; no command removes a sector profile or a pack record.
+- The Curator does not propose assigning a detection the library already has.
+- The agents' "before you merge" notes can describe a change already made.
+- A merge takes five to ten minutes, by design.
+- The tests left eight detections that no client runs (PRX-000008 to 000015),
+  three sector profiles, and three pack and three hunt records. Keeping,
+  assigning or deprecating them is the owner's decision.
 
 ## Not built yet (PLAN.md items inside Phases 0–4)
 
@@ -146,7 +187,7 @@ are completely done. You approved tagging v1.0 and promoting the first pack.
 
 ## Next
 
-- Phase 4 gate: prove the Hunt Planner with a real model, then tag v1.0 with your go-ahead.
+- The "Not built yet" list above.
 - Phase 5, only after Phases 0–4 are completely done: Splunk and Sentinel, then cloud deployment.
 
 ## Decisions

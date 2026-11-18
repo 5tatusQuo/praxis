@@ -225,7 +225,8 @@ The Curator reads the coverage and picks from the catalog of upstream rules, a
 Platform Engineer agent writes each detection, a Reviewer agent challenges the
 result, and code measures the scores, backtests and lab results. It takes
 about ten minutes, prints a pull-request link, and puts you back on `main`.
-Read the proposal with `./px change show <number>`: the description is the
+Read the proposal with `./px change show <number>` (add `--diff` for the exact
+lines it changes): the description is the
 report. The dashboard's Rule packs page shows the same.
 
 ```bash
@@ -297,7 +298,7 @@ counts code measured. Hypotheses it marks durable are candidates for step 6 or 7
 | --- | --- |
 | Where does everything stand? | `./px status` |
 | Open pull requests | `./px change status` |
-| Read one pull request | `./px change show <number>` |
+| Read one pull request | `./px change show <number>`, with `--diff` for its exact lines |
 | Close one without merging | `./px change close <number> --reason "<why>"` |
 | Get back to an up-to-date `main` | `./px change home` |
 | A client's alerts per rule | `./px alerts ironbridge` |
@@ -345,6 +346,21 @@ rule packs, hunts, audit and settings are for administrators. The same command
 changes a password or adds a role. The AI assistant does not use the
 dashboard; it works through `./px`.
 
+## Reading coverage
+
+- **Top detection gaps** has a column "in the library": detections for that
+  technique that this client does not run yet. Assign one before you write a
+  new rule.
+- **A silent source** says how many techniques are not visible because of it.
+  **A partial source** (too few hosts) keeps its techniques visible at a lower
+  score, and says how many rely on it.
+- **Visibility gaps** are mostly techniques whose data sources the client does
+  not send at all.
+- **Alert counts cover 30 days**, so they do not drop when a rule is tuned.
+  `./px tuning` shows what a tuning suppresses.
+- Events you replay carry their own host names, so a source can show a few
+  more hosts than the client has endpoints.
+
 ## What PRAXIS does not do yet
 
 These are limits of the product today, not steps you are doing wrong:
@@ -354,6 +370,12 @@ These are limits of the product today, not steps you are doing wrong:
 - **One SIEM connection.** The server scripts assume the bundled Elastic,
   named `lab`. A second, remote SIEM has not been set up or tested, because
   there is no second SIEM here to test against.
+- **An offboarded client cannot be checked again later.** Offboarding verifies
+  the SIEM itself and prints the result, but once the client is out of the
+  content PRAXIS no longer knows its space or keys, so there is no later
+  re-check. Keep the offboarding output as the record.
+- **No command removes a sector profile or a rule-pack record.** They are
+  shared history and harmless without a client.
 - **Elastic and EQL only.** Splunk, Sentinel and ES|QL rules come later.
   Exclusions match case-sensitively, which is how Kibana exception lists work.
 
