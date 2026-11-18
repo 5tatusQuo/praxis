@@ -61,7 +61,8 @@ groups you know from your own intelligence.
 
 `client add` writes the manifest, a lab telemetry profile that covers every
 log source the client's rules read, and its `packs.lock`. The client gets the
-`baseline` content pack unless you pass `--pack`. Check it:
+`baseline` content pack unless you pass `--pack`. PRAXIS adds "(fictional)" to
+the name, because every client in this repo is invented. Check it:
 
 ```bash
 ./px client show ironbridge
@@ -109,7 +110,7 @@ some hosts, or a source that went quiet:
 
 If `change merge` ends with "merged" but the deploy still running (the
 runner was busy), run the same command again: it waits for that deploy and
-shows its result. `change merge` takes five to ten minutes: the checks replay every detection's
+shows its result. `change merge` takes seven to fifteen minutes, also for a change that deploys nothing: the checks replay every detection's
 test events in the lab, and the deploy waits for each rule's first run. It prints progress while it waits for the
 checks, merges, and waits for the deploy; only the clients a change affects
 are redeployed. It reports each rule as `created` and its first run as
@@ -127,7 +128,8 @@ You get a visibility score per data component, each rule's status, and the top
 detection gaps ranked by threat weight. A rule on a sub-technique also covers
 its parent technique, so "covered" can be higher than the number of techniques
 listed against the rules. `docs/visibility-scoring.md` explains
-every number. The same view is on the dashboard: `deploy/dashboard.sh` opens it.
+every number. Snapshot times are in UTC; the dates on pack and hunt records
+are the local date. The same view is on the dashboard: `deploy/dashboard.sh` opens it.
 
 ## 6. Add a rule by hand
 
@@ -317,7 +319,7 @@ counts code measured. Hypotheses it marks durable are candidates for step 6 or 7
 | What | Command |
 | --- | --- |
 | Where does everything stand? | `./px status` |
-| Open pull requests | `./px change status`; with a number, that pull request's checks |
+| Open pull requests | `./px change status`; with a number, that pull request's title, files and checks |
 | Read one pull request | `./px change show <number>`, with `--diff` for its exact lines |
 | Close one without merging | `./px change close <number> --reason "<why>"` |
 | Get back to an up-to-date `main` | `./px change home` |

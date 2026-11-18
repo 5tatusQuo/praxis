@@ -1409,6 +1409,13 @@ def detection_write(
         return box.write_detection(**data)
 
     result = _op(write)
+    if result["validation_errors"]:
+        result["next"] = "fix the spec for each validation error, then run this command again"
+    else:
+        result["next"] = (
+            f"./px lab test {result['detection_id']}, then "
+            f"./px detection assign {result['detection_id']} --client <id>"
+        )
     _out(result, as_json)
     if result["validation_errors"]:
         raise typer.Exit(1)

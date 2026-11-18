@@ -455,6 +455,8 @@ def _pack_state(repo: ContentRepo, pack_id: str) -> str:
     pack = repo.rule_packs.get(pack_id)
     if pack is None:
         return "proposed, not merged"
+    if pack.client not in repo.clients:
+        return "record only: its client was offboarded"
     return "merged, in shadow" if pack.status == "proposed" else pack.status
 
 
