@@ -1,0 +1,103 @@
+id: 2026-11-18-data-theft-from-an-architecture-practice-archivi
+prompt: 'Data theft from an architecture practice: archiving and staging of drawings and project files,
+  and remote-access footholds, by Akira and Play affiliates'
+created: '2026-11-18'
+clients:
+- brindlewick
+summary: The queries found no matching behaviour. These results do not exclude theft. Missing network
+  events prevented tests of completed transfers and active remote connections.
+hypotheses:
+- title: Project files enter archives
+  technique: T1560.001
+  rationale: Both groups use archive utilities. Archiving drawings or project folders can prepare collected
+    files for theft.
+  query: 'process where event.type == "start" and process.name : ("7z.exe", "7za.exe", "rar.exe", "WinRAR.exe")
+    and process.command_line : "* a *" and process.command_line : ("*.dwg*", "*.dxf*", "*.rvt*", "*.ifc*",
+    "*\\Projects\\*", "*\\Drawings\\*")'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No matches appeared. Routine project delivery can produce this behaviour. Check archive
+    destinations and business approval before using this query as a detection.
+  durable: false
+  results:
+    brindlewick:
+      hits: 0
+      days: 30
+  tested: true
+- title: Project files collect in temporary folders
+  technique: T1074.001
+  rationale: Local staging can precede the archive behaviour reported for both groups. Copying drawings
+    into shared writable folders can expose such preparation.
+  query: 'process where event.type == "start" and process.name : ("robocopy.exe", "xcopy.exe") and process.command_line
+    : ("*.dwg*", "*.dxf*", "*.rvt*", "*.ifc*", "*\\Projects\\*", "*\\Drawings\\*") and process.command_line
+    : ("*\\ProgramData\\*", "*\\Users\\Public\\*", "*\\Temp\\*")'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No matches appeared. The query cannot distinguish source paths from destination paths. Keep
+    it as a hunt until argument parsing supports that distinction.
+  durable: false
+  results:
+    brindlewick:
+      hits: 0
+      days: 30
+  tested: true
+- title: An installer establishes remote access
+  technique: T1219
+  rationale: Akira uses remote access tools. A remote client launch immediately after installation can
+    identify a new foothold.
+  query: "sequence by host.name with maxspan=1m\n [process where process.name : \"msiexec.exe\" and process.command_line\
+    \ : (\"* /i*\", \"* -i*\") and process.parent.name : (\"explorer.exe\", \"sihost.exe\", \"powershell.exe\"\
+    , \"cmd.exe\")]\n [process where ((process.name : \"ScreenConnect.ClientService.exe\" and process.command_line\
+    \ : \"*?e=Access&y=Guest&h*&k=*\") or (process.name : \"Syncro.Installer.exe\" and process.command_line\
+    \ : \"*--config-json*\" and process.command_line : \"*--key*\") or process.name : (\"tvnserver.exe\"\
+    , \"winvnc.exe\"))]"
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No sequence matched. Check deployment approval for future matches. The query uses host.name
+    because host.id is absent.
+  durable: true
+  results:
+    brindlewick:
+      hits: 0
+      days: 30
+  tested: true
+- title: A remote client starts collection tools
+  technique: T1219
+  rationale: Akira uses remote access tools. A remote client that starts a shell or archive utility can
+    connect a foothold to collection.
+  query: 'process where event.type == "start" and process.parent.name : ("ScreenConnect.ClientService.exe",
+    "AnyDesk.exe", "TeamViewer.exe", "TeamViewer_Service.exe") and process.name : ("cmd.exe", "powershell.exe",
+    "pwsh.exe", "7z.exe", "rar.exe", "robocopy.exe")'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No matches appeared. Check support approval and the child command for future matches. The
+    query does not prove that a remote session occurred.
+  durable: true
+  results:
+    brindlewick:
+      hits: 0
+      days: 30
+  tested: true
+- title: A transfer utility copies collected files
+  technique: T1567.002
+  rationale: Akira uses cloud storage for theft. Transfer commands can expose an attempted upload without
+    network events.
+  query: 'process where event.type == "start" and (process.name : "rclone.exe" or ?process.pe.original_file_name
+    : "rclone.exe") and process.command_line : ("* copy *", "* sync *", "* move *")'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No matches appeared. Check the destination and backup approval for future matches. The query
+    alone cannot establish transfer direction or completion.
+  durable: false
+  results:
+    brindlewick:
+      hits: 0
+      days: 30
+  tested: true
+agents:
+  model: gpt-6.1-sol
+usage:
+  llm_calls: 7
+  input_tokens: 81870
+  output_tokens: 2855
+  tool_calls: 21
