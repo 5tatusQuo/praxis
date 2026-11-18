@@ -97,8 +97,8 @@ export default async function PackReview({ params }: { params: Promise<{ id: str
       {pack.picks.map((pick) => (
         <Panel
           key={pick.detection}
-          title={`${pick.detection} closes ${pick.technique}`}
-          note={`threat weight ${pick.weight.toFixed(2)} · from ${pick.candidate}`}
+          title={pick.name ?? pick.detection}
+          note={`${pick.detection} · closes ${pick.technique} · threat weight ${pick.weight.toFixed(2)} · from ${pick.candidate}`}
         >
           <div className="grid gap-5 lg:grid-cols-3">
             <div className="space-y-3 text-sm lg:col-span-2">

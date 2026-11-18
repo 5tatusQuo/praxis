@@ -228,11 +228,12 @@ def _print_snapshot(snapshot: dict) -> None:
         )
         components.add_row(c["name"], str(c["score"]), c["source"], detail)
     console.print(components)
-    rules = Table("rule", "status", "last run", "alerts 30d", "techniques", title="rules")
+    rules = Table("rule", "name", "status", "last run", "alerts 30d", "techniques", title="rules")
     for r in snapshot["rules"]:
         colour = {"healthy": "green", "blind": "red"}.get(r["status"], "yellow")
         rules.add_row(
             r["id"],
+            r.get("name", ""),
             f"[{colour}]{r['status']}[/{colour}]",
             r["last_status"] or "never",
             str(r["alerts_30d"]),

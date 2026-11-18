@@ -44,6 +44,7 @@ export type Component = {
 
 export type Rule = {
   id: string;
+  name?: string;
   platform: string;
   status: "healthy" | "blind" | "disabled";
   last_status: string | null;
@@ -160,6 +161,7 @@ export type PackRow = {
 
 export type Pick = {
   detection: string;
+  name?: string;
   candidate: string;
   technique: string;
   weight: number;
