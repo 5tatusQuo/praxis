@@ -1,0 +1,24 @@
+{
+  "@timestamp": "2026-01-01T00:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "scan.exe",
+    "pe": {
+      "original_file_name": "net1.exe"
+    },
+    "command_line": "scan.exe\tVIEW\t/domain:LAB"
+  }
+}

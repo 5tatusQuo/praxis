@@ -18,3 +18,7 @@ platforms:
       hash: 925ff46f7e26d8089f396cebbc2bb1c340900c9cb0369ad0d5bd32febfe0bc7b
       tuning: null
       version: 1
+    PRX-000012:
+      hash: 8d406bb6879ce23be18961125db1f95273a61888432bff01dba604f7eb3fec98
+      tuning: null
+      version: 1
