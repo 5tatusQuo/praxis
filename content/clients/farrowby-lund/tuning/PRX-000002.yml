@@ -1,0 +1,83 @@
+rule: PRX-000002
+reason: The backup agent deletes the oldest shadow copies on drives D and E. Limit the exclusion
+  to both executable paths and the observed commands.
+evidence:
+- alert:3d322425aa42
+- alert:10a1163cd2c1
+author: ai:tuner
+expires: '2027-02-19'
+exclude:
+- field: process.parent.executable
+  op: equals
+  value: C:\Program Files\Backup\agent.exe
+  also:
+  - field: process.executable
+    op: equals
+    value: C:\Windows\System32\vssadmin.exe
+  - field: process.command_line
+    op: equals
+    value: 'vssadmin.exe delete shadows /for=E: /oldest /quiet'
+- field: process.parent.executable
+  op: equals
+  value: C:\Program Files\Backup\agent.exe
+  also:
+  - field: process.executable
+    op: equals
+    value: C:\Windows\System32\vssadmin.exe
+  - field: process.command_line
+    op: in
+    value:
+    - 'vssadmin.exe delete shadows /for=E: /oldest /quiet'
+    - 'vssadmin.exe delete shadows /for=D: /oldest /quiet'
+examples:
+- event:
+    category:
+    - process
+    type:
+    - start
+  host:
+    os:
+      type: windows
+  process:
+    name: vssadmin.exe
+    executable: C:\Windows\System32\vssadmin.exe
+    command_line: 'vssadmin.exe delete shadows /for=E: /oldest /quiet'
+    pe:
+      original_file_name: VSSADMIN.EXE
+    parent:
+      name: agent.exe
+      executable: C:\Program Files\Backup\agent.exe
+- event:
+    category:
+    - process
+    type:
+    - start
+  host:
+    os:
+      type: windows
+  process:
+    name: vssadmin.exe
+    executable: C:\Windows\System32\vssadmin.exe
+    command_line: 'vssadmin.exe delete shadows /for=E: /oldest /quiet'
+    pe:
+      original_file_name: VSSADMIN.EXE
+    parent:
+      name: agent.exe
+      executable: C:\Program Files\Backup\agent.exe
+- event:
+    category:
+    - process
+    type:
+    - start
+  host:
+    os:
+      type: windows
+  process:
+    name: vssadmin.exe
+    executable: C:\Windows\System32\vssadmin.exe
+    command_line: 'vssadmin.exe delete shadows /for=D: /oldest /quiet'
+    pe:
+      original_file_name: VSSADMIN.EXE
+    parent:
+      name: agent.exe
+      executable: C:\Program Files\Backup\agent.exe
