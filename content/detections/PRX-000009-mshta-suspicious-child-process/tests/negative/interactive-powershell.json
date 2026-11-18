@@ -1,0 +1,27 @@
+{
+  "@timestamp": "2026-11-01T11:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "powershell.exe",
+    "pe": {
+      "original_file_name": "PowerShell.EXE"
+    },
+    "command_line": "powershell.exe Get-Date",
+    "parent": {
+      "name": "explorer.exe"
+    }
+  }
+}

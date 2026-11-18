@@ -1,0 +1,40 @@
+id: PRX-000010
+name: Fsutil journal changes or file zeroing
+intent: Detects journal changes or file zeroing that can remove forensic evidence or destroy
+  file contents.
+version: 1
+lifecycle: staged
+owner: ai:platform-engineer-elastic
+severity: high
+risk_score: 73
+attack:
+- technique: T1070
+  tactic: TA0005
+- technique: T1485
+  tactic: TA0040
+data_components:
+- Process Creation
+- Command Execution
+pyramid_tier: ttp
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.process-*
+    - logs-windows.sysmon_operational-*
+provenance:
+  source: sigmahq
+  upstream_id: add64136-62e5-48ea-807e-88638d02df1e
+  upstream_commit: 088855f00b65a19e345b09c1619272b44f92fea4
+  upstream_author: Ecco, E.M. Anhaus, oscd.community
+  licence: DRL-1.1
+references:
+- https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/fsutil-usn
+- https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/fsutil-file
+- https://github.com/SigmaHQ/sigma/blob/088855f00b65a19e345b09c1619272b44f92fea4/rules/windows/process_creation/proc_creation_win_fsutil_usage.yml
+- https://github.com/redcanaryco/atomic-red-team/blob/f339e7da7d05f6057fdfcdd3742bfcf365fee2a9/atomics/T1070/T1070.md
+- https://eqllib.readthedocs.io/en/latest/analytics/c91f422a-5214-4b17-8664-c5fcf115c0a2.html
+- https://github.com/albertzsigovits/malware-notes/blob/558898932c1579ff589290092a2c8febefc3a4c9/Ransomware/Lockbit.md
+- https://blog.cluster25.duskrise.com/2023/05/22/back-in-black-blackbyte-nt
+false_positives:
+- Administrators can delete or resize a journal during approved disk maintenance.
+- Applications can zero file contents during approved storage operations.

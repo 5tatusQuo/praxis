@@ -1,0 +1,24 @@
+{
+  "@timestamp": "2026-11-01T10:03:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "payload.exe",
+    "executable": "D:\\Users\\alice\\AppData\\Local\\payload.exe",
+    "parent": {
+      "name": "mshta.exe"
+    }
+  }
+}

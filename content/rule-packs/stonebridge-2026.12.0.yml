@@ -1,0 +1,140 @@
+id: stonebridge-2026.12.0
+client: stonebridge
+month: 2026-12
+created: '2026-11-18'
+status: proposed
+budget: 3
+snapshot:
+  taken_at: '2026-11-18T08:08:11Z'
+  summary:
+    rules:
+      blind: 0
+      shadow: 0
+      healthy: 4
+      disabled: 0
+    covered: 8
+    blind_rule: 0
+    techniques: 706
+    visible_pct: 69.69
+    coverage_pct: 1.13
+    detection_gap: 484
+    visibility_gap: 214
+    weighted_coverage_pct: 6.35
+brief:
+  headline: This pack detects explicit credentials for remote shares, suspicious script execution, and
+    commands that can remove evidence.
+  adds:
+  - Detection of explicit credentials for remote shares.
+  - Detection of suspicious processes that HTML applications start.
+  - Detection of journal changes and file clearing.
+  leaves_open:
+  - Remote execution through scheduled tasks remains open.
+  - Command execution through remote desktop sessions remains open.
+  - Remote system discovery remains open.
+picks:
+- detection: PRX-000008
+  name: Explicit password in net share connection
+  candidate: sigma:d4498716-1d52-438f-8084-4a603157d131
+  technique: T1078
+  weight: 1.0
+  why: It targets explicit credentials for remote shares and checks executable metadata to detect renamed
+    copies.
+  caveat: The rule detects credential use, not proof that an attacker controls the account.
+  justification: ''
+  changed: Replaced loose string matching with password token checks to exclude prompts and cover renamed
+    binaries, quoted values, alternate argument order, and trailing spaces.
+  quality:
+    score: 84
+    passes: true
+    tier: tool
+    parts:
+      specificity: 30
+      pyramid: 15
+      durability: 10
+      maturity: 9
+      overlap: 10
+      backtest: 10
+    closest_existing: PRX-000001
+    closest_similarity: 0.15
+    flags: []
+    backtest:
+      hits: 0
+      days: 30
+  lab:
+    passed: true
+    cases: 11
+- detection: PRX-000009
+  name: Suspicious child process from Mshta
+  candidate: elastic:48e60a73-08e8-42aa-8f51-4ed92c64dbea
+  technique: T1059.001
+  weight: 0.8
+  why: It uses the parent process to distinguish suspicious execution from general shell activity without
+    requiring a known payload.
+  caveat: ''
+  justification: ''
+  changed: Added original PE names, more interpreters, and profile paths on other drives, and removed
+    command-line requirements and broad exclusions to reduce detection gaps.
+  quality:
+    score: 84
+    passes: true
+    tier: tool
+    parts:
+      specificity: 30
+      pyramid: 15
+      durability: 10
+      maturity: 9
+      overlap: 10
+      backtest: 10
+    closest_existing: PRX-000006
+    closest_similarity: 0.16
+    flags: []
+    backtest:
+      hits: 0
+      days: 30
+  lab:
+    passed: true
+    cases: 13
+- detection: PRX-000010
+  name: Fsutil journal changes or file zeroing
+  candidate: sigma:add64136-62e5-48ea-807e-88638d02df1e
+  technique: T1070
+  weight: 0.8
+  why: It detects commands that change journals or clear file contents without depending on a specific
+    malware family.
+  caveat: Administrators can use these commands for maintenance.
+  justification: ''
+  changed: Restricted matching to Windows process starts and relevant subcommands, retained renamed binary
+    coverage, and made PE metadata optional to reduce false matches.
+  quality:
+    score: 94
+    passes: true
+    tier: ttp
+    parts:
+      specificity: 30
+      pyramid: 25
+      durability: 10
+      maturity: 9
+      overlap: 10
+      backtest: 10
+    closest_existing: PRX-000008
+    closest_similarity: 0.15
+    flags: []
+    backtest:
+      hits: 0
+      days: 30
+  lab:
+    passed: true
+    cases: 8
+rejected: []
+review:
+  verdict: pass
+  summary: The queries match the stated scope, and the README files explain material limits. No issue
+    requires a merge decision.
+  comments: []
+agents:
+  model: gpt-6.1-sol
+usage:
+  llm_calls: 35
+  input_tokens: 298932
+  output_tokens: 15880
+  tool_calls: 58

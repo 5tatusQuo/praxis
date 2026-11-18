@@ -1,0 +1,36 @@
+id: PRX-000009
+name: Suspicious child process from Mshta
+intent: Detects Mshta starting interpreters, system utilities, or executables in user profiles,
+  which can indicate script execution through a trusted Windows binary.
+version: 1
+lifecycle: staged
+owner: ai:platform-engineer-elastic
+severity: high
+risk_score: 73
+attack:
+- technique: T1059.001
+  tactic: TA0002
+- technique: T1059.003
+  tactic: TA0002
+- technique: T1218.005
+  tactic: TA0005
+data_components:
+- Process Creation
+pyramid_tier: tool
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.process-*
+    - logs-m365_defender.event-*
+    - logs-windows.sysmon_operational-*
+provenance:
+  source: elastic
+  upstream_id: 48e60a73-08e8-42aa-8f51-4ed92c64dbea
+  upstream_commit: c678d34edbaa6a98db56ab575334b6ad233422a0
+  upstream_author: Elastic
+  licence: Elastic-2.0
+references:
+- https://lolbas-project.github.io/lolbas/Binaries/Mshta/
+false_positives:
+- Vendor HTA applications can start system utilities during support or installation. Confirm
+  the exact process chain before adding an exception.

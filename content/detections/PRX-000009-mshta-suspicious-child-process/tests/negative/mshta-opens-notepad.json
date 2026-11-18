@@ -1,0 +1,27 @@
+{
+  "@timestamp": "2026-11-01T11:01:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "notepad.exe",
+    "executable": "C:\\Windows\\System32\\notepad.exe",
+    "pe": {
+      "original_file_name": "NOTEPAD.EXE"
+    },
+    "parent": {
+      "name": "mshta.exe"
+    }
+  }
+}

@@ -1,0 +1,7 @@
+process where host.os.type == "windows" and event.type == "start" and
+  (process.parent.name : "mshta.exe" or ?process.parent.pe.original_file_name : "MSHTA.EXE") and
+  (
+    process.name : ("cmd.exe", "powershell.exe", "pwsh.exe", "certutil.exe", "bitsadmin.exe", "curl.exe", "msiexec.exe", "schtasks.exe", "reg.exe", "wscript.exe", "cscript.exe", "rundll32.exe") or
+    ?process.pe.original_file_name : ("Cmd.Exe", "PowerShell.EXE", "pwsh.dll", "pwsh.exe", "CertUtil.exe", "bitsadmin.exe", "curl.exe", "msiexec.exe", "schtasks.exe", "reg.exe", "wscript.exe", "cscript.exe", "RUNDLL32.EXE") or
+    ?process.executable : ("?:\\Users\\*\\*.exe", "\\Device\\HarddiskVolume*\\Users\\*\\*.exe")
+  )

@@ -1,0 +1,24 @@
+{
+  "@timestamp": "2026-11-01T11:02:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "notepad.exe",
+    "command_line": "notepad.exe C:\\docs\\mshta.exe-powershell.exe.txt",
+    "parent": {
+      "name": "explorer.exe"
+    }
+  }
+}
