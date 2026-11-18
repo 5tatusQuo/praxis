@@ -1553,7 +1553,7 @@ def change_close(
 @change_app.command("merge")
 def change_merge(
     number: int,
-    wait: Annotated[int, typer.Option(help="Seconds to wait for checks and the deploy.")] = 900,
+    wait: Annotated[int, typer.Option(help="Seconds to wait for checks and the deploy.")] = 1500,
     as_json: Annotated[bool, typer.Option("--json")] = False,
 ) -> None:
     """Wait for a pull request's checks, merge it, and wait for the deploy to finish.

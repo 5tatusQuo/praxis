@@ -315,7 +315,12 @@ def _facts(toolbox: Toolbox, client_id: str, detection_id: str) -> dict[str, Any
         techniques=[r.technique for r in bundle.meta.attack],
         title=bundle.meta.name,
     )
-    return {"tests": tests, "quality": profile, "name": bundle.meta.name}
+    return {
+        "tests": tests,
+        "quality": profile,
+        "name": bundle.meta.name,
+        "techniques": [r.technique for r in bundle.meta.attack],
+    }
 
 
 def plan_pack(
@@ -349,6 +354,26 @@ def plan_pack(
         for c in ((earlier or {}).get("review") or {}).get("comments", [])
         if c.get("severity") == "blocker"
     ]
+    # Catalog candidates behind a detection that review blocked: never picked again for
+    # this pack. The list is carried from proposal to proposal.
+    blocked_ids = {
+        c.get("detection_id")
+        for c in ((earlier or {}).get("review") or {}).get("comments", [])
+        if c.get("severity") == "blocker"
+    }
+    failed_candidates: list[str] = sorted(
+        set((earlier or {}).get("failed_candidates", []))
+        | {
+            p["candidate"]
+            for p in (earlier or {}).get("picks", [])
+            if blocked_ids and (p["detection"] in blocked_ids or blocked_ids <= {None, ""})
+        }
+        | {
+            r["candidate"]
+            for r in (earlier or {}).get("rejected", [])
+            if "overstate coverage" in r.get("reason", "")
+        }
+    )
     lessons = (
         " An earlier proposal of this pack was failed by review for these reasons; do not "
         "repeat them: " + " | ".join(earlier_blockers)
@@ -365,6 +390,12 @@ def plan_pack(
         task=(
             f"Client: {client_id} (sector: {client.sector}). Month: {month}. "
             f"Budget: at most {budget} detections. Assemble this month's rule pack."
+            + (
+                " Do not pick these catalog candidates; an earlier proposal with them failed "
+                "review: " + ", ".join(failed_candidates) + "." + lessons
+                if failed_candidates
+                else ""
+            )
         ),
         toolbox=curator_box,
         allowed=CURATOR_TOOLS,
@@ -376,7 +407,13 @@ def plan_pack(
             for p in proposal["picks"]
             if (c := db.get_candidate(conn, p["candidate_id"])) is not None
         }
-    accepted, rejected = check_picks(proposal["picks"], candidates, gap_weights, budget)
+    fresh = [p for p in proposal["picks"] if p["candidate_id"] not in failed_candidates]
+    accepted, rejected = check_picks(fresh, candidates, gap_weights, budget)
+    rejected += [
+        {"candidate": p["candidate_id"], "reason": "failed review in an earlier proposal"}
+        for p in proposal["picks"]
+        if p["candidate_id"] in failed_candidates
+    ]
     trail.recorder("code:guardrails")(
         "check_picks",
         {"proposed": len(proposal["picks"]), "accepted": len(accepted), "rejected": rejected},
@@ -410,9 +447,20 @@ def plan_pack(
             answer = {"detection_id": "", "changed": ""}
         detection_id = answer["detection_id"]
         facts = _facts(box, client_id, detection_id) if detection_id in box.created else None
-        if facts is None or not facts["tests"]["passed"]:
+        # The pick claims to close one technique. The written detection must say the same,
+        # or the pack would count coverage that the rule does not give.
+        mapped = facts is not None and any(
+            t == pick["technique"] or t.split(".")[0] == pick["technique"]
+            for t in facts["techniques"]
+        )
+        if facts is None or not facts["tests"]["passed"] or not mapped:
             reason = (
-                "the engineer did not produce a detection" if facts is None else "tests do not pass"
+                "the engineer did not produce a detection"
+                if facts is None
+                else "tests do not pass"
+                if not facts["tests"]["passed"]
+                else f"picked to close {pick['technique']}, but the written detection maps to "
+                f"{', '.join(facts['techniques'])}: it would overstate coverage"
             )
             rejected.append({"candidate": pick["candidate_id"], "reason": reason})
             for created in box.created:
@@ -463,6 +511,7 @@ def plan_pack(
         "picks": picks,
         "rejected": rejected,
         "review": None,
+        "failed_candidates": failed_candidates,
         "agents": {"model": llm.name},
     }
 

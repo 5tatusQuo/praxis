@@ -131,7 +131,11 @@ def show(path: Path, number: int, with_body: bool = True) -> dict[str, Any]:
         raise GitError(f"there is no pull request {number}")
     view["opened_by_an_agent"] = view["headRefName"].startswith("ai/")
     view["files"] = [f["path"] for f in view.get("files", [])]
-    view["checks"] = {c["name"]: c["bucket"] for c in _checks(root, number)}
+    view["checks"] = {c["name"]: c["bucket"] for c in _checks(root, number)} or (
+        "none reported yet; they start within a minute, and ./px change merge waits for them"
+        if view["state"] == "OPEN"
+        else {}
+    )
     return view
 
 
@@ -148,13 +152,19 @@ def close(path: Path, number: int, reason: str) -> dict[str, Any]:
     return {"pull_request": number, "closed": True}
 
 
-def merge(path: Path, number: int, wait: int = 900) -> dict[str, Any]:
+def merge(path: Path, number: int, wait: int = 1500) -> dict[str, Any]:
     """Wait for checks, merge, then wait for the deploy the merge triggers."""
     root = repo_root(path)
     deadline = time.monotonic() + wait
     view = _json(["gh", "pr", "view", str(number), "--json", "state,headRefName,baseRefName"], root)
     if not view:
         raise GitError(f"there is no pull request {number}")
+    if view["state"] == "MERGED":
+        # Already merged (an earlier run stopped waiting): report its deploy.
+        merged = _json(["gh", "pr", "view", str(number), "--json", "mergeCommit"], root)
+        sha = merged["mergeCommit"]["oid"]
+        result = {"ok": True, "merged": True, "commit": sha[:7], "note": "was already merged"}
+        return _await_deploy(root, sha, deadline, result)
     if view["state"] != "OPEN":
         raise GitError(f"pull request {number} is {view['state'].lower()}, not open")
     if view["baseRefName"] != MAIN:
@@ -193,7 +203,13 @@ def merge(path: Path, number: int, wait: int = 900) -> dict[str, Any]:
     _run(["git", "fetch", "-q", "origin", MAIN], root)
     sha = _run(["git", "rev-parse", f"origin/{MAIN}"], root)
     result: dict[str, Any] = {"ok": True, "merged": True, "commit": sha[:7], "checks": summary}
+    return _await_deploy(root, sha, deadline, result, number)
 
+
+def _await_deploy(
+    root: Path, sha: str, deadline: float, result: dict[str, Any], number: int | None = None
+) -> dict[str, Any]:
+    """Wait for the deploy that a merge commit triggers, and add its outcome to `result`."""
     run = None
     for _ in range(10):  # the deploy run appears a few seconds after the merge, if at all
         runs = _json(
@@ -241,4 +257,9 @@ def merge(path: Path, number: int, wait: int = 900) -> dict[str, Any]:
         "rules": lines,
     }
     result["ok"] = run.get("conclusion") == "success"
+    if run["status"] != "completed":
+        result["next"] = (
+            "The change is merged; its deploy has not finished (the runner may be busy). "
+            "Run the same ./px change merge command again to wait for it and see its result."
+        )
     return result

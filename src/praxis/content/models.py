@@ -206,6 +206,9 @@ class RulePack(Strict):
     picks: list[dict]
     rejected: list[dict] = []
     review: dict | None = None
+    failed_candidates: list[str] = Field(
+        default=[], description="Catalog candidates that failed review in earlier proposals."
+    )
     agents: dict = {}
     usage: dict = {}
     promoted: date | None = None
