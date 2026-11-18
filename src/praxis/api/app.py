@@ -120,6 +120,20 @@ def pack(pack_id: str, conn: Conn) -> dict:
     return found
 
 
+@app.get("/api/hunts", dependencies=secured)
+def hunts(conn: Conn) -> list[dict]:
+    """Threat-driven hunts, newest first."""
+    return db.list_hunts(conn)
+
+
+@app.get("/api/hunts/{hunt_id}", dependencies=secured)
+def hunt(hunt_id: str, conn: Conn) -> dict:
+    found = db.get_hunt(conn, hunt_id)
+    if found is None:
+        raise HTTPException(status_code=404, detail=f"no hunt {hunt_id}")
+    return found
+
+
 @app.get("/api/audit", dependencies=secured)
 def audit(conn: Conn, client_id: str | None = None, limit: int = 200) -> list[dict]:
     """Agent prompts, tool calls and guardrail decisions, newest first."""

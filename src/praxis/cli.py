@@ -26,9 +26,26 @@ console = Console()
 err = Console(stderr=True)
 
 
+BANNER = r"""
+   ____        ____
+  /::::\______/ ** \     P R A X I S
+  \::::/      \ ** /     theory into practice
+   ‾‾‾‾        ‾‾‾‾
+"""
+
+
 @app.callback()
 def _main() -> None:
     load_env_files()
+
+
+@app.command()
+def version() -> None:
+    """Show the PRAXIS version and the ATT&CK release it ships."""
+    from praxis import __version__, attack
+
+    console.print(f"[yellow]{BANNER}[/yellow]", highlight=False)
+    console.print(f"praxis {__version__} · ATT&CK {attack.version()}")
 
 
 def _repo(strict: bool = True):
@@ -559,6 +576,65 @@ def tune(
         )
         console.print(f"pull request: {url}")
     _store_run(None, trail, None)
+
+
+@app.command()
+def hunt(
+    prompt: str,
+    clients: Annotated[str | None, typer.Option(help="Comma-separated client ids.")] = None,
+    sector: Annotated[str | None, typer.Option(help="Fan out to every client in a sector.")] = None,
+    pr: Annotated[bool, typer.Option(help="Push the branch and open a pull request.")] = True,
+) -> None:
+    """The Hunt Planner turns a threat prompt into hypotheses and runs them read-only."""
+    from praxis.agents import gitops
+    from praxis.agents import hunt as hunts
+    from praxis.agents.llm import ClaudeLLM
+
+    repo = _repo()
+    content_dir = get_settings().content_dir
+    try:
+        scope = hunts.select_clients(repo, clients.split(",") if clients else None, sector)
+    except Exception as error:
+        err.print(f"[red]{error}[/red]")
+        raise typer.Exit(2) from error
+    root = gitops.repo_root(content_dir)
+    start = gitops.current_branch(root)
+    import re
+    from datetime import date
+
+    slug = re.sub(r"[^a-z0-9]+", "-", prompt.lower()).strip("-")[:40]
+    branch = f"ai/hunt-{date.today().isoformat()}-{slug}"
+    gitops.start_branch(root, branch)
+    try:
+        record, trail = hunts.run_hunt(
+            content_dir, prompt, scope, ClaudeLLM(), lambda m: console.print(f"[dim]{m}[/dim]")
+        )
+    except Exception as error:
+        gitops.abandon_branch(root, branch, start)
+        err.print(f"[red]hunt failed:[/red] {error}")
+        raise typer.Exit(1) from error
+    body = hunts.report(record)
+    console.print(body)
+    url = None
+    if pr:
+        url = gitops.open_pull_request(
+            root,
+            branch,
+            f"Hunt: {prompt[:60]}",
+            body + "\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+            f"Hunt record {record['id']} (ai:hunt-planner)\n\n"
+            "Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>",
+        )
+        console.print(f"pull request: {url}")
+    from praxis import db
+
+    try:
+        with db.connect() as conn:
+            db.migrate(conn)
+            db.save_hunt(conn, record, url)
+            db.save_audit(conn, trail.events)
+    except Exception as error:
+        err.print(f"[yellow]could not store the hunt in the database: {error}[/yellow]")
 
 
 @app.command()

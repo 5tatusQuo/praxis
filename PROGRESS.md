@@ -30,15 +30,47 @@ Gate: *first AI-curated pack merged after human review.*
 8. Dashboard: Rule packs, Pack review, Tuning studio (live impact preview), Audit.
 9. Gate run: the Curator proposes a pack for `acme`, CI passes, you review and merge.
 
+## Phase 4, built ahead while Phase 3 waits
+
+Gate: *v1.0 public release on GitHub.* Not attempted: v1.0 should not be
+tagged before the Phase 3 gate has really passed.
+
+Built and checked without a model:
+
+- **Hunt Planner** (`praxis hunt`), hunt records in `content/hunts/`, the
+  `attack_group` and `run_hunt_query` tools, Hunts pages in the dashboard.
+  Tested with the scripted model only; hit counts in a hunt record come from
+  the queries code actually ran.
+- **Brand**: the Praxis lens mark, app icon, CLI banner, `docs/brand`.
+- **Docs**: `docs/deploying.md`, `docs/agents.md`.
+- **Helm chart** (`deploy/helm/praxis`) and **Terraform for AWS**
+  (`deploy/terraform/aws`). Both pass lint and validate in CI. Neither has
+  been installed on a real cluster or applied to a real AWS account.
+- **Release workflow**: a version tag builds and publishes both images to
+  GitHub Container Registry with SBOM and provenance, then creates the release.
+  It has never run.
+
+Not done: the demo video (needs a person and a screen recording), cosign
+signatures, and signed commits on the content repo.
+
 ## Blocked on you
 
 1. **An Anthropic API key.** No credential is configured on this machine
    (`ANTHROPIC_API_KEY` is unset and the `ant` CLI is not installed). The agents
    have only run against a scripted stand-in so far; the first real model call
    has not happened, so expect small fixes on first contact.
+   The same applies to the Hunt Planner and the Tuner.
 2. **Your review.** The gate is "merged after human review": once the pack PR
    exists, a person has to read and merge it. I will not merge an AI-curated
    pack myself.
+
+3. **For Phase 4:** an AWS account if you want the Terraform module applied
+   and proven, and your go-ahead before I tag v1.0.
+4. **For Phase 5:** a Splunk licence or developer licence and a Microsoft
+   Sentinel workspace (an Azure subscription). Both are paid or licensed
+   accounts, so I have not started Phase 5.
+5. **Licence calls:** whether Elastic `detection-rules` (Elastic License 2.0)
+   and Splunk ESCU content may be ingested and their text redistributed.
 
 To run the gate once the key is set (`export ANTHROPIC_API_KEY=...`):
 
@@ -65,7 +97,8 @@ To run the gate once the key is set (`export ANTHROPIC_API_KEY=...`):
 ## Next
 
 - Phase 3 gate run (needs the key and your review).
-- Phase 4: Hunt Planner and hunt packs, brand and docs, Helm and Terraform, v1.0 release.
+- Phase 4 gate: prove the Hunt Planner with a real model, then tag v1.0 with your go-ahead.
+- Phase 5: Splunk and Sentinel platform implementations (needs the accounts above).
 
 ## Decisions
 

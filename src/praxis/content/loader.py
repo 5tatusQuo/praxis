@@ -14,6 +14,7 @@ from praxis.content.models import (
     ContentPack,
     DataSourceNote,
     Detection,
+    Hunt,
     LabTelemetry,
     RulePack,
     ThreatProfile,
@@ -96,6 +97,7 @@ class ContentRepo:
         self.threat_profiles: dict[str, ThreatProfile] = {}
         self.lab_telemetry: dict[str, LabTelemetry] = {}
         self.rule_packs: dict[str, RulePack] = {}
+        self.hunts: dict[str, Hunt] = {}
         self.issues: list[Issue] = []
         self._implementation_files = implementation_files
         self._load()
@@ -148,6 +150,13 @@ class ContentRepo:
                 if pick.get("detection") not in self.detections:
                     self.issues.append(Issue(path, f"unknown detection {pick.get('detection')}"))
             self.rule_packs[pack.id] = pack
+        for path in sorted((self.root / "hunts").glob("*.yml")):
+            hunt = _load_yaml(path, Hunt, self.issues)
+            if hunt is None:
+                continue
+            if hunt.id != path.stem:
+                self.issues.append(Issue(path, "hunt id must match the file name"))
+            self.hunts[hunt.id] = hunt
         self._check_references()
 
     def _load_datamap_note(self, path: Path) -> None:

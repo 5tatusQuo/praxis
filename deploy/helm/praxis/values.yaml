@@ -1,0 +1,49 @@
+# PRAXIS core on Kubernetes. This is Connect mode: bring your own SIEM.
+# The services map one-to-one to the Docker Compose `core` profile.
+
+image:
+  registry: ghcr.io/5tatusquo
+  tag: ""              # defaults to the chart's appVersion
+  pullPolicy: IfNotPresent
+
+api:
+  replicas: 1
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 512Mi }
+  # Name of a Secret with lab and read keys for your SIEM connections
+  # (PRAXIS_ELASTIC_<NAME>_READ_API_KEY_<CLIENT>, ...). Never put deploy keys here.
+  connectionSecret: ""
+  # Extra environment, e.g. PRAXIS_ELASTIC_PROD_ES_URL.
+  env: {}
+  # A PersistentVolumeClaim holding the content repo checkout, mounted read-only.
+  contentClaim: ""
+
+web:
+  replicas: 1
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 384Mi }
+
+# Secret with keys `api-token` and `database-url`. Created for you when
+# `secrets.create` is true (development only); otherwise supply your own,
+# for example from External Secrets or your cloud's secret manager.
+secrets:
+  create: false
+  name: praxis
+  apiToken: ""
+  databaseUrl: ""
+
+# In-cluster Postgres for evaluation. Use a managed database in production
+# and set secrets.databaseUrl instead.
+postgres:
+  enabled: true
+  image: pgvector/pgvector:pg16
+  storage: 10Gi
+  password: ""         # required when enabled and secrets.create is true
+
+ingress:
+  enabled: false
+  className: ""
+  host: praxis.example.com
+  tlsSecretName: ""
