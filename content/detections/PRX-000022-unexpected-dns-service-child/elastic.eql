@@ -1,0 +1,12 @@
+process where host.os.type == "windows" and event.type == "start" and
+  (process.parent.name : "dns.exe" or ?process.parent.pe.original_file_name : "dns.exe") and
+  (?process.executable == null or not ?process.executable : (
+    "?:\\Windows\\System32\\conhost.exe",
+    "?:\\Windows\\System32\\dns.exe",
+    "\\Device\\HarddiskVolume*\\Windows\\System32\\conhost.exe",
+    "\\Device\\HarddiskVolume*\\Windows\\System32\\dns.exe"
+  )) and
+  (?process.parent.executable == null or not ?process.parent.executable : (
+    "?:\\Program Files\\ReasonLabs\\DNS\\ui\\DNS.exe",
+    "\\Device\\HarddiskVolume*\\Program Files\\ReasonLabs\\DNS\\ui\\DNS.exe"
+  ))

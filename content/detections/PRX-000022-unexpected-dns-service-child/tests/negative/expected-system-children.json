@@ -1,0 +1,48 @@
+[
+  {
+    "@timestamp": "2026-11-01T11:00:00Z",
+    "event": {
+      "category": [
+        "process"
+      ],
+      "type": [
+        "start"
+      ]
+    },
+    "host": {
+      "os": {
+        "type": "windows"
+      }
+    },
+    "process": {
+      "name": "conhost.exe",
+      "executable": "C:\\Windows\\System32\\conhost.exe",
+      "parent": {
+        "name": "dns.exe"
+      }
+    }
+  },
+  {
+    "@timestamp": "2026-11-01T11:01:00Z",
+    "event": {
+      "category": [
+        "process"
+      ],
+      "type": [
+        "start"
+      ]
+    },
+    "host": {
+      "os": {
+        "type": "windows"
+      }
+    },
+    "process": {
+      "name": "dns.exe",
+      "executable": "C:\\Windows\\System32\\dns.exe",
+      "parent": {
+        "name": "dns.exe"
+      }
+    }
+  }
+]

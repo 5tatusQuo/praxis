@@ -1,0 +1,33 @@
+id: PRX-000021
+name: Winget package source addition
+intent: Detects Winget source addition, which can prepare package retrieval from an untrusted
+  source.
+version: 1
+lifecycle: staged
+owner: ai:platform-engineer-elastic
+severity: low
+risk_score: 21
+attack:
+- technique: T1105
+  tactic: TA0011
+data_components:
+- Process Creation
+pyramid_tier: tool
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.process-*
+    - logs-windows.sysmon_operational-*
+provenance:
+  source: sigmahq
+  upstream_id: 05ebafc8-7aa2-4bcd-a269-2aec93f9e842
+  upstream_commit: 088855f00b65a19e345b09c1619272b44f92fea4
+  upstream_author: Nasreddine Bencherchali (Nextron Systems)
+  licence: DRL-1.1
+references:
+- https://learn.microsoft.com/en-us/windows/package-manager/winget/source
+- https://attack.mitre.org/techniques/T1105/
+- https://web.archive.org/web/20250828100901/https://github.com/nasbench/Misc-Research/tree/b9596e8109dcdb16ec353f316678927e507a5b8d/LOLBINs/Winget
+false_positives:
+- Administrators can add approved package sources. Confirm source ownership and change approval
+  before an exception.

@@ -1,0 +1,23 @@
+{
+  "@timestamp": "2026-11-01T11:07:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "dns.exe",
+    "executable": "C:\\Windows\\System32\\dns.exe",
+    "parent": {
+      "name": "services.exe"
+    }
+  }
+}

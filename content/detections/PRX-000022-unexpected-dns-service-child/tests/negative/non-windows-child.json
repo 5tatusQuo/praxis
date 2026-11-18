@@ -1,0 +1,22 @@
+{
+  "@timestamp": "2026-11-01T11:09:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "linux"
+    }
+  },
+  "process": {
+    "name": "cmd.exe",
+    "parent": {
+      "name": "dns.exe"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "@timestamp": "2026-01-01T00:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "utility.exe",
+    "pe": {
+      "original_file_name": "WinGet.exe"
+    },
+    "command_line": "\"C:\\Tools\\utility.exe\"\t\"SOURCE\"\t\"ADD\"\t-n Example -a https://packages.example.test/index"
+  }
+}
