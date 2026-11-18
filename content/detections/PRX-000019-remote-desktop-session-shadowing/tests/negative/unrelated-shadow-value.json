@@ -1,0 +1,25 @@
+{
+  "@timestamp": "2026-01-01T00:01:03Z",
+  "event": {
+    "category": [
+      "registry"
+    ],
+    "type": [
+      "change"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "registry": {
+    "path": "HKLM\\Software\\Example\\Shadow",
+    "value": "Shadow",
+    "data": {
+      "strings": [
+        "2"
+      ]
+    }
+  }
+}

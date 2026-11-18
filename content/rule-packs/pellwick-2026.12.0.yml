@@ -1,0 +1,110 @@
+id: pellwick-2026.12.0
+client: pellwick
+month: 2026-12
+created: '2026-11-19'
+status: proposed
+budget: 2
+snapshot:
+  taken_at: '2026-11-18T13:51:08Z'
+  summary:
+    rules:
+      blind: 0
+      shadow: 0
+      healthy: 4
+      disabled: 0
+    covered: 8
+    blind_rule: 0
+    techniques: 706
+    visible_pct: 74.93
+    coverage_pct: 1.13
+    detection_gap: 521
+    visibility_gap: 177
+    weighted_coverage_pct: 5.5
+brief:
+  headline: This pack detects suspicious execution from web servers and remote desktop shadowing without
+    relying on attacker tool names.
+  adds:
+  - Detects shells and administrative utilities started by web servers.
+  - Detects shadowing policy changes and active session helpers.
+  leaves_open:
+  - Remote task creation remains uncovered.
+  - Account misuse remains uncovered.
+  - General script execution remains uncovered.
+picks:
+- detection: PRX-000018
+  name: Suspicious utility started by a web server
+  candidate: sigma:8202070f-edeb-4d31-a010-a26c72ac5600
+  technique: T1190
+  weight: 0.833
+  why: It detects suspicious child processes across several web servers instead of targeting one exploit
+    or requiring file artifacts.
+  caveat: Use the scored query that makes process.parent.command_line optional.
+  justification: ''
+  changed: Added process start checks, original PE names, and optional fields, and removed product exceptions
+    to detect renamed binaries without trusting command strings.
+  quality:
+    score: 94
+    passes: true
+    tier: ttp
+    parts:
+      specificity: 30
+      pyramid: 25
+      durability: 10
+      maturity: 9
+      overlap: 10
+      backtest: 10
+    closest_existing: PRX-000009
+    closest_similarity: 0.21
+    flags: []
+    backtest:
+      hits: 0
+      days: 30
+  lab:
+    passed: true
+    cases: 15
+- detection: PRX-000019
+  name: Potential Remote Desktop Shadowing Activity
+  candidate: elastic:c57f8579-e2a5-4804-847f-f2732edc5156
+  technique: T1021.001
+  weight: 0.667
+  why: It detects shadowing through policy changes and session helpers instead of duplicating existing
+    rules for remote desktop configuration.
+  caveat: Use the scored query with optional process.args, which cannot match the client-side branch without
+    that field.
+  justification: ''
+  changed: Added binary identity alternatives and optional fields to handle renamed binaries and missing
+    metadata, and removed the redundant registry value check.
+  quality:
+    score: 88
+    passes: true
+    tier: ttp
+    parts:
+      specificity: 30
+      pyramid: 25
+      durability: 10
+      maturity: 9
+      overlap: 4
+      backtest: 10
+    closest_existing: PRX-000008
+    closest_similarity: 0.08
+    flags:
+    - 'crowded: 2 rules already on this technique'
+    backtest:
+      hits: 0
+      days: 30
+  lab:
+    passed: true
+    cases: 21
+rejected: []
+review:
+  verdict: pass
+  summary: The queries support the stated scope and use distinct behavior. The README files explain the
+    main limitations, and the checks identify no merge blockers.
+  comments: []
+agents:
+  model: gpt-6.1-sol
+usage:
+  llm_calls: 28
+  input_tokens: 369026
+  output_tokens: 13346
+  tool_calls: 46

@@ -1,0 +1,23 @@
+{
+  "@timestamp": "2026-11-01T10:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "image-converter.exe",
+    "command_line": "image-converter.exe cmd.exe powershell.exe",
+    "parent": {
+      "name": "w3wp.exe"
+    }
+  }
+}

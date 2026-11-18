@@ -1,0 +1,40 @@
+id: PRX-000019
+name: Potential Remote Desktop Shadowing Activity
+intent: Detects shadowing policy changes or session processes that can let an attacker observe
+  or control another user's desktop.
+version: 1
+lifecycle: staged
+owner: ai:platform-engineer-elastic
+severity: high
+risk_score: 73
+attack:
+- technique: T1021.001
+  tactic: TA0008
+- technique: T1563.002
+  tactic: TA0008
+- technique: T1113
+  tactic: TA0009
+data_components:
+- Process Creation
+- Windows Registry Key Modification
+pyramid_tier: ttp
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.process-*
+    - logs-endpoint.events.registry-*
+    - logs-windows.sysmon_operational-*
+    - logs-m365_defender.event-*
+provenance:
+  source: elastic
+  upstream_id: c57f8579-e2a5-4804-847f-f2732edc5156
+  upstream_commit: c678d34edbaa6a98db56ab575334b6ad233422a0
+  upstream_author: Elastic
+  licence: Elastic-2.0
+references:
+- https://github.com/elastic/detection-rules/blob/c678d34edbaa6a98db56ab575334b6ad233422a0/rules/windows/lateral_movement_evasion_rdp_shadowing.toml
+- https://blog.bitsadmin.com/spying-on-users-using-rdp-shadowing
+- https://swarm.ptsecurity.com/remote-desktop-services-shadowing/
+false_positives:
+- Authorized support sessions and training can use desktop shadowing.
+- Approved policy changes can enable desktop shadowing.

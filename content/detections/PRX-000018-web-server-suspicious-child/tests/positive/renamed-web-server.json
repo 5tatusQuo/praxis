@@ -1,0 +1,25 @@
+{
+  "@timestamp": "2026-11-01T10:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "powershell.exe",
+    "parent": {
+      "name": "worker.exe",
+      "pe": {
+        "original_file_name": "w3wp.exe"
+      }
+    }
+  }
+}
