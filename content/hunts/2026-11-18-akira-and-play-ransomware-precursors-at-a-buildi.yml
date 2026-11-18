@@ -1,0 +1,85 @@
+id: 2026-11-18-akira-and-play-ransomware-precursors-at-a-buildi
+prompt: 'Akira and Play ransomware precursors at a building contractor: remote services lateral movement,
+  credential dumping and shadow copy deletion on Windows endpoints'
+created: '2026-11-18'
+clients:
+- harlowmere
+summary: The hunt found shadow deletion samples consistent with backup maintenance, not proof of ransomware.
+  Missing logon types prevented RDP session classification. Missing file events prevented transfer checks.
+  The results do not establish actor attribution.
+hypotheses:
+- title: Remote service commands support lateral movement
+  technique: T1021.002
+  rationale: Play uses remote services. Remote service creation and execution can expose lateral movement
+    beyond the existing remote execution coverage.
+  query: 'process where host.os.type == "windows" and event.type == "start" and ((process.name : "sc.exe"
+    and process.command_line : "*\\\\*" and process.command_line : ("* create *", "* start *")) or process.name
+    : "PSEXESVC.exe" or process.parent.name : "PSEXESVC.exe")'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: The query found no matching activity. Renamed service executables remain outside this check.
+    Review approved remote administration before detection use.
+  durable: true
+  results:
+    harlowmere:
+      hits: 0
+      days: 30
+  tested: true
+- title: Dump utilities target LSASS memory
+  technique: T1003.001
+  rationale: Play dumps credentials. This check adds a dump utility path to the existing DLL-based coverage.
+  query: 'process where host.os.type == "windows" and event.type == "start" and ((process.name : "*procdump*.exe"
+    and process.command_line : "*lsass*") or (process.name : "rundll32.exe" and process.command_line :
+    "*comsvcs*" and process.command_line : "*MiniDump*"))'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: The query found no matching commands. Direct memory access remains outside this check. Extend
+    the existing detection instead of duplicating its DLL branch.
+  durable: true
+  results:
+    harlowmere:
+      hits: 0
+      days: 30
+  tested: true
+- title: Built-in tools delete shadow copies
+  technique: T1490
+  rationale: Shadow deletion tests the requested recovery disruption precursor. This check validates existing
+    coverage rather than proposing a duplicate detection.
+  query: 'process where host.os.type == "windows" and event.type == "start" and ((process.name : "vssadmin.exe"
+    and process.command_line : ("*delete*shadows*", "*resize*shadowstorage*")) or (process.name : "wmic.exe"
+    and process.command_line : "*shadowcopy*" and process.command_line : "*delete*") or (process.name
+    : ("powershell.exe", "pwsh.exe") and process.command_line : "*Win32_ShadowCopy*" and process.command_line
+    : ("*Delete*", "*Remove-WmiObject*", "*Remove-CimInstance*")))'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: Samples show a backup agent deleting the oldest shadow copy. Verify its signature, schedule,
+    and authorization before treating this activity as expected.
+  durable: false
+  results:
+    harlowmere:
+      hits: 34
+      days: 30
+  tested: true
+- title: RDP clients specify remote destinations
+  technique: T1021.001
+  rationale: Akira uses RDP. Explicit destination arguments can reveal remote connection attempts but
+    do not establish successful sessions.
+  query: 'process where host.os.type == "windows" and event.type == "start" and process.name : "mstsc.exe"
+    and process.command_line : "*/v:*"'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: The query found no explicit destination commands. Interactive connections remain outside
+    this check. Restore logon type collection to test successful RDP sessions.
+  durable: false
+  results:
+    harlowmere:
+      hits: 0
+      days: 30
+  tested: true
+agents:
+  model: gpt-6.1-sol
+usage:
+  llm_calls: 6
+  input_tokens: 35940
+  output_tokens: 2015
+  tool_calls: 16
