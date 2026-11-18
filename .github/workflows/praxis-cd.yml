@@ -28,14 +28,25 @@ jobs:
       clients: ${{ steps.list.outputs.clients }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - run: uv sync --locked
       - id: list
-        run: echo "clients=$(uv run praxis clients --json)" >> "$GITHUB_OUTPUT"
+        env:
+          BEFORE: ${{ github.event.before }}
+        # A push redeploys only the clients it affects; a manual run redeploys all.
+        run: |
+          if [ -n "$BEFORE" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            echo "clients=$(uv run praxis clients --json --changed-since "$BEFORE")" >> "$GITHUB_OUTPUT"
+          else
+            echo "clients=$(uv run praxis clients --json)" >> "$GITHUB_OUTPUT"
+          fi
 
   deploy:
     name: Deploy ${{ matrix.client }}
     needs: clients
+    if: needs.clients.outputs.clients != '[]'
     strategy:
       fail-fast: false
       matrix:
@@ -64,10 +75,18 @@ jobs:
 
   publish-content:
     name: Publish content to the API
-    needs: deploy
+    needs: [clients, deploy]
+    # Runs when the deploy succeeded, and also when no client needed a deploy.
+    if: always() && needs.clients.result == 'success' && needs.deploy.result != 'failure' && needs.deploy.result != 'cancelled'
     runs-on: [self-hosted, praxis]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --locked
+      - name: Bring the dashboard's rule-pack states in line with Git
+        env:
+          PRAXIS_ENV_FILE: /etc/praxis/read.env
+        run: uv run praxis pack sync
       # praxis-api reads this folder (read-only mount) for the Tuning studio.
       - name: Mirror content/ to the folder the API serves
         run: rsync -a --delete --chmod=D755,F644 content/ /var/lib/praxis/content/

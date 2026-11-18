@@ -427,7 +427,14 @@ def status(content_dir: Path) -> dict[str, Any]:
                 for row in fleet
             },
             "rule_pack_proposals": [
-                {k: p[k] for k in ("id", "client_id", "status", "verdict", "pr_url")} for p in packs
+                {
+                    **{k: p[k] for k in ("id", "client_id", "verdict", "pr_url")},
+                    # Git is the truth for a pack's state; the database may lag it.
+                    "status": repo.rule_packs[p["id"]].status
+                    if p["id"] in repo.rule_packs
+                    else "not merged",
+                }
+                for p in packs
             ],
         }
         for client_id, entry in out["clients"].items():

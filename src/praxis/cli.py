@@ -92,11 +92,19 @@ def validate(
 
 
 @app.command()
-def clients(as_json: Annotated[bool, typer.Option("--json")] = False) -> None:
+def clients(
+    as_json: Annotated[bool, typer.Option("--json")] = False,
+    changed_since: Annotated[
+        str | None, typer.Option(help="Only clients a change since this git ref affects.")
+    ] = None,
+) -> None:
     """List clients (use --json to feed a CI matrix)."""
     repo = _repo()
     if as_json:
-        print(json.dumps(sorted(repo.clients)))
+        names = (
+            core.affected_clients(repo, changed_since) if changed_since else sorted(repo.clients)
+        )
+        print(json.dumps(names))
         return
     table = Table("client", "sector", "platforms", "packs", "detections")
     for client in repo.clients.values():
@@ -224,6 +232,10 @@ def lab_replay(
             label = f"{kind} test events"
         count = get_platform(platform_name).replay(bundle, client, events * repeat)
         console.print(f"{platform_name}: wrote {count} {label} for {client.id}")
+    console.print(
+        f"Rules run every few minutes. Wait for the alerts with: "
+        f"./px alerts {client.id} --rule {detection_id} --wait-for <count>"
+    )
 
 
 @lab_app.command("seed")
@@ -250,6 +262,10 @@ def _print_snapshot(snapshot: dict) -> None:
         f"of {summary['techniques']} techniques\n"
         f"coverage {summary['coverage_pct']}% | threat-weighted "
         f"{'n/a' if weighted is None else f'{weighted}%'} | visible {summary['visible_pct']}%"
+    )
+    console.print(
+        "[dim]A rule on a sub-technique also covers its parent technique, so the covered count "
+        "can be higher than the techniques listed against the rules.[/dim]"
     )
     components = Table("data component", "score", "source", "detail", title="visibility (0-4)")
     for c in snapshot["components"]:
@@ -887,6 +903,71 @@ def status(as_json: Annotated[bool, typer.Option("--json")] = False) -> None:
     _out(ops.status(get_settings().content_dir), as_json)
 
 
+@app.command()
+def alerts(
+    client_id: str,
+    rule: Annotated[str | None, typer.Option(help="Only this detection.")] = None,
+    wait_for: Annotated[
+        int | None, typer.Option(help="Wait until the rule has at least this many alerts.")
+    ] = None,
+    timeout: Annotated[int, typer.Option(help="Seconds to wait at most.")] = 480,
+    as_json: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """A client's alerts over the last 30 days, per rule; optionally wait for them to arrive."""
+    import time
+
+    repo = _repo()
+    client = _client(repo, client_id)
+    wanted = [rule] if rule else [b.id for b in repo.detections_for(client)]
+    if wait_for is not None and not rule:
+        err.print("[red]error[/red] --wait-for needs --rule")
+        raise typer.Exit(1)
+    platform = get_platform(client.platforms.enabled()[0])
+    deadline = time.monotonic() + timeout
+    while True:
+        rows = []
+        for detection_id in wanted:
+            stats = platform.alert_stats(client, detection_id)
+            name = (
+                repo.detections[detection_id].meta.name if detection_id in repo.detections else ""
+            )
+            rows.append(
+                {
+                    "rule": detection_id,
+                    "name": name,
+                    "alerts_30d": stats["alerts"],
+                    "top_values": stats["top_values"],
+                }
+            )
+        if wait_for is None or rows[0]["alerts_30d"] >= wait_for:
+            break
+        if time.monotonic() > deadline:
+            _out(rows, as_json)
+            err.print(
+                f"[red]error[/red] {rule} has {rows[0]['alerts_30d']} alerts after {timeout}s, fewer "
+                f"than {wait_for}. Check that the rule is deployed and enabled: ./px coverage {client_id}"
+            )
+            raise typer.Exit(1)
+        err.print(f"[dim]{rule}: {rows[0]['alerts_30d']} alerts so far; waiting[/dim]")
+        time.sleep(20)
+    _out(rows, as_json)
+
+
+@pack_app.command("sync")
+def pack_sync() -> None:
+    """Copy each rule pack's state from Git into the database the dashboard reads."""
+    from praxis import db
+
+    repo = _repo()
+    with db.connect() as conn:
+        db.migrate(conn)
+        known = {p["id"]: p for p in db.list_packs(conn)}
+        for pack in repo.rule_packs.values():
+            body = pack.model_dump(mode="json")
+            db.save_pack(conn, body, (known.get(pack.id) or {}).get("pr_url"))
+    console.print(f"synced {len(repo.rule_packs)} rule packs")
+
+
 @app.command("sources")
 def sources_list(as_json: Annotated[bool, typer.Option("--json")] = False) -> None:
     """Log sources the data map knows: what the lab can generate and coverage can score."""
@@ -1068,10 +1149,22 @@ def sector_add(
 
 @attack_app.command("groups")
 def attack_groups(query: str, as_json: Annotated[bool, typer.Option("--json")] = False) -> None:
-    """Find ATT&CK groups by name or id, e.g. `praxis attack groups akira`."""
+    """Find ATT&CK groups by name or id, e.g. `praxis attack groups akira`.
+
+    ATT&CK lists threat actors here. Ransomware families and tools (LockBit,
+    Qilin, Cobalt Strike) are software in ATT&CK, not groups, so they do not appear.
+    """
     from praxis import ops
 
-    _out(ops.attack_groups(query), as_json)
+    found = ops.attack_groups(query)
+    if not found and not as_json:
+        err.print(
+            f"no ATT&CK group matches {query!r}. Groups are threat actors (for example Akira, "
+            "Play, APT41); ransomware families and tools are listed as software, not groups. "
+            "Browse https://attack.mitre.org/groups/ for names."
+        )
+        raise typer.Exit(1)
+    _out(found, as_json)
 
 
 @attack_app.command("technique")
@@ -1211,12 +1304,19 @@ def detection_deprecate(detection_id: str) -> None:
 def change_submit(
     title: Annotated[str, typer.Argument(help="What the change does, as a short sentence.")],
     body: Annotated[str, typer.Option(help="More detail for the reviewer.")] = "",
+    everything: Annotated[
+        bool, typer.Option("--all", help="Include changes outside the content folder too.")
+    ] = False,
     as_json: Annotated[bool, typer.Option("--json")] = False,
 ) -> None:
-    """Put the working tree's changes on a branch and open a pull request."""
+    """Put the content changes on a branch and open a pull request.
+
+    Only files under the content folder are included, so a spec or events
+    file you keep next to it is never submitted.
+    """
     from praxis import changes
 
-    result = _op(lambda: changes.submit(get_settings().content_dir, title, body))
+    result = _op(lambda: changes.submit(get_settings().content_dir, title, body, everything))
     _out(result, as_json)
 
 
@@ -1229,6 +1329,39 @@ def change_status(
     from praxis import changes
 
     _out(_op(lambda: changes.status(get_settings().content_dir, number)), as_json)
+
+
+@change_app.command("home")
+def change_home(as_json: Annotated[bool, typer.Option("--json")] = False) -> None:
+    """Go back to an up-to-date main branch."""
+    from praxis import changes
+
+    _out(_op(lambda: changes.home(get_settings().content_dir)), as_json)
+
+
+@change_app.command("show")
+def change_show(number: int, as_json: Annotated[bool, typer.Option("--json")] = False) -> None:
+    """Read a pull request: its description, the files it changes, and its checks."""
+    from praxis import changes
+
+    result = _op(lambda: changes.show(get_settings().content_dir, number))
+    if as_json:
+        _out(result, True)
+        return
+    body = result.pop("body", "")
+    _out(result, False)
+    console.print("\n" + body, highlight=False, markup=False)
+
+
+@change_app.command("close")
+def change_close(
+    number: int,
+    reason: Annotated[str, typer.Option(help="Why it is being closed; posted as a comment.")],
+) -> None:
+    """Close a pull request without merging it."""
+    from praxis import changes
+
+    _out(_op(lambda: changes.close(get_settings().content_dir, number, reason)), False)
 
 
 @change_app.command("merge")

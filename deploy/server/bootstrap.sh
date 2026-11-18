@@ -52,7 +52,7 @@ sudo install -d -m 755 "$ETC_DIR"
 [ -e "$ETC_DIR/ca.crt" ] || sudo touch "$ETC_DIR/ca.crt"
 
 cd "$DEPLOY_DIR"
-docker compose "${PROFILES[@]}" up -d --build
+docker compose "${PROFILES[@]}" up -d --build --remove-orphans
 # `up --wait` fails when a one-shot container exits, so wait here.
 wait_healthy() {
   local id; id="$(docker compose ps -q "$1")"
