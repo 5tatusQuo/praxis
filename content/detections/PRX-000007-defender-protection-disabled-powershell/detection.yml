@@ -3,7 +3,7 @@ name: Microsoft Defender protection disabled with PowerShell
 intent: Detects PowerShell turning off Microsoft Defender protection features, a step ransomware
   crews take before they deploy their payload.
 version: 1
-lifecycle: staged
+lifecycle: production
 owner: detection-engineering
 severity: high
 risk_score: 73
