@@ -1,0 +1,38 @@
+rule: PRX-000002
+reason: The backup agent deletes the oldest shadow copy. Exclude only its exact command with
+  the observed parent and executable paths.
+evidence:
+- alert:502687a91063
+- alert:dff45cfdfabe
+- alert:ac6023113f4e
+author: ai:tuner
+expires: '2027-02-19'
+exclude:
+- field: process.parent.executable
+  op: equals
+  value: C:\Program Files\SiteBack\siteback-agent.exe
+  also:
+  - field: process.executable
+    op: equals
+    value: C:\Windows\System32\vssadmin.exe
+  - field: process.command_line
+    op: equals
+    value: 'vssadmin.exe delete shadows /for=D: /oldest /quiet'
+examples:
+- event:
+    category:
+    - process
+    type:
+    - start
+  host:
+    os:
+      type: windows
+  process:
+    name: vssadmin.exe
+    executable: C:\Windows\System32\vssadmin.exe
+    command_line: 'vssadmin.exe delete shadows /for=D: /oldest /quiet'
+    pe:
+      original_file_name: VSSADMIN.EXE
+    parent:
+      name: siteback-agent.exe
+      executable: C:\Program Files\SiteBack\siteback-agent.exe
