@@ -120,6 +120,7 @@ The dashboard listens on port 3000 of the server, on localhost only.
 
 - [PLAN.md](PLAN.md): architecture and roadmap.
 - [PROGRESS.md](PROGRESS.md): what is built, the evidence for each gate, and what is still open.
+- [docs/runbook.md](docs/runbook.md): onboard a client and run it, step by step, with the known rough spots.
 - [docs/deploying.md](docs/deploying.md): one server with Docker Compose, Kubernetes with Helm, AWS with Terraform.
 - [docs/agents.md](docs/agents.md): what each agent does, what code decides for them, and how to run them.
 - [docs/visibility-scoring.md](docs/visibility-scoring.md): how visibility is scored and gaps are classified.

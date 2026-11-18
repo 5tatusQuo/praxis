@@ -9,6 +9,15 @@ is the state of the build.
 2026-11-18 and v1.0.0 is released. Phase 5 does not start until the PLAN.md
 items listed under "Not built yet" below are done.
 
+## Paused for an operator test (2026-11-18)
+
+Build work is paused at the owner's request. The owner is onboarding one new
+fictional client (building and engineering sector) on the lab server and
+running it as if it were real, to find gaps. `docs/runbook.md` is the
+step-by-step guide for that test. Its example files were validated, and its
+example detection lab-tested, in a scratch copy of the content. Gaps the test
+finds go into the list below before any more building.
+
 ## Not built yet (PLAN.md items inside Phases 0–4)
 
 The gates passed without these. They are owed before Phase 5 starts.
