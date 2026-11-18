@@ -1,0 +1,24 @@
+{
+  "@timestamp": "2026-11-01T11:02:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "magick.exe",
+    "command_line": "magick.exe cmd.exe.png output.png",
+    "parent": {
+      "name": "w3wp.exe"
+    }
+  }
+}

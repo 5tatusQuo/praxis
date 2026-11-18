@@ -1,0 +1,26 @@
+{
+  "@timestamp": "2026-11-01T10:03:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "helper.exe",
+    "pe": {
+      "original_file_name": "pwsh.dll"
+    },
+    "parent": {
+      "name": "nginx.exe"
+    }
+  }
+}

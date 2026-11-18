@@ -1,0 +1,27 @@
+{
+  "@timestamp": "2026-11-01T10:07:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "who-not-used.exe",
+    "pe": {
+      "original_file_name": "cmd.exe"
+    },
+    "parent": {
+      "name": "java.exe",
+      "command_line": "java.exe -DCATALINA_HOME=C:\\Server Bootstrap"
+    }
+  }
+}

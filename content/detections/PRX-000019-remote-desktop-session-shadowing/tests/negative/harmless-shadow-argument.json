@@ -1,0 +1,23 @@
+{
+  "@timestamp": "2026-01-01T00:01:02Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "echo.exe",
+    "args": [
+      "echo.exe",
+      "/shadow:3"
+    ]
+  }
+}

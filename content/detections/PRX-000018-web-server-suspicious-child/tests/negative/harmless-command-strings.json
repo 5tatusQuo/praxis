@@ -1,0 +1,25 @@
+{
+  "@timestamp": "2026-11-01T11:03:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "notepad.exe",
+    "command_line": "notepad.exe C:\\notes\\powershell.exe.txt",
+    "parent": {
+      "name": "explorer.exe",
+      "command_line": "explorer.exe C:\\w3wp.exe"
+    }
+  }
+}

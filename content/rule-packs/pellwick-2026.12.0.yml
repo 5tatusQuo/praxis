@@ -1,0 +1,111 @@
+id: pellwick-2026.12.0
+client: pellwick
+month: 2026-12
+created: '2026-11-19'
+status: proposed
+budget: 2
+snapshot:
+  taken_at: '2026-11-18T13:51:08Z'
+  summary:
+    rules:
+      blind: 0
+      shadow: 0
+      healthy: 4
+      disabled: 0
+    covered: 8
+    blind_rule: 0
+    techniques: 706
+    visible_pct: 74.93
+    coverage_pct: 1.13
+    detection_gap: 521
+    visibility_gap: 177
+    weighted_coverage_pct: 5.5
+brief:
+  headline: This pack detects suspicious execution from web servers and remote desktop session shadowing.
+  adds:
+  - Detects shells and administration tools that web servers start.
+  - Detects session shadowing and policy changes that permit it.
+  leaves_open:
+  - Other remote execution paths remain open.
+  - Account abuse remains open.
+  - Other script execution paths remain open.
+picks:
+- detection: PRX-000018
+  name: Suspicious child process from a web server
+  candidate: sigma:8202070f-edeb-4d31-a010-a26c72ac5600
+  technique: T1190
+  weight: 0.833
+  why: It detects suspicious child processes across web servers, rather than signatures for one exploit.
+  caveat: Use ?process.parent.command_line and retain Tomcat matching through the executable path.
+  justification: ''
+  changed: Added process-start checks, optional fields, and original PE names to detect renamed binaries,
+    and removed vendor exclusions that could hide suspicious activity.
+  quality:
+    score: 94
+    passes: true
+    tier: ttp
+    parts:
+      specificity: 30
+      pyramid: 25
+      durability: 10
+      maturity: 9
+      overlap: 10
+      backtest: 10
+    closest_existing: PRX-000009
+    closest_similarity: 0.21
+    flags: []
+    backtest:
+      hits: 0
+      days: 30
+  lab:
+    passed: true
+    cases: 16
+- detection: PRX-000019
+  name: Remote Desktop session shadowing
+  candidate: elastic:c57f8579-e2a5-4804-847f-f2732edc5156
+  technique: T1021.001
+  weight: 0.667
+  why: It detects session shadowing and its policy changes, rather than routine remote desktop connections.
+  caveat: Replace process.args with process.command_line matching for the shadow argument.
+  justification: ''
+  changed: Added binary name and original filename alternatives, marked optional fields, and removed the
+    redundant registry value condition to detect renamed copies and tolerate missing metadata.
+  quality:
+    score: 88
+    passes: true
+    tier: ttp
+    parts:
+      specificity: 30
+      pyramid: 25
+      durability: 10
+      maturity: 9
+      overlap: 4
+      backtest: 10
+    closest_existing: PRX-000008
+    closest_similarity: 0.08
+    flags:
+    - 'crowded: 2 rules already on this technique'
+    backtest:
+      hits: 0
+      days: 30
+  lab:
+    passed: true
+    cases: 22
+rejected: []
+review:
+  verdict: fail
+  summary: The session shadowing query does not implement the required adaptation to the client's process
+    events.
+  comments:
+  - detection_id: PRX-000019
+    severity: blocker
+    issue: The mstsc branch still requires process.args, despite the required adaptation. Client events
+      can contain command lines without parsed arguments.
+    action: Match the shadow argument in process.command_line and test events without process.args.
+agents:
+  model: gpt-6.1-sol
+usage:
+  llm_calls: 28
+  input_tokens: 416465
+  output_tokens: 11654
+  tool_calls: 43

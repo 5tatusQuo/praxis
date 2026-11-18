@@ -1,0 +1,25 @@
+{
+  "@timestamp": "2026-11-01T11:01:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "cmd.exe",
+    "parent": {
+      "name": "java.exe",
+      "executable": "C:\\Java\\bin\\java.exe",
+      "command_line": "java.exe -jar C:\\Apps\\Reports.jar"
+    }
+  }
+}

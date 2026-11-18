@@ -1,0 +1,24 @@
+{
+  "@timestamp": "2026-11-01T10:08:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "wmic.exe",
+    "parent": {
+      "name": "javaw.exe",
+      "command_line": "javaw.exe -cp C:\\Server\\lib\\catalina.jar Bootstrap"
+    }
+  }
+}
