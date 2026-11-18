@@ -11,3 +11,5 @@ platforms:
     namespace: corvenhallow
 packs:
 - baseline
+detections:
+- PRX-000020

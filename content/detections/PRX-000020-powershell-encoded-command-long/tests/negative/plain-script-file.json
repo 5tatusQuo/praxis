@@ -1,0 +1,31 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "name": "ws-lab-07",
+    "os": {
+      "type": "windows"
+    }
+  },
+  "user": {
+    "name": "j.doe"
+  },
+  "process": {
+    "name": "powershell.exe",
+    "executable": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "command_line": "powershell.exe -ExecutionPolicy Bypass -File C:\\Scripts\\inventory.ps1",
+    "pe": {
+      "original_file_name": "PowerShell.EXE"
+    },
+    "parent": {
+      "name": "explorer.exe"
+    }
+  }
+}
