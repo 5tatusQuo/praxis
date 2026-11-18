@@ -586,16 +586,13 @@ def tune(
         return
     if pr:
         body = (
-            f"Tuning for `{detection_id}` at `{client_id}`, proposed by the Tuner agent.\n\n"
-            f"## Findings\n\n{result['findings']}\n\n## Scope\n\n{result['scope_advice']}\n\n"
-            "The lab replayed the tuning: its examples are silenced and every positive test "
-            "still fires. CI repeats that check.\n\n"
-            "🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
+            tuner.report(client_id, detection_id, result)
+            + "\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
         )
         url = gitops.open_pull_request(
             root,
             branch,
-            f"Tune {detection_id} for {client_id}",
+            f"Tune {result['rule_name']} ({detection_id}) for {client_id}",
             body,
             f"Tune {detection_id} for {client_id} (proposed by ai:tuner)\n\n"
             "Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>",

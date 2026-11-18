@@ -35,6 +35,7 @@ from praxis.settings import get_settings
 from praxis.visibility.inventory import RuleHealth, SourceInventory
 
 LAB_NAMESPACE_PREFIX = "praxislab"
+BACKTEST_LIMIT = 1000  # most matches a backtest counts; more than this is simply 'too noisy'
 _HARD_CODED_INDEX = re.compile(r"\b_index\b|\bfrom\s+(logs|metrics|traces)-", re.IGNORECASE)
 _SINGLE = {"namespace_type": "single"}
 SEED_LABEL = {"term": {"labels.praxis_lab": "seed"}}
@@ -282,12 +283,20 @@ class ElasticPlatform(Platform):
                 "POST",
                 f"/{','.join(indices)}/_eql/search",
                 params={"ignore_unavailable": "true"},
-                json={"query": query, "size": 5, "filter": {"bool": {"filter": filters}}},
+                # An EQL search counts only the matches it returns, so ask for
+                # enough of them to count; `capped` says when there were more.
+                json={
+                    "query": query,
+                    "size": BACKTEST_LIMIT,
+                    "filter": {"bool": {"filter": filters}},
+                },
             )
         hits = result["hits"]
+        matches = hits.get("events") or hits.get("sequences") or []
         events = hits.get("events") or [e for s in hits.get("sequences", []) for e in s["events"]]
         return {
-            "hits": hits["total"]["value"],
+            "hits": len(matches),
+            "capped": len(matches) >= BACKTEST_LIMIT,
             "days": days,
             "samples": [redact(e["_source"]) for e in events[:5]],
         }

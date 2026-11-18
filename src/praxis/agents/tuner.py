@@ -12,6 +12,7 @@ from praxis.agents.llm import LLM, AgentError
 from praxis.agents.pack import COMMON, AuditTrail
 from praxis.agents.toolbox import Toolbox
 from praxis.content.loader import ContentRepo
+from praxis.platforms import get_platform
 
 TUNER = (
     COMMON
@@ -93,7 +94,18 @@ def propose_tuning(
     repo = core.load_repo(content_dir)
     tuned = (client_id, detection_id) in repo.client_tuning and not core.validate(repo)
     lab_ok = False
+    impact = None
     if tuned:
+        # Measured by code, after the agent: what this tuning removes on 30 days of data.
+        name = client.platforms.enabled()[0]
+        bundle = repo.detections[detection_id]
+        platform, query = get_platform(name), bundle.implementations[name].query
+        sources = bundle.meta.log_sources[name].indices
+        before = platform.backtest(client, query, sources)["hits"]
+        after = platform.backtest(
+            client, query, sources, tuning=repo.tuning_for(detection_id, client, name)
+        )["hits"]
+        impact = {"matches_before": before, "matches_after": after, "days": 30}
         cases = [
             c for c in core.lab_test(repo, repo.detections[detection_id]) if c.scope == client_id
         ]
@@ -104,6 +116,14 @@ def propose_tuning(
         **answer,
         "proposed": bool(answer["proposed"] and tuned and lab_ok),
         "lab_passed": lab_ok,
+        "impact": impact,
+        "rule_name": repo.detections[detection_id].meta.name,
+        "exclusions": [
+            " and ".join(f"`{c.field}` {c.op} `{c.value}`" for c in e.conditions())
+            for e in repo.client_tuning[(client_id, detection_id)].exclude
+        ]
+        if tuned
+        else [],
         "promotable": promotable_exclusions(repo),
         "usage": trail.usage(),
     }
@@ -128,3 +148,26 @@ def promotable_exclusions(repo: ContentRepo, minimum: int = 3) -> list[dict[str,
         for (rule, name, op, value), clients in sorted(seen.items())
         if len(clients) >= minimum
     ]
+
+
+def report(client_id: str, detection_id: str, result: dict[str, Any]) -> str:
+    """The pull-request body for a tuning proposal."""
+    impact = result["impact"] or {}
+    removed = impact.get("matches_before", 0) - impact.get("matches_after", 0)
+    lines = [
+        f"Tuning for **{result['rule_name']}** ({detection_id}) at `{client_id}`, proposed by "
+        "the Tuner agent.",
+        "",
+        f"> {result['findings'].strip()}",
+        "",
+        "**Suppress an alert when**",
+        *[f"- {text}" for text in result["exclusions"]],
+        "",
+        f"**Impact:** removes {removed} of {impact.get('matches_before', 0)} matches over the "
+        f"last {impact.get('days', 30)} days; {impact.get('matches_after', 0)} remain.",
+        "**Lab:** the example is silenced and every positive test still fires.",
+        f"**Scope:** {result['scope_advice'].strip()}",
+        "",
+        "<sub>Impact and lab results are measured by code. CI repeats the lab check.</sub>",
+    ]
+    return "\n".join(lines) + "\n"
