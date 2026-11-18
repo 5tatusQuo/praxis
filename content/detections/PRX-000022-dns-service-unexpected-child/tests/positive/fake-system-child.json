@@ -1,0 +1,23 @@
+{
+  "@timestamp": "2026-11-01T10:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "conhost.exe",
+    "executable": "C:\\Temp\\conhost.exe",
+    "parent": {
+      "name": "dns.exe"
+    }
+  }
+}

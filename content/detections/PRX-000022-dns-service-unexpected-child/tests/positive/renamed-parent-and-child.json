@@ -1,0 +1,30 @@
+{
+  "@timestamp": "2026-11-01T10:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "worker.exe",
+    "executable": "C:\\Temp\\worker.exe",
+    "pe": {
+      "original_file_name": "Cmd.Exe"
+    },
+    "parent": {
+      "name": "resolver.exe",
+      "pe": {
+        "original_file_name": "DNS.EXE"
+      },
+      "executable": "C:\\Temp\\resolver.exe"
+    }
+  }
+}
