@@ -15,6 +15,6 @@ platforms:
       tuning: null
       version: 1
     PRX-000023:
-      hash: a8362ea9e8c70fcf87542e435297ab9eb020f67f38e7f7a38bc82bae0fe7afd6
+      hash: 9d3dff2092febc38a98960ec6ecdd36293ed874e43f775817b3dbec85a77ccd9
       tuning: null
       version: 1
