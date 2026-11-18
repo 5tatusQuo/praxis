@@ -1,0 +1,4 @@
+process where host.os.type == "windows" and event.type == "start" and
+  (process.name : ("net.exe", "net1.exe") or ?process.pe.original_file_name : ("net.exe", "net1.exe")) and
+  process.command_line regex~ """.*[ 	]+/user:.*""" and
+  process.command_line regex~ """.*[ 	]+use[ 	]+([a-zA-Z]:[ 	]+)?(\"\\\\[^\"]+\"|\\\\[^\"	 ]+)[ 	]+(/user:(\"[^\"]+\"|[^\"	 ]+)[ 	]+)?(\"[^*\"/][^\"]*\"|[^*\"/	 ][^	 ]*)([ 	]+.*)?"""

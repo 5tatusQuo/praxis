@@ -1,0 +1,25 @@
+{
+  "@timestamp": "2026-01-01T00:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "maintenance.exe",
+    "executable": "C:\\Temp\\maintenance.exe",
+    "pe": {
+      "original_file_name": "FSUTIL.EXE"
+    },
+    "command_line": "maintenance.exe USN DELETEJOURNAL /N C:"
+  }
+}

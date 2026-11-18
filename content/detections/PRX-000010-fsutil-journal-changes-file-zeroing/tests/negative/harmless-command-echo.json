@@ -1,0 +1,24 @@
+{
+  "@timestamp": "2026-01-01T00:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "cmd.exe",
+    "pe": {
+      "original_file_name": "Cmd.Exe"
+    },
+    "command_line": "cmd.exe /c echo fsutil.exe usn deletejournal /D C:"
+  }
+}

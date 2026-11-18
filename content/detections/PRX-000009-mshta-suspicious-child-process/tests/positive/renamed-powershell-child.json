@@ -1,0 +1,27 @@
+{
+  "@timestamp": "2026-11-01T10:02:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "worker.exe",
+    "executable": "C:\\ProgramData\\worker.exe",
+    "pe": {
+      "original_file_name": "PowerShell.EXE"
+    },
+    "parent": {
+      "name": "mshta.exe"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "@timestamp": "2026-11-01T10:07:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "cscript.exe",
+    "parent": {
+      "name": "mshta.exe"
+    }
+  }
+}

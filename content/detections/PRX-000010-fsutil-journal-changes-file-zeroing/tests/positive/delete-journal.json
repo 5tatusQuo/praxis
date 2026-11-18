@@ -1,0 +1,22 @@
+{
+  "@timestamp": "2026-01-01T00:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "fsutil.exe",
+    "executable": "C:\\Windows\\System32\\fsutil.exe",
+    "command_line": "fsutil.exe usn deletejournal /D C:"
+  }
+}

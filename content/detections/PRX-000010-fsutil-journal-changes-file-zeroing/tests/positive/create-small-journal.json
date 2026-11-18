@@ -1,0 +1,21 @@
+{
+  "@timestamp": "2026-01-01T00:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "fsutil.exe",
+    "command_line": "fsutil.exe usn createjournal m=1000 a=100 C:"
+  }
+}
