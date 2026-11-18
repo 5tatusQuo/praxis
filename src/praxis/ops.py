@@ -54,13 +54,18 @@ def attack_groups(query: str) -> list[dict[str, Any]]:
         by_name = any(wanted in n.lower() for n in names)
         if not by_name and wanted not in description.lower():
             continue
+        at = description.lower().find(wanted)
         found.append(
             {
                 "id": gid,
                 "name": group["name"],
                 "techniques": len(group["techniques"]),
                 "matched": "name" if by_name else "description",
-                "about": description[:220],
+                # The words around the match, so a false friend ("social
+                # engineering" for "engineering") is easy to spot.
+                "context": description[:160]
+                if by_name or at < 0
+                else "..." + description[max(0, at - 70) : at + len(wanted) + 70] + "...",
             }
         )
     return sorted(found, key=lambda g: (g["matched"] != "name", g["id"]))
@@ -353,11 +358,17 @@ def client_subscribe(
     }
 
 
-def client_remove(content_dir: Path, client_id: str) -> list[str]:
-    """Delete a client's folder from the content. Its SIEM side is removed by deprovisioning."""
+def client_remove(content_dir: Path, client_id: str) -> dict[str, Any]:
+    """Delete a client's folder from the content, and say what is deliberately kept.
+
+    Its SIEM side is removed by deprovisioning. The shared library is left
+    alone: records are history, and a detection may serve another client later.
+    """
     folder = content_dir / "clients" / client_id
     if not (folder / "client.yml").is_file():
         raise OpsError(f"unknown client {client_id!r}")
+    before = core.load_repo(content_dir)
+    ran = {b.id for b in before.detections_for(before.clients[client_id])}
     removed = []
     for path in sorted(folder.rglob("*"), reverse=True):
         if path.is_file():
@@ -366,7 +377,20 @@ def client_remove(content_dir: Path, client_id: str) -> list[str]:
         else:
             path.rmdir()
     folder.rmdir()
-    return removed
+    after = core.load_repo(content_dir)
+    in_use = {b.id for c in after.clients.values() for b in after.detections_for(c)}
+    in_packs = {d for p in after.packs.values() for d in p.detections}
+    return {
+        "removed_files": removed,
+        "kept": {
+            "detections_no_client_runs_now": sorted(ran - in_use - in_packs),
+            "rule_pack_records": sorted(
+                p.id for p in after.rule_packs.values() if p.client == client_id
+            ),
+            "hunt_records": sorted(h.id for h in after.hunts.values() if client_id in h.clients),
+            "sector_profile": before.clients[client_id].sector,
+        },
+    }
 
 
 def client_show(repo: ContentRepo, client_id: str) -> dict[str, Any]:
@@ -452,7 +476,7 @@ def status(content_dir: Path) -> dict[str, Any]:
             "next_detection_id": next_detection_id(content_dir),
             "content_packs": {p.id: p.detections for p in repo.packs.values()},
             "sectors": sorted(repo.threat_profiles),
-            "rule_packs": {p.id: p.status for p in repo.rule_packs.values()},
+            "rule_packs": {p.id: _pack_state(repo, p.id) for p in repo.rule_packs.values()},
             "hunts": sorted(repo.hunts),
         },
         "clients": {
@@ -500,6 +524,7 @@ def status(content_dir: Path) -> dict[str, Any]:
                     "rules": row["summary"]["rules"],
                 }
                 for row in fleet
+                if row["client_id"] in repo.clients  # an offboarded client keeps only history
             },
             "rule_pack_proposals": [
                 {
@@ -507,6 +532,7 @@ def status(content_dir: Path) -> dict[str, Any]:
                     "status": _pack_state(repo, p["id"]),
                 }
                 for p in packs
+                if p["client_id"] in repo.clients
             ],
         }
         for client_id, entry in out["clients"].items():

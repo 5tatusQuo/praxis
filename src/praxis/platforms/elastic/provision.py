@@ -170,4 +170,34 @@ def deprovision(client: Client, delete_space: bool, delete_data: bool) -> list[s
             for kind in ("logs", "metrics", "traces"):
                 call(conn.es, "DELETE", f"/_data_stream/{kind}-*-{target.namespace}", ok=(404,))
             removed.append(f"telemetry data streams in namespace {target.namespace}")
+        # Check, rather than assume, that it is gone.
+        left = []
+        if delete_space:
+            if conn.kibana.get(f"/api/spaces/space/{target.space}").status_code != 404:
+                left.append(f"kibana space {target.space} still exists")
+        else:
+            still = call(
+                conn.kibana, "GET", f"{rules_url}/_find", params={"per_page": 500}, ok=(404,)
+            )
+            managed = [
+                r["rule_id"] for r in (still or {}).get("data", []) if "PRAXIS" in r.get("tags", [])
+            ]
+            if managed:
+                left.append(f"rules still present: {managed}")
+        for role in ("deploy", "read"):
+            if _active_keys(conn, f"praxis-{role}-{client.id}"):
+                left.append(f"api key praxis-{role}-{client.id} is still active")
+        if delete_data:
+            for kind in ("logs", "metrics", "traces"):
+                streams = call(
+                    conn.es, "GET", f"/_data_stream/{kind}-*-{target.namespace}", ok=(404,)
+                )
+                if (streams or {}).get("data_streams"):
+                    left.append(f"{kind} telemetry still present in namespace {target.namespace}")
+        if left:
+            raise RuntimeError("offboarding is incomplete: " + "; ".join(left))
+        checked = ["no PRAXIS rules", "no active keys"]
+        checked += ["no Kibana space"] if delete_space else []
+        checked += ["no telemetry"] if delete_data else []
+        removed.append("verified in the SIEM: " + ", ".join(checked))
     return removed

@@ -28,6 +28,7 @@ app.add_typer(lab_app, name="lab")
 app.add_typer(admin_app, name="admin")
 # A wide, fixed width when output is piped (as it is for an AI assistant), so
 # tables are not squeezed and cells are not cut off.
+AGENT_FOOTER = "\n<sub>Opened by PRAXIS for its agents. A person reviews and merges it; merging deploys.</sub>\n"
 console = Console(width=None if sys.stdout.isatty() else 180)
 err = Console(stderr=True)
 
@@ -307,7 +308,8 @@ def _print_snapshot(snapshot: dict) -> None:
         d = c["detail"]
         missing = [k for k, ok in c["factors"].items() if not ok]
         detail = (
-            "silent: no events in 24h"
+            f"silent: no events in 24h; {c.get('techniques_not_visible', 0)} techniques are "
+            "not visible because of it"
             if c["silent"]
             else (
                 f"{d['hosts']}/{d['expected_hosts']} hosts, fields {d['field_population']:.0%}"
@@ -582,7 +584,9 @@ def _store_run(pack: dict | None, trail, pr_url: str | None) -> None:
 def pack_plan(
     client_id: str,
     month: Annotated[str, typer.Option(help="YYYY-MM")],
-    budget: Annotated[int, typer.Option(help="Hard cap on detections in the pack.")] = 15,
+    budget: Annotated[
+        int, typer.Option(help="At most this many detections; the agents may propose fewer.")
+    ] = 15,
     pr: Annotated[bool, typer.Option(help="Push the branch and open a pull request.")] = True,
 ) -> None:
     """Curator, Platform Engineer and Reviewer agents build a candidate pack on a branch."""
@@ -624,7 +628,7 @@ def pack_plan(
     body = packs.report(pack, snapshot)
     pr_url = None
     if pr:
-        body += "\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
+        body += AGENT_FOOTER
         pr_url = gitops.open_pull_request(
             root,
             branch,
@@ -632,8 +636,7 @@ def pack_plan(
             body,
             f"Rule pack {pack['id']} proposed by ai:curator\n\n"
             f"{len(pack['picks'])} staged detections for {client_id}, written by "
-            "ai:platform-engineer-elastic and reviewed by ai:reviewer.\n\n"
-            "Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>",
+            "ai:platform-engineer-elastic and reviewed by ai:reviewer.",
         )
         console.print(f"pull request: {pr_url}")
     else:
@@ -718,8 +721,8 @@ def tune(
         gitops.abandon_branch(root, branch, start)
         err.print(f"[red]tuning failed:[/red] {error}")
         raise typer.Exit(1) from error
-    console.print(result["findings"])
-    console.print(f"[bold]Scope:[/bold] {result['scope_advice']}")
+    console.print(result["findings"], markup=False)
+    console.print("Scope: " + result["scope_advice"], markup=False)
     if result["impact"]:
         impact = result["impact"]
         removed = impact["matches_before"] - impact["matches_after"]
@@ -735,17 +738,13 @@ def tune(
         console.print("[yellow]no tuning proposed[/yellow]")
         return
     if pr:
-        body = (
-            tuner.report(client_id, detection_id, result)
-            + "\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
-        )
+        body = tuner.report(client_id, detection_id, result) + AGENT_FOOTER
         url = gitops.open_pull_request(
             root,
             branch,
             f"Tune {result['rule_name']} ({detection_id}) for {client_id}",
             body,
-            f"Tune {detection_id} for {client_id} (proposed by ai:tuner)\n\n"
-            "Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>",
+            f"Tune {detection_id} for {client_id} (proposed by ai:tuner)",
         )
         console.print(f"pull request: {url}")
     _store_run(None, trail, None)
@@ -787,16 +786,15 @@ def hunt(
         err.print(f"[red]hunt failed:[/red] {error}")
         raise typer.Exit(1) from error
     body = hunts.report(record)
-    console.print(body)
+    console.print(body, markup=False, highlight=False)
     url = None
     if pr:
         url = gitops.open_pull_request(
             root,
             branch,
             f"Hunt: {prompt[:60]}",
-            body + "\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
-            f"Hunt record {record['id']} (ai:hunt-planner)\n\n"
-            "Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>",
+            body + AGENT_FOOTER,
+            f"Hunt record {record['id']} (ai:hunt-planner)",
         )
         console.print(f"pull request: {url}")
     from praxis import db
@@ -844,6 +842,54 @@ def catalog_sync(
             db.migrate(conn)
             db.replace_catalog(conn, [c.to_dict() for c in candidates])
         console.print("catalog stored")
+
+
+@app.command()
+def tuning(
+    detection_id: str,
+    client_id: Annotated[str, typer.Option("--client")],
+    as_json: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """A client's tuning for one rule: the exclusions in plain words, and what they suppress."""
+    repo = _repo()
+    client = _client(repo, client_id)
+    bundle = repo.detections.get(detection_id)
+    if bundle is None or bundle not in repo.detections_for(client):
+        err.print(
+            f"[red]error[/red] {client_id} does not run {detection_id}; "
+            f"see ./px client show {client_id}"
+        )
+        raise typer.Exit(1)
+    name = client.platforms.enabled()[0]
+    resolved = repo.tuning_for(detection_id, client, name)
+    if resolved.is_empty:
+        _out({"rule": detection_id, "client": client_id, "tuned": False}, as_json)
+        return
+    platform = get_platform(name)
+    query, sources = bundle.implementations[name].query, bundle.meta.log_sources[name].indices
+    before = platform.backtest(client, query, sources)["hits"]
+    after = platform.backtest(client, query, sources, tuning=resolved)["hits"]
+    own = repo.client_tuning.get((client_id, detection_id))
+    _out(
+        {
+            "rule": detection_id,
+            "name": bundle.meta.name,
+            "client": client_id,
+            "tuned": True,
+            "reason": " ".join(own.reason.split()) if own else "shared platform tuning",
+            "expires": str(resolved.expires) if resolved.expires else None,
+            "suppressed_when_any_line_matches": [
+                " AND ".join(f"{c.field} {c.op} {c.value}" for c in e.conditions())
+                for e in resolved.exclude
+            ],
+            "last_30_days": {
+                "matches_without_tuning": before,
+                "matches_with_tuning": after,
+                "suppressed": before - after,
+            },
+        },
+        as_json,
+    )
 
 
 @app.command("tuning-promotions")
@@ -932,7 +978,8 @@ def _out(data, as_json: bool) -> None:
     if as_json:
         print(json.dumps(data, indent=2, default=str))
     else:
-        console.print(yaml.safe_dump(data, sort_keys=False, width=100).rstrip(), highlight=False)
+        text = yaml.safe_dump(data, sort_keys=False, width=100).rstrip()
+        console.print(text, highlight=False, markup=False)
 
 
 def _op(action):
@@ -1162,10 +1209,26 @@ def client_offboard(
     ).returncode
     if code != 0:
         raise typer.Exit(code)
-    removed = _op(lambda: ops.client_remove(get_settings().content_dir, client_id))
-    console.print(
-        f"removed {len(removed)} content files for {client_id}; commit and merge the change"
+    result = _op(lambda: ops.client_remove(get_settings().content_dir, client_id))
+    kept = result["kept"]
+    lines = [
+        f"removed {len(result['removed_files'])} content files for {client_id}",
+        "Kept on purpose, in the shared library:",
+        f"  sector profile: {kept['sector_profile']}",
+        f"  rule pack records (history): {', '.join(kept['rule_pack_records']) or 'none'}",
+        f"  hunt records (history): {', '.join(kept['hunt_records']) or 'none'}",
+        "  detections no client runs now: "
+        + (", ".join(kept["detections_no_client_runs_now"]) or "none"),
+    ]
+    if kept["detections_no_client_runs_now"]:
+        lines.append(
+            "  Give one to another client with ./px detection assign, or retire it with "
+            "./px detection deprecate."
+        )
+    lines.append(
+        f'Next: ./px change submit "Offboard {client_id}", then ./px change merge <number>'
     )
+    console.print("\n".join(lines), markup=False, highlight=False)
 
 
 @sector_app.command("list")
@@ -1459,7 +1522,8 @@ def admin_deprovision(
     client = _client(repo, client_id)
     for platform_name in client.platforms.enabled():
         for item in get_platform(platform_name).deprovision(client, delete_space, delete_data):
-            console.print(f"removed {item}")
+            verified = item.startswith("verified")
+            console.print(item if verified else f"removed {item}", markup=False)
 
 
 if __name__ == "__main__":

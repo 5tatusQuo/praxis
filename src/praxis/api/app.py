@@ -62,8 +62,17 @@ def health() -> dict:
 
 @app.get("/api/fleet", dependencies=secured)
 def fleet(conn: Conn) -> list[dict]:
-    """Every client's latest coverage summary, with the previous one for trend."""
-    return db.fleet(conn)
+    """Every current client's latest coverage summary, with the previous one for trend.
+
+    A client that was offboarded keeps its history in the database but no
+    longer appears here.
+    """
+    rows = db.fleet(conn)
+    try:
+        current = set(_studio_repo().clients)
+    except HTTPException:
+        return rows
+    return [row for row in rows if row["client_id"] in current]
 
 
 @app.get("/api/clients/{client_id}/coverage", dependencies=secured)
@@ -108,8 +117,13 @@ def navigator(client_id: str, conn: Conn, response: Response) -> dict:
 # -- rule packs and audit ----------------------------------------------------------
 @app.get("/api/packs", dependencies=secured)
 def packs(conn: Conn, client_id: str | None = None) -> list[dict]:
-    """Rule packs proposed by the Curator, newest first."""
-    return db.list_packs(conn, client_id)
+    """Rule packs proposed by the Curator for current clients, newest first."""
+    rows = db.list_packs(conn, client_id)
+    try:
+        current = set(_studio_repo().clients)
+    except HTTPException:
+        return rows
+    return [row for row in rows if row["client_id"] in current]
 
 
 @app.get("/api/packs/{pack_id}", dependencies=secured)

@@ -177,6 +177,20 @@ def build_snapshot(
             }
         )
 
+    # What each weak source costs: techniques that stay invisible and list its component.
+    for entry in components:
+        entry["techniques_not_visible"] = (
+            sum(
+                1
+                for t_id, t in attack.bundle()["techniques"].items()
+                if entry["name"] in t["data_components"]
+                and max((component_score.get(c, 0) for c in t["data_components"]), default=0)
+                < thresholds.visible_score
+            )
+            if entry["score"] < thresholds.visible_score
+            else 0
+        )
+
     counts = {k: sum(1 for t in techniques_out if t["class"] == k) for k in CLASSES}
     total_weight = sum(t["weight"] for t in techniques_out)
     covered_weight = sum(t["weight"] for t in techniques_out if t["class"] == "covered")

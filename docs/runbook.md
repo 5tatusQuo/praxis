@@ -41,7 +41,7 @@ Gaps are ranked by how many of those groups use each technique.
 
 ```bash
 ./px sector list                          # sectors that already have one
-./px attack groups construction           # groups ATT&CK reports against a sector (searches descriptions)
+./px attack groups construction           # searches names and descriptions; read each match's context
 ./px attack groups akira                  # or find a group by name or alias
 ./px sector add construction \
   --description "Ransomware crews that have hit construction and engineering firms." \
@@ -53,6 +53,9 @@ Gaps are ranked by how many of those groups use each technique.
 
 Name the sector after the client's industry, in one lower-case word. ATT&CK
 lists threat actors as groups; ransomware families and tools are not groups.
+ATT&CK does not index groups by the sector they target, so a sector search is
+a text search of group descriptions: check each match's context, and add
+groups you know from your own intelligence.
 
 `client add` writes the manifest, a lab telemetry profile that covers every
 log source the client's rules read, and its `packs.lock`. The client gets the
@@ -102,7 +105,8 @@ some hosts, or a source that went quiet:
 ./px change merge <number>
 ```
 
-`change merge` takes a few minutes. It prints progress while it waits for the
+`change merge` takes five to ten minutes: the checks replay every detection's
+test events in the lab, and the deploy waits for each rule's first run. It prints progress while it waits for the
 checks, merges, and waits for the deploy; only the clients a change affects
 are redeployed. It reports each rule as `created` and its first run as
 `succeeded`. A rule the client sends no telemetry for reports `no telemetry`:
@@ -214,6 +218,9 @@ field to shorten. The query must not name indices.
 ./px pack plan ironbridge --month 2026-12 --budget 3
 ```
 
+The budget is a ceiling. The agents propose fewer rules when the catalog has
+nothing else that fits the client's telemetry and passes the guardrails.
+
 The Curator reads the coverage and picks from the catalog of upstream rules, a
 Platform Engineer agent writes each detection, a Reviewer agent challenges the
 result, and code measures the scores, backtests and lab results. It takes
@@ -258,14 +265,16 @@ Rules run every 5 minutes, so alerts take up to that long to appear. Wait for
 them, then let the Tuner agent study them and propose a tested exclusion:
 
 ```bash
-./px alerts ironbridge --rule PRX-000002 --wait-for 25
+./px alerts ironbridge --rule PRX-000002 --wait-for 25   # users and hosts show as pseudonyms (id-...)
 ./px tune PRX-000002 --client ironbridge --hint "many alerts from the backup agent"
 ./px change merge <number>
 ```
 
 The command and the pull request both state the exclusion in plain words and
 the measured impact ("removes 28 of 32 matches over the last 30 days"). The dashboard's Tuning
-studio shows a rule's alerts and lets you try an exclusion before proposing it.
+studio shows a rule's alerts and lets you try an exclusion before proposing it. At any time
+afterwards, `./px tuning PRX-000002 --client ironbridge` shows the rule's
+exclusions in plain words and how many matches they suppress.
 
 Tuning files can also be written by hand in
 `content/clients/<client>/tuning/<rule>.yml`; `docs/agents.md` and the
@@ -302,7 +311,16 @@ counts code measured. Hypotheses it marks durable are candidates for step 6 or 7
 | Offboard a client | `./px client offboard ironbridge --yes --delete-space --delete-data`, then `./px change submit` and `merge` |
 
 Offboarding removes the client's rules and keys from the SIEM, and with the
-two flags its Kibana space and telemetry. It cannot be undone.
+two flags its Kibana space and telemetry. It then checks the SIEM and says
+what it verified ("verified in the SIEM: no PRAXIS rules, no active keys, no
+Kibana space, no telemetry"); if anything is left it fails and names it. It
+cannot be undone.
+
+It leaves the shared library alone and lists what it kept: the sector's threat
+profile, the records of the client's rule packs and hunts (history), and any
+detection that no client runs now, with the commands to reassign or retire it.
+The client's coverage history stays in the database but no longer shows on
+the dashboard or in `./px status`.
 
 ## The dashboard
 

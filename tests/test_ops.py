@@ -29,6 +29,7 @@ def test_sector_add_checks_group_ids(base):
     assert core.validate(core.load_repo(base)) == []
     with pytest.raises(ops.OpsError, match="already has a threat profile"):
         ops.sector_add(base, "construction", "Again.", ["G1024"])
+    assert "context" in ops.attack_groups("akira")[0]
     (akira,) = ops.attack_groups("akira")
     assert (akira["id"], akira["name"], akira["matched"]) == ("G1024", "Akira", "name")
     by_sector = ops.attack_groups("construction")
@@ -84,8 +85,9 @@ def test_subscribe_lifecycle_and_remove(base):
 
     ops.client_subscribe(base, "ironbridge", detections=["PRX-000900"], remove=True)
     assert ops.client_show(core.load_repo(base), "ironbridge")["detections_running"] == []
-    assert ops.client_remove(base, "ironbridge")
-    assert "ironbridge" not in core.load_repo(base).clients
+    gone = ops.client_remove(base, "ironbridge")
+    assert gone["removed_files"] and "ironbridge" not in core.load_repo(base).clients
+    assert gone["kept"]["sector_profile"] == "construction"
 
 
 def test_status_is_one_place_to_orient(base):
