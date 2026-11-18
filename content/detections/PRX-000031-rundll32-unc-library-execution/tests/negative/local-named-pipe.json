@@ -1,0 +1,21 @@
+{
+  "@timestamp": "2026-11-01T11:02:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "rundll32.exe",
+    "command_line": "rundll32.exe \\\\.\\pipe\\support"
+  }
+}

@@ -1,0 +1,36 @@
+id: PRX-000031
+name: Rundll32 executes a UNC library
+intent: Detects Rundll32 with a UNC path in its command line because attackers can use remote
+  libraries to execute code.
+version: 1
+lifecycle: staged
+owner: ai:platform-engineer-elastic
+severity: high
+risk_score: 73
+attack:
+- technique: T1021.002
+  tactic: TA0008
+- technique: T1218.011
+  tactic: TA0005
+data_components:
+- Process Creation
+pyramid_tier: ttp
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.process-*
+    - logs-windows.sysmon_operational-*
+provenance:
+  source: sigmahq
+  upstream_id: 5cdb711b-5740-4fb2-ba88-f7945027afac
+  upstream_commit: 088855f00b65a19e345b09c1619272b44f92fea4
+  upstream_author: Nasreddine Bencherchali (Nextron Systems)
+  licence: DRL-1.1
+references:
+- https://www.cybereason.com/blog/rundll32-the-infamous-proxy-for-executing-malicious-code
+- https://attack.mitre.org/techniques/T1021/002/
+- https://attack.mitre.org/techniques/T1218/011/
+- https://www.microsoft.com/en-us/security/blog/2026/07/16/acr-stealer-two-observed-intrusion-chains-amid-increased-threat-activity/
+false_positives:
+- Approved software can use Rundll32 to load libraries from a share.
+- A local library can receive a UNC path as an argument.

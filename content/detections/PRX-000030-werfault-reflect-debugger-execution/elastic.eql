@@ -1,0 +1,5 @@
+process where host.os.type == "windows" and event.type == "start" and
+  (process.name : "WerFault.exe" or ?process.pe.original_file_name : "WerFault.exe") and
+  (?process.args : "-pr" or
+   ?process.command_line : ("* -pr *", "* -pr", "*\t-pr *", "* -pr\t*", "*\t-pr\t*", "*\t-pr",
+                            "* \"-pr\" *", "* \"-pr\"", "*\t\"-pr\" *", "* \"-pr\"\t*", "*\t\"-pr\"\t*", "*\t\"-pr\""))

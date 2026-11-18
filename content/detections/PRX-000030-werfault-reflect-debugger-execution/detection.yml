@@ -1,0 +1,32 @@
+id: PRX-000030
+name: WerFault ReflectDebugger execution
+intent: Detects WerFault starting with the -pr option, which can execute a program from the
+  ReflectDebugger registry value and conceal its execution.
+version: 1
+lifecycle: staged
+owner: ai:platform-engineer-elastic
+severity: medium
+risk_score: 47
+attack:
+- technique: T1036
+  tactic: TA0005
+data_components:
+- Process Creation
+- Command Execution
+pyramid_tier: ttp
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.process-*
+    - logs-windows.sysmon_operational-*
+provenance:
+  source: sigmahq
+  upstream_id: fabfb3a7-3ce1-4445-9c7c-3c27f1051cdd
+  upstream_commit: 088855f00b65a19e345b09c1619272b44f92fea4
+  upstream_author: X__Junior (Nextron Systems)
+  licence: DRL-1.1
+references:
+- https://cocomelonc.github.io/malware/2022/11/02/malware-pers-18.html
+- https://www.hexacorn.com/blog/2018/08/31/beyond-good-ol-run-key-part-85/
+false_positives:
+- An authorized debugger configuration can use the same option.

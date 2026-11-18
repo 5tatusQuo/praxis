@@ -1,0 +1,21 @@
+{
+  "@timestamp": "2026-11-01T10:01:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "RUNDLL32.EXE",
+    "command_line": "\"C:\\Windows\\System32\\rundll32.exe\" \"\\\\fileserver\\shared folder\\payload.dll\",Entry"
+  }
+}
