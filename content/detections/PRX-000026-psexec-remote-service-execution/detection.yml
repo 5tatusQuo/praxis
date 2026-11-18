@@ -3,7 +3,7 @@ name: PsExec client or service binary started
 intent: Detects the PsExec client or its remote service binary starting, a common way for
   intruders to run commands on other hosts over SMB admin shares.
 version: 1
-lifecycle: staged
+lifecycle: production
 owner: detection-engineering
 severity: medium
 risk_score: 47
