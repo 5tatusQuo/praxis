@@ -20,7 +20,7 @@ import yaml
 from praxis import attack, core, db
 from praxis.catalog import quality
 from praxis.catalog.fingerprint import eql_triples
-from praxis.catalog.sync import library_triples, technique_counts
+from praxis.catalog.sync import library_triples
 from praxis.content.docs import REQUIRED_SECTIONS
 from praxis.platforms import get_platform
 from praxis.visibility.engine import top_gaps
@@ -467,12 +467,25 @@ class Toolbox:
             target = self._client(repo, client)
             platform = get_platform(target.platforms.enabled()[0])
             backtest = platform.backtest(target, query, indices)
-        crowded = technique_counts(repo)
+        # A detection is not a duplicate of itself: when the query being scored
+        # is already a library detection's query, leave that one out of the
+        # overlap check and out of the per-technique count.
+        own = {
+            b.id
+            for b in repo.detections.values()
+            if any(i.query.split() == query.split() for i in b.implementations.values())
+        }
+        library = {k: v for k, v in library_triples(repo).items() if k not in own}
+        crowded: dict[str, int] = {}
+        for bundle in repo.detections.values():
+            if bundle.id not in own:
+                for ref in bundle.meta.attack:
+                    crowded[ref.technique] = crowded.get(ref.technique, 0) + 1
         result = quality.profile(
             eql_triples(query),
             title=title,
             status="test",
-            library=library_triples(repo),
+            library=library,
             same_technique_in_library=max((crowded.get(t, 0) for t in techniques or []), default=0),
             backtest=backtest,
             has_positive_tests=True,
