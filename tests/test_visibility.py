@@ -123,6 +123,14 @@ def test_rule_status():
     assert rule_status(rule(last_status="failed"), live) == "blind"
     assert rule_status(rule(last_status=None), live) == "blind"
     assert rule_status(rule(), set()) == "blind", "its data source is silent"
+    assert rule_status(rule(shadow=True), live) == "shadow"
+
+
+def test_shadow_rule_gives_no_coverage(vrepo):
+    client = vrepo.clients["testco"]
+    snap = build_snapshot(vrepo, client, inventory([source()], [rule(shadow=True)]))
+    assert classes(snap)["T1059.001"] == "detection_gap", "not covered until it is promoted"
+    assert snap["summary"]["rules"] == {"healthy": 0, "shadow": 1, "blind": 0, "disabled": 0}
 
 
 def classes(snapshot) -> dict[str, str]:
@@ -152,7 +160,7 @@ def test_classification(vrepo):
         sum(summary[k] for k in ("covered", "detection_gap", "visibility_gap", "blind_rule"))
         == (summary["techniques"])
     )
-    assert summary["rules"] == {"healthy": 1, "blind": 0, "disabled": 0}
+    assert summary["rules"] == {"healthy": 1, "shadow": 0, "blind": 0, "disabled": 0}
 
 
 def test_blind_rule_when_source_goes_silent(vrepo):

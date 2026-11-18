@@ -32,6 +32,7 @@ class RuleHealth:
     alerts_30d: int
     deployed_hash: str | None
     tables: list[str] = field(default_factory=list)  # the rule's data sources
+    shadow: bool = False  # staged: runs and is measured, but is not in the alert queue
 
 
 @dataclass

@@ -117,7 +117,7 @@ export default async function ClientOverview({ params }: { params: Promise<{ id:
         <Stat
           label="Blind rules"
           value={s.rules.blind}
-          hint={`${s.rules.healthy} healthy · ${s.rules.disabled} disabled`}
+          hint={`${s.rules.healthy} healthy · ${s.rules.shadow ?? 0} in shadow · ${s.rules.disabled} disabled`}
           colour={s.rules.blind ? "var(--color-ember)" : undefined}
         />
       </div>
@@ -220,7 +220,7 @@ export default async function ClientOverview({ params }: { params: Promise<{ id:
                   </td>
                   <td
                     className={`py-1.5 pr-3 ${
-                      r.status === "healthy" ? "text-teal" : r.status === "blind" ? "text-ember" : "text-mute"
+                      r.status === "healthy" ? "text-teal" : r.status === "blind" ? "text-ember" : r.status === "shadow" ? "text-brass" : "text-mute"
                     }`}
                   >
                     {r.status}

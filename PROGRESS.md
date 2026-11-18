@@ -5,8 +5,7 @@ is the state of the build.
 
 ## Current phase
 
-**Phase 3 · AI agents** — built and tested without a model; **waiting on two things from you**
-(see "Blocked on you" below). Phases 0, 1 and 2 passed on 2026-11-18.
+**Phase 4 · Hunts and launch** — in progress. Phases 0 to 3 passed on 2026-11-18.
 
 ## Phase 3 plan
 
@@ -55,23 +54,8 @@ signatures, and signed commits on the content repo.
 
 ## Blocked on you
 
-1. **Sign in with ChatGPT in the dashboard.** Run `deploy/dashboard.sh`, open
-   Settings, press "Sign in with ChatGPT" and allow plan usage. Everything up
-   to the browser step is proven live (OpenAI accepts the sign-in request and
-   sends the browser to its login page). Not proven until you do it: the
-   consent screen, the code exchange, and the first model call on your plan.
-   OpenAI's docs are unclear on whether this self-serve path is open to every
-   account or still partly behind a waitlist; if the sign-in is refused, that
-   is the likely reason.
-2. **Your review of the pack PR.** There is nothing to review yet: the pack PR
-   is what the Curator produces on its first real run, which needs the sign-in
-   above. Once it exists, a person reads and merges it; I will not merge an
-   AI-curated pack myself.
-3. **Your go-ahead before I tag v1.0** (end of Phase 4).
-
-To run the Phase 3 gate after signing in:
-
-    deploy/with-server.sh uv run praxis pack plan acme --month 2026-12 --budget 3
+1. **Your go-ahead before I tag v1.0** (the Phase 4 gate). Before asking, I
+   will prove the Hunt Planner and the Tuner with the real model.
 
 Decided by you on 2026-11-18: cloud work (Helm, Terraform) and the other SIEMs
 come last, in Phase 5, and Phase 5 waits until Phases 0–4 are completely done.
@@ -97,7 +81,6 @@ come last, in Phase 5, and Phase 5 waits until Phases 0–4 are completely done.
 
 ## Next
 
-- Phase 3 gate run (needs the key and your review).
 - Phase 4 gate: prove the Hunt Planner with a real model, then tag v1.0 with your go-ahead.
 - Phase 5, only after Phases 0–4 are completely done: Splunk and Sentinel, then cloud deployment.
 
@@ -144,6 +127,7 @@ come last, in Phase 5, and Phase 5 waits until Phases 0–4 are completely done.
 | 2026-11-18 | Tokens live in one mode-600 file in the API container's own volume, not in Postgres. The API hands a short-lived access token (never the refresh token) to an operator's agent run over the tunnel. | Follows OpenAI's storage rules (protected self-hosted storage, atomic writes, serialised refresh). The token endpoint exists because agents still run on the workstation; it goes away when agent runs move to the server. |
 | 2026-11-18 | With OpenAI, the final answer comes back through a `submit_answer` function tool, and requests send `store: false`, `stream: true` and the full history each turn. | The preview's documented rules. Its docs do not say whether JSON-schema structured output is supported, so the provider does not depend on it. |
 | 2026-11-18 | Agent text follows the ASD-STE100 writing rules and fixed templates with word limits. Code rejects answers over a word or sentence limit; the pull-request report is one table plus short lists. Limits are listed in `docs/agents.md`. | Your review of the first pack: too much text for a person to read, and it repeated numbers the page already shows. Only sentence length and word counts are checked by code; the STE dictionary is not applied. |
+| 2026-11-18 | A shadow (staged) rule gives no coverage until it is promoted; snapshots report it under its own status. | The first pack's three shadow rules were being counted as covered techniques, which overstated coverage: their alerts do not reach the SOC. |
 
 ## Open problems
 
@@ -217,3 +201,27 @@ come last, in Phase 5, and Phase 5 waits until Phases 0–4 are completely done.
   client overview render the snapshot (heatmap, gaps, silent-source warning).
 - Limit: the audit was scripted by the same author as the engine. The raw
   facts table in the audit document is small enough to check by eye.
+
+### Phase 3 — first AI-curated pack merged after human review (passed 2026-11-18)
+
+- Sign in with ChatGPT completed by the owner in the dashboard; plan usage
+  granted; agents ran on `gpt-6.1-sol`. The first real model call needed no
+  change to the tool-calling format.
+- `praxis pack plan acme --month 2026-12 --budget 3` produced
+  https://github.com/5tatusQuo/praxis/pull/11: three staged detections written
+  by the Platform Engineer agent from SigmaHQ candidates the Curator picked
+  (PRX-000004 service registry deletion via reg.exe, T1685; PRX-000005 RDP
+  registry configuration via reg.exe, T1021.001; PRX-000006 PowerShell TCP
+  stream, T1059.001). 42 lab cases pass; each scores 94; 0 backtest hits on
+  lab telemetry, which is synthetic and benign.
+- Found by the run: the scorer counted each new rule as a duplicate of itself
+  (the Reviewer agent flagged it; fixed in PR #12 and the pack re-measured by
+  code). The owner's review led to the short writing template (PR #13) and
+  rule names in reports (PR #15); the pack text was rewritten to the template
+  by the Curator and reviewed again from scratch (verdict: pass, no comments).
+- **Merged by the owner** (5tatusQuo) at 2026-11-18T05:30:56Z, after review.
+- CD run https://github.com/5tatusQuo/praxis/actions/runs/44244796737 created
+  the three rules in the `acme` Kibana space. Checked in Kibana: each is
+  enabled, named `[shadow] …`, severity low, tagged `praxis-shadow`, last run
+  succeeded.
+- Not yet done for this pack: the 14-day shadow period and the promotion PR.

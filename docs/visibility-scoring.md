@@ -41,6 +41,7 @@ not set, from the largest host count seen in any source.
 | Status | Meaning |
 | --- | --- |
 | healthy | Enabled, latest run succeeded, and at least one of its log sources received events in the last 24 hours |
+| shadow | A staged rule: it runs and is measured, but its alerts stay out of the SOC's queue. Gives no coverage until promoted |
 | blind | Enabled, but its latest run did not succeed, it never ran, or all its log sources are silent or missing |
 | disabled | Turned off (for example by tuning). Gives no coverage |
 

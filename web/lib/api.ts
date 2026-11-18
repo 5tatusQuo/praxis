@@ -9,7 +9,7 @@ export type Summary = {
   coverage_pct: number;
   weighted_coverage_pct: number | null;
   visible_pct: number;
-  rules: { healthy: number; blind: number; disabled: number };
+  rules: { healthy: number; blind: number; disabled: number; shadow?: number };
 };
 
 export type GapClass = "covered" | "detection_gap" | "visibility_gap" | "blind_rule";
@@ -46,7 +46,7 @@ export type Rule = {
   id: string;
   name?: string;
   platform: string;
-  status: "healthy" | "blind" | "disabled";
+  status: "healthy" | "shadow" | "blind" | "disabled";
   last_status: string | null;
   alerts_30d: number;
   techniques: string[];
