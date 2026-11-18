@@ -1,0 +1,13 @@
+{
+  "event": {"category": ["process"], "type": ["start"], "kind": "event"},
+  "host": {"name": "ws-lab-02", "os": {"type": "windows"}},
+  "user": {"name": "svc-backup"},
+  "process": {
+    "name": "upd.exe",
+    "pid": 7120,
+    "executable": "C:\\Users\\Public\\upd.exe",
+    "command_line": "C:\\Users\\Public\\upd.exe comsvcs.dll,#24 624 C:\\Users\\Public\\out.bin full",
+    "pe": {"original_file_name": "RUNDLL32.EXE"},
+    "parent": {"name": "powershell.exe", "executable": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"}
+  }
+}

@@ -1,0 +1,11 @@
+id: acme
+name: Acme Health (fictional)
+sector: healthcare
+fictional: true
+platforms:
+  elastic:
+    connection: lab
+    space: acme
+    namespace: acme
+packs:
+  - baseline

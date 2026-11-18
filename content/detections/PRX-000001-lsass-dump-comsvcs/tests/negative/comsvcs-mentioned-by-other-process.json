@@ -1,0 +1,13 @@
+{
+  "event": {"category": ["process"], "type": ["start"], "kind": "event"},
+  "host": {"name": "ws-lab-03", "os": {"type": "windows"}},
+  "user": {"name": "a.admin"},
+  "process": {
+    "name": "findstr.exe",
+    "pid": 6644,
+    "executable": "C:\\Windows\\System32\\findstr.exe",
+    "command_line": "findstr /i \"comsvcs MiniDump\" C:\\notes\\hunting.txt",
+    "pe": {"original_file_name": "FINDSTR.EXE"},
+    "parent": {"name": "cmd.exe", "executable": "C:\\Windows\\System32\\cmd.exe"}
+  }
+}

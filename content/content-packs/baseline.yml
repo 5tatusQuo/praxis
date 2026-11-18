@@ -1,0 +1,5 @@
+id: baseline
+name: Baseline
+description: High-confidence detections every client gets, whatever their sector.
+detections:
+  - PRX-000001
