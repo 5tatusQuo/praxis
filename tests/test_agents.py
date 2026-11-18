@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import json
 
 import pytest
 import yaml
@@ -140,11 +141,19 @@ def world(content, tmp_path, monkeypatch):
     return {"content": content, "candidate": candidate.id, "snapshot": snapshot, "state": state}
 
 
+BRIEF = {
+    "headline": "Process telemetry is good. This pack starts on PowerShell.",
+    "adds": ["Encoded PowerShell detection"],
+    "leaves_open": ["Script-block logging is not collected"],
+}
+
+
 def pick(world, **changes) -> dict:
     base = {
         "candidate_id": world["candidate"],
         "technique": "T1059.001",
-        "rationale": "Closes the highest-weight visible gap.",
+        "why": "Closes the highest-weight visible gap.",
+        "caveat": "",
         "justification": "",
     }
     return {**base, **changes}
@@ -158,7 +167,7 @@ def script(world, engineer_steps=None, verdict="pass", comments=None) -> Scripte
 
     def engineer_answer(box):
         written["id"] = sorted(box.created)[-1]
-        return {"detection_id": written["id"], "notes": "Tightened the draft."}
+        return {"detection_id": written["id"], "changed": "Tightened the draft."}
 
     return ScriptedLLM(
         {
@@ -168,7 +177,7 @@ def script(world, engineer_steps=None, verdict="pass", comments=None) -> Scripte
                 (
                     "answer",
                     {
-                        "brief": "Process telemetry is good; PowerShell is uncovered.",
+                        "brief": BRIEF,
                         "picks": [pick(world)],
                     },
                 ),
@@ -247,7 +256,15 @@ def test_guardrails_are_enforced_in_code(world):
 # -- the pack flow -------------------------------------------------------------------
 def test_pack_flow_end_to_end(world):
     llm = script(
-        world, comments=[{"detection_id": "PRX-000901", "severity": "note", "comment": "ok"}]
+        world,
+        comments=[
+            {
+                "detection_id": "PRX-000901",
+                "severity": "concern",
+                "issue": "One path tested.",
+                "action": "Add a case.",
+            }
+        ],
     )
     pack, trail = packs.plan_pack(world["content"], "testco", "2026-12", llm, budget=3)
     assert [p["detection"] for p in pack["picks"]] == ["PRX-000901"]
@@ -294,12 +311,19 @@ def test_pack_flow_end_to_end(world):
     )
     assert "write_detection" not in reviewer_task["allowed"]
     body = packs.report(pack, world["snapshot"])
-    assert "PRX-000901" in body and "Reviewer agent verdict: PASS" in body and "T1059.001" in body
+    assert "PRX-000901" in body and "Reviewer agent: PASS" in body and "T1059.001" in body
+    assert "One path tested. → Add a case." in body and "Still open after this pack" in body
+    assert len(body.split()) < 170, "the report stays short"
 
 
 def test_a_blocker_fails_the_pack_whatever_the_verdict_says(world):
     blocker = [
-        {"detection_id": "PRX-000901", "severity": "blocker", "comment": "Trivially evaded."}
+        {
+            "detection_id": "PRX-000901",
+            "severity": "blocker",
+            "issue": "Trivially evaded.",
+            "action": "Match the PE name.",
+        }
     ]
     pack, _ = packs.plan_pack(
         world["content"], "testco", "2026-12", script(world, verdict="pass", comments=blocker), 3
@@ -313,7 +337,7 @@ def test_pick_is_dropped_when_tests_fail(world):
     )
     steps = [
         ("tool", "write_detection", bad),
-        ("answer", lambda box: {"detection_id": sorted(box.created)[-1], "notes": "done"}),
+        ("answer", lambda box: {"detection_id": sorted(box.created)[-1], "changed": "done"}),
     ]
     pack, _ = packs.plan_pack(world["content"], "testco", "2026-12", script(world, steps), 3)
     assert pack["picks"] == [] and pack["rejected"][0]["reason"] == "tests do not pass"
@@ -558,3 +582,73 @@ def test_elastic_rule_ingest(tmp_path):
     assert (
         list(elastic_rules.load(tmp_path, ["rules/windows"], "e" * 40, "Elastic-2.0", True)) == []
     )
+
+
+# -- writing rules ---------------------------------------------------------------------
+def test_word_limits_are_enforced_and_described():
+    from praxis.agents.llm import model_schema
+
+    long = ". ".join([" ".join(["word"] * 13)] * 2) + "."
+    with pytest.raises(ValueError, match="is 26 words; the limit is 25"):
+        _check({"brief": {**BRIEF, "headline": long}, "picks": []}, packs.CURATOR_ANSWER, "answer")
+    with pytest.raises(ValueError, match="has 4 items; the limit is 3"):
+        _check(
+            {"brief": {**BRIEF, "adds": ["a", "b", "c", "d"]}, "picks": []},
+            packs.CURATOR_ANSWER,
+            "answer",
+        )
+    shown = model_schema(packs.CURATOR_ANSWER)
+    headline = shown["properties"]["brief"]["properties"]["headline"]
+    assert "maxWords" not in headline and "At most 25 words." in headline["description"]
+    for keyword in ("maxWords", "maxItems", "maxSentenceWords"):
+        assert keyword not in json.dumps(shown)
+    assert "At most 3 items." in shown["properties"]["brief"]["properties"]["adds"]["description"]
+
+
+def test_simplified_technical_english_sentence_limits():
+    schema = Toolbox(None).tools()["write_detection"].schema
+    spec = detection_spec()
+    _check(spec, schema)
+    rambling = "This rule fires " + " and then ".join(["when a thing happens"] * 6) + "."
+    with pytest.raises(ValueError, match="has a sentence of .* words; the limit is 25"):
+        _check({**spec, "how_it_works": rambling}, schema)
+    step = "1. Check the parent process, the user, the host, the time, the command line, the hash, the signer, the path and also the network connections it made."
+    with pytest.raises(ValueError, match="the limit is 20"):
+        _check({**spec, "soc_triage": step}, schema)
+    listed = "1. Decode the command.\n2. Check the parent process and the user.\n3. Isolate the host if it is malicious."
+    _check({**spec, "soc_triage": listed}, schema)
+
+
+def test_an_over_long_answer_is_rejected(world):
+    long = " ".join(["padding"] * 40)
+    llm = script(world)
+    llm.script["curator"] = [
+        ("answer", {"brief": {**BRIEF, "headline": long}, "picks": [pick(world)]})
+    ]
+    with pytest.raises(ValueError, match="limit is 25"):
+        packs.plan_pack(world["content"], "testco", "2026-12", llm, 3)
+
+
+def test_restyle_keeps_picks_and_reviews_again(world):
+    llm = script(world)
+    pack, _ = packs.plan_pack(world["content"], "testco", "2026-12", llm, 3)
+    path = world["content"] / "rule-packs" / f"{pack['id']}.yml"
+    legacy = yaml.safe_load(path.read_text())
+    legacy["brief"] = "A very long paragraph. " * 30
+    legacy["picks"][0]["rationale"] = legacy["picks"][0].pop("why") * 10
+    legacy["picks"][0]["engineer_notes"] = legacy["picks"][0].pop("changed")
+    path.write_text(yaml.safe_dump(legacy))
+    rewritten = {
+        "brief": BRIEF,
+        "picks": [pick(world, why="Short reason.")],
+        "changed": ["Kept the draft."],
+    }
+    llm.script["curator"] = [("answer", rewritten)]
+    llm.script["reviewer"] = [("answer", {"verdict": "pass", "summary": "Fine.", "comments": []})]
+    restyled = packs.restyle(world["content"], pack["id"], llm)
+    chosen = restyled["picks"][0]
+    assert chosen["detection"] == pack["picks"][0]["detection"]
+    assert chosen["why"] == "Short reason." and chosen["changed"] == "Kept the draft."
+    assert "rationale" not in chosen and "engineer_notes" not in chosen
+    assert restyled["brief"] == BRIEF and restyled["review"]["comments"] == []
+    assert core.validate(core.load_repo(world["content"])) == []
