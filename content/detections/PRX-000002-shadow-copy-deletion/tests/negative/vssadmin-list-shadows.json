@@ -1,0 +1,12 @@
+{
+  "event": {"category": ["process"], "type": ["start"], "kind": "event"},
+  "host": {"name": "srv-lab-01", "os": {"type": "windows"}},
+  "user": {"name": "a.admin"},
+  "process": {
+    "name": "vssadmin.exe",
+    "pid": 4100,
+    "command_line": "vssadmin list shadows",
+    "pe": {"original_file_name": "VSSADMIN.EXE"},
+    "parent": {"name": "cmd.exe"}
+  }
+}

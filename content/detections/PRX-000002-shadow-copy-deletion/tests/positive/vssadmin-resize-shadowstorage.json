@@ -1,0 +1,12 @@
+{
+  "event": {"category": ["process"], "type": ["start"], "kind": "event"},
+  "host": {"name": "srv-lab-01", "os": {"type": "windows"}},
+  "user": {"name": "j.doe"},
+  "process": {
+    "name": "vssadmin.exe",
+    "pid": 4100,
+    "command_line": "vssadmin resize shadowstorage /for=C: /on=C: /maxsize=401MB",
+    "pe": {"original_file_name": "VSSADMIN.EXE"},
+    "parent": {"name": "cmd.exe"}
+  }
+}

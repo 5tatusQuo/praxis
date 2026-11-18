@@ -1,0 +1,34 @@
+id: PRX-000002
+name: Volume shadow copies deleted or resized with built-in tools
+intent: >-
+  Detects vssadmin, wmic, PowerShell or diskshadow deleting volume shadow
+  copies, or vssadmin shrinking their storage, which ransomware does just
+  before encryption so files cannot be restored.
+version: 1
+lifecycle: production
+owner: detection-engineering
+severity: high
+risk_score: 73
+attack:
+  - technique: T1490
+    tactic: TA0040
+data_components:
+  - Process Creation
+pyramid_tier: ttp
+log_sources:
+  elastic:
+    indices:
+      - logs-endpoint.events.process-*
+      - logs-windows.sysmon_operational-*
+schedule:
+  interval: 5m
+  lookback: 6m
+provenance:
+  source: praxis
+  licence: Apache-2.0
+references:
+  - https://attack.mitre.org/techniques/T1490/
+  - https://lolbas-project.github.io/lolbas/Binaries/Vssadmin/
+false_positives:
+  - Backup software and disk clean-up scripts that prune old shadow copies on a schedule.
+  - Administrators freeing disk space by hand on a single server.
