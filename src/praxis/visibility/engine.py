@@ -88,9 +88,15 @@ def score_components(
 
 
 def rule_status(rule: RuleHealth, live_tables: set[str]) -> str:
-    """healthy, blind (deployed but cannot see or run) or disabled."""
+    """healthy, shadow, blind (deployed but cannot see or run) or disabled.
+
+    A shadow rule is staged: it runs, but its alerts stay out of the SOC's
+    queue, so it gives no coverage until it is promoted.
+    """
     if not rule.enabled:
         return "disabled"
+    if rule.shadow:
+        return "shadow"
     if rule.last_status != "succeeded":
         return "blind"
     if not any(table in live_tables for table in rule.tables):
@@ -194,7 +200,7 @@ def build_snapshot(
             "visible_pct": round(100 * visible / len(techniques_out), 2),
             "rules": {
                 status: sum(1 for r in rules if r["status"] == status)
-                for status in ("healthy", "blind", "disabled")
+                for status in ("healthy", "shadow", "blind", "disabled")
             },
         },
         "components": components,

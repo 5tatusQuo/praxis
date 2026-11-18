@@ -24,6 +24,7 @@ from praxis.platforms.elastic.connection import ApiError, ElasticConnection, cal
 from praxis.platforms.elastic.provision import provision
 from praxis.platforms.elastic.render import (
     MANAGED_TAG,
+    SHADOW_TAG,
     deployed_hash,
     exception_filter,
     exception_list_id,
@@ -378,6 +379,7 @@ class ElasticPlatform(Platform):
                         alerts_30d=counts.get(rule_id, 0),
                         deployed_hash=deployed_hash(rule),
                         tables=list(rule.get("index", [])),
+                        shadow=SHADOW_TAG in rule.get("tags", []),
                     )
                 )
         return health

@@ -65,7 +65,7 @@ export default async function Fleet() {
                 {fleet.map((row) => {
                   const s = row.summary;
                   const p = row.previous_summary ?? undefined;
-                  const rules = s.rules.healthy + s.rules.blind + s.rules.disabled;
+                  const rules = s.rules.healthy + s.rules.blind + s.rules.disabled + (s.rules.shadow ?? 0);
                   return (
                     <tr key={row.client_id} className="border-t border-line align-middle">
                       <td className="py-3 pr-4">
