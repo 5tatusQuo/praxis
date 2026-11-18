@@ -84,7 +84,7 @@ limit is marked too broad and its hypothesis is not counted as tested.
 `./px hunt-remove` removes a hunt record. The lab check in CI replays only the
 detections a change affects, so a record-only merge no longer waits for all of
 them. A test fails if a `./px` command is not named in the guides, and the
-runbook now names all 63.
+guides now name all 62.
 
 Removed with the new commands, as test data: the seven sector profiles, five
 pack records and seven hunt records the test clients left. Git history keeps
