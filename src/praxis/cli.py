@@ -533,6 +533,24 @@ def pack_rescore(pack_id: str) -> None:
     print(packs.report(pack, snapshot))
 
 
+@pack_app.command("promote")
+def pack_promote(
+    pack_id: str,
+    drop: Annotated[
+        list[str] | None, typer.Option(help="Detection that did not hold up in shadow; repeatable.")
+    ] = None,
+) -> None:
+    """Take a pack out of shadow mode: staged detections become production rules.
+
+    Edits the working tree only. Commit it on a branch and open a pull request.
+    """
+    from praxis.agents import pack as packs
+
+    pack = packs.promote(get_settings().content_dir, pack_id, drop)
+    for pick in pack["picks"]:
+        console.print(f"{pick['detection']} {pick.get('name', '')}: {pick['outcome']}")
+
+
 @pack_app.command("restyle")
 def pack_restyle(pack_id: str) -> None:
     """Rewrite a proposed pack's text to the current template and review it again."""

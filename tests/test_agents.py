@@ -726,3 +726,33 @@ def test_also_narrows_an_exclusion():
         "also" not in str(plain.digest)
         and plain.digest == ResolvedTuning(exclude=(other,), layers=("x",)).digest
     )
+
+
+def test_promote_takes_a_pack_out_of_shadow(world):
+    pack, _ = packs.plan_pack(world["content"], "testco", "2026-12", script(world), 3)
+    with pytest.raises(ValueError, match="not in this pack"):
+        packs.promote(world["content"], pack["id"], ["PRX-000900"])
+    promoted = packs.promote(world["content"], pack["id"])
+    assert promoted["status"] == "promoted" and promoted["picks"][0]["outcome"] == "promoted"
+    repo = core.load_repo(world["content"])
+    assert (
+        core.validate(repo) == [] and repo.detections["PRX-000901"].meta.lifecycle == "production"
+    )
+    client = repo.clients["testco"]
+    assert core.lock_is_current(repo, client)
+    rule = next(
+        r for r in core.render_client(repo, client, "elastic") if r.detection_id == "PRX-000901"
+    )
+    assert rule.envelope["severity"] == "medium" and "praxis-shadow" not in rule.envelope["tags"]
+    assert not rule.envelope["name"].startswith("[shadow]")
+    with pytest.raises(ValueError, match="already promoted"):
+        packs.promote(world["content"], pack["id"])
+
+
+def test_promote_can_drop_a_rule_that_did_not_hold_up(world):
+    pack, _ = packs.plan_pack(world["content"], "testco", "2026-12", script(world), 3)
+    packs.promote(world["content"], pack["id"], drop=["PRX-000901"])
+    repo = core.load_repo(world["content"])
+    assert repo.detections["PRX-000901"].meta.lifecycle == "deprecated"
+    rendered = core.render_client(repo, repo.clients["testco"], "elastic")
+    assert "PRX-000901" not in {r.detection_id for r in rendered}, "a dropped rule leaves the SIEM"

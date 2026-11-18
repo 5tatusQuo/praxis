@@ -702,3 +702,37 @@ def restyle(content_dir: Path, pack_id: str, llm: LLM) -> dict[str, Any]:
     pack["usage"] = {k: previous.get(k, 0) + v for k, v in trail.usage().items()}
     path.write_text(yaml.safe_dump(pack, sort_keys=False, width=100))
     return pack
+
+
+def promote(content_dir: Path, pack_id: str, drop: list[str] | None = None) -> dict[str, Any]:
+    """Take a pack out of shadow: its staged detections become production rules.
+
+    A human decision, made in a pull request. `drop` names detections that did
+    not hold up in shadow; they are deprecated instead of promoted, which
+    removes them from the SIEM. No model is involved.
+    """
+    drop = drop or []
+    path = content_dir / "rule-packs" / f"{pack_id}.yml"
+    pack = yaml.safe_load(path.read_text())
+    if pack["status"] not in ("proposed", "staged"):
+        raise ValueError(f"{pack_id} is already {pack['status']}")
+    repo = core.load_repo(content_dir)
+    unknown = sorted(set(drop) - {p["detection"] for p in pack["picks"]})
+    if unknown:
+        raise ValueError(f"not in this pack: {unknown}")
+    for pick in pack["picks"]:
+        bundle = repo.detections[pick["detection"]]
+        target = "deprecated" if pick["detection"] in drop else "production"
+        meta_path = bundle.path / "detection.yml"
+        text = meta_path.read_text()
+        if "lifecycle: staged" not in text:
+            raise ValueError(f"{pick['detection']} is not staged")
+        meta_path.write_text(text.replace("lifecycle: staged", f"lifecycle: {target}", 1))
+        pick["outcome"] = "dropped" if target == "deprecated" else "promoted"
+    pack["status"] = "promoted"
+    pack["promoted"] = date.today().isoformat()
+    path.write_text(yaml.safe_dump(pack, sort_keys=False, width=100))
+    repo = core.load_repo(content_dir)
+    for each in repo.clients.values():
+        core.write_lock(repo, each)
+    return pack
