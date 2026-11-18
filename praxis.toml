@@ -1,0 +1,14 @@
+# PRAXIS settings. Every value can be overridden by an environment variable
+# of the same name in upper case with a PRAXIS_ prefix (PRAXIS_CONTENT_DIR).
+# Relative paths are resolved from this file's folder.
+
+# Where the detection content lives. It will move to its own repo
+# (praxis-content) later; only this setting changes then.
+content_dir = "content"
+
+# Docker Compose files for `praxis deploy`.
+deploy_dir = "deploy"
+
+# Name of the SIEM connection used for lab tests. Its URLs and keys come from
+# the environment (PRAXIS_ELASTIC_LAB_ES_URL, ...), never from this file.
+lab_connection = "lab"
