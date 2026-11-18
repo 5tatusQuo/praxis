@@ -1,0 +1,28 @@
+id: PRX-000026
+name: PsExec client or service binary started
+intent: Detects the PsExec client or its remote service binary starting, a common way for
+  intruders to run commands on other hosts over SMB admin shares.
+version: 1
+lifecycle: staged
+owner: detection-engineering
+severity: medium
+risk_score: 47
+attack:
+- technique: T1021.002
+  tactic: TA0008
+- technique: T1569.002
+  tactic: TA0002
+data_components:
+- Process Creation
+pyramid_tier: tool
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.process-*
+provenance:
+  source: praxis
+  licence: Apache-2.0
+references:
+- https://attack.mitre.org/techniques/T1021/002/
+false_positives:
+- Administrators and deployment tools that use PsExec for remote maintenance.

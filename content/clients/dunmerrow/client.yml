@@ -11,3 +11,5 @@ platforms:
     namespace: dunmerrow
 packs:
 - baseline
+detections:
+- PRX-000026

@@ -1,0 +1,28 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "name": "srv-lab-02",
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "PSEXESVC.exe",
+    "executable": "C:\\Windows\\PSEXESVC.exe",
+    "command_line": "C:\\Windows\\PSEXESVC.exe",
+    "pe": {
+      "original_file_name": "psexesvc.exe"
+    },
+    "parent": {
+      "name": "services.exe"
+    }
+  }
+}

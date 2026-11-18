@@ -1,0 +1,28 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "name": "srv-lab-02",
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "spoolsv.exe",
+    "executable": "C:\\Windows\\System32\\spoolsv.exe",
+    "command_line": "C:\\Windows\\System32\\spoolsv.exe",
+    "pe": {
+      "original_file_name": "spoolsv.exe"
+    },
+    "parent": {
+      "name": "services.exe"
+    }
+  }
+}
