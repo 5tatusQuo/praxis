@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -22,12 +23,18 @@ Look at the rule and at the client's alerts for it: totals, the most common valu
 fields, and a few redacted samples. Benign noise usually has a clear signature, such as one \
 parent process, one service account or one management tool. Real attacks rarely share it.
 
-Tuning uses a closed set of operations. An exclusion names a field, an operator and a value. \
-Make it as specific as the evidence allows: a full path beats a file name, and a file name \
-beats a substring. Never exclude on something an attacker controls cheaply if a stronger \
-signature is available. Each exclusion needs an example event, modelled on a real alert, \
-that the untuned rule fires on and the tuned rule ignores. Give the tuning an expiry date so \
-it is reviewed again.
+Tuning uses a closed set of operations. An exclusion is a condition on a field, plus any \
+number of further conditions under `also` that must all match too. Separate exclusions are \
+alternatives: each one on its own suppresses alerts. So to make an exclusion narrower, add \
+conditions under `also`. A second exclusion makes the tuning wider, and a single exclusion \
+on something every alert shares, such as the binary the rule is about, blinds the rule.
+
+Make the exclusion as specific as the evidence allows: a full path beats a file name, and a \
+file name beats a substring. Prefer what an attacker cannot cheaply copy. User and host names \
+in the samples are pseudonyms (`id-...`), not real values, so you cannot exclude on them. \
+Each exclusion needs an example event, modelled on a real alert, that the untuned rule fires \
+on and the tuned rule ignores. Cite the alert ids you were shown as evidence. Set an expiry \
+date within the next year so the tuning is reviewed again.
 
 Propose the override with the tool and read what comes back: the lab must pass (examples \
 silenced, every positive test still firing) and the impact shows how many of the last 30 \
@@ -68,7 +75,10 @@ def propose_tuning(
     trail = AuditTrail(client_id)
     box = Toolbox(content_dir, client_id, trail.recorder("ai:tuner"))
     progress("Tuner: reading the rule and its alerts")
-    task = f"Client: {client_id}. Rule: {detection_id}. Work out why it is noisy and tune it."
+    task = (
+        f"Today is {date.today().isoformat()}. Client: {client_id}. Rule: {detection_id}. "
+        "Work out why it is noisy and tune it."
+    )
     if hint:
         task += f" The analyst adds: {hint}"
     answer = llm.run(
@@ -105,7 +115,13 @@ def promotable_exclusions(repo: ContentRepo, minimum: int = 3) -> list[dict[str,
     seen: dict[tuple[str, str, str, str], list[str]] = {}
     for (client_id, rule), tuning in repo.client_tuning.items():
         for exclusion in tuning.exclude:
-            key = (rule, exclusion.field, exclusion.op, str(exclusion.value))
+            also = "; ".join(f"{c.field} {c.op} {c.value}" for c in exclusion.also)
+            key = (
+                rule,
+                exclusion.field,
+                exclusion.op,
+                str(exclusion.value) + (f" and {also}" if also else ""),
+            )
             seen.setdefault(key, []).append(client_id)
     return [
         {"rule": rule, "field": name, "op": op, "value": value, "clients": sorted(clients)}

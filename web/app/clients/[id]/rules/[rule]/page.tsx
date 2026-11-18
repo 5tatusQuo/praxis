@@ -70,6 +70,7 @@ export default async function TuningStudio({ params }: { params: Promise<{ id: s
                 {detail.tuning.exclude.map((e, i) => (
                   <li key={i}>
                     {e.field} {e.op} {String(e.value)}
+                    {(e.also ?? []).map((c) => ` and ${c.field} ${c.op} ${String(c.value)}`).join("")}
                   </li>
                 ))}
               </ul>

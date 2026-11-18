@@ -20,8 +20,8 @@ from praxis.content.models import DetectionId, Schedule, Severity, Strict
 ExcludeOp = Literal["equals", "in", "startswith", "endswith", "contains", "wildcard"]
 
 
-class Exclusion(Strict):
-    """One condition that suppresses an alert. Several exclusions are OR-ed."""
+class Condition(Strict):
+    """One test on one field."""
 
     field: Annotated[str, StringConstraints(pattern=r"^[A-Za-z_@][\w.@-]*$")] = Field(
         description="Logical (ECS) field name; the platform maps it to its own field."
@@ -30,12 +30,28 @@ class Exclusion(Strict):
     value: str | list[str]
 
     @model_validator(mode="after")
-    def value_matches_op(self) -> Exclusion:
+    def value_matches_op(self) -> Condition:
         if (self.op == "in") != isinstance(self.value, list):
             raise ValueError("`in` takes a list of values; every other op takes one string")
         if not self.value:
             raise ValueError("value must not be empty")
         return self
+
+
+class Exclusion(Condition):
+    """What suppresses an alert: this condition and every condition under `also`.
+
+    Separate exclusions are alternatives: an alert is suppressed when any one
+    of them matches. To narrow an exclusion, add conditions under `also`; do
+    not add a second exclusion, which widens it.
+    """
+
+    also: list[Condition] = Field(
+        default=[], description="More conditions that must all match as well."
+    )
+
+    def conditions(self) -> list[Condition]:
+        return [Condition(field=self.field, op=self.op, value=self.value), *self.also]
 
 
 class Tuning(Strict):
@@ -95,7 +111,7 @@ class ResolvedTuning:
         if self.is_empty:
             return None
         payload = {
-            "exclude": [e.model_dump() for e in self.exclude],
+            "exclude": [e.model_dump(exclude_defaults=True) for e in self.exclude],
             "severity": self.severity,
             "risk_score": self.risk_score,
             "schedule": self.schedule.model_dump() if self.schedule else None,

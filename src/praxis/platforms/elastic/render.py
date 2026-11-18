@@ -8,7 +8,7 @@ from praxis import attack
 from praxis.content.docs import section
 from praxis.content.loader import DetectionBundle
 from praxis.content.models import Client
-from praxis.content.tuning import Exclusion, ResolvedTuning
+from praxis.content.tuning import Condition, ResolvedTuning
 from praxis.platforms.base import RenderedRule, content_hash
 
 MANAGED_TAG = "PRAXIS"
@@ -68,8 +68,8 @@ def _escape_wildcard(value: str, keep_wildcards: bool) -> str:
     return value
 
 
-def exception_entry(exclusion: Exclusion) -> dict[str, Any]:
-    """One exclusion as a Kibana exception entry. Matching is case-sensitive."""
+def exception_entry(exclusion: Condition) -> dict[str, Any]:
+    """One condition as a Kibana exception entry. Matching is case-sensitive."""
     entry: dict[str, Any] = {"field": exclusion.field, "operator": "included"}
     value = exclusion.value
     if exclusion.op == "equals":
@@ -95,22 +95,25 @@ def exception_filter(tuning: ResolvedTuning) -> dict[str, Any] | None:
     """
     if not tuning.exclude:
         return None
+
+    def clause(condition: Condition) -> dict[str, Any]:
+        entry = exception_entry(condition)
+        if entry["type"] == "match":
+            return {"match_phrase": {entry["field"]: entry["value"]}}
+        if entry["type"] == "match_any":
+            return {
+                "bool": {
+                    "should": [{"match_phrase": {entry["field"]: v}} for v in entry["value"]],
+                    "minimum_should_match": 1,
+                }
+            }
+        return {"wildcard": {entry["field"]: {"value": entry["value"]}}}
+
     clauses = []
     for exclusion in tuning.exclude:
-        entry = exception_entry(exclusion)
-        if entry["type"] == "match":
-            clauses.append({"match_phrase": {entry["field"]: entry["value"]}})
-        elif entry["type"] == "match_any":
-            clauses.append(
-                {
-                    "bool": {
-                        "should": [{"match_phrase": {entry["field"]: v}} for v in entry["value"]],
-                        "minimum_should_match": 1,
-                    }
-                }
-            )
-        else:
-            clauses.append({"wildcard": {entry["field"]: {"value": entry["value"]}}})
+        # Within one exclusion every condition must match; exclusions are alternatives.
+        parts = [clause(c) for c in exclusion.conditions()]
+        clauses.append(parts[0] if len(parts) == 1 else {"bool": {"filter": parts}})
     return {"bool": {"must_not": [{"bool": {"should": clauses, "minimum_should_match": 1}}]}}
 
 
@@ -127,7 +130,7 @@ def _exception_extras(
             "description": f"Rendered by PRAXIS from tuning for {client.id}. Do not edit here.",
             "type": "simple",
             "namespace_type": "single",
-            "entries": [exception_entry(exclusion)],
+            "entries": [exception_entry(c) for c in exclusion.conditions()],
         }
         if tuning.expires:
             item["expire_time"] = f"{tuning.expires.isoformat()}T23:59:59.000Z"

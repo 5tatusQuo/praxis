@@ -222,7 +222,7 @@ export type RuleDetail = {
     evidence: string[];
     author: string;
     expires: string | null;
-    exclude: { field: string; op: string; value: string | string[] }[];
+    exclude: { field: string; op: string; value: string | string[]; also?: { field: string; op: string; value: string | string[] }[] }[];
   } | null;
   alerts: {
     error?: string;

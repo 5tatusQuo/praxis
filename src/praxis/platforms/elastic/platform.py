@@ -343,7 +343,11 @@ class ElasticPlatform(Platform):
             "days": days,
             "alerts": result["hits"]["total"]["value"],
             "top_values": groups,
-            "samples": [redact(h["_source"]) for h in result["hits"]["hits"]],
+            "alert_ids": [f"alert:{h['_id'][:12]}" for h in result["hits"]["hits"]],
+            "samples": [
+                {"alert_id": f"alert:{h['_id'][:12]}", **redact(h["_source"])}
+                for h in result["hits"]["hits"]
+            ],
         }
 
     def collect_rules(self, client: Client) -> list[RuleHealth]:

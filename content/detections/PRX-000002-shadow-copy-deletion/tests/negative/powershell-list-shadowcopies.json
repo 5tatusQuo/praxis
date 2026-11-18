@@ -1,12 +1,32 @@
 {
-  "event": {"category": ["process"], "type": ["start"], "kind": "event"},
-  "host": {"name": "srv-lab-01", "os": {"type": "windows"}},
-  "user": {"name": "a.admin"},
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "name": "srv-lab-01",
+    "os": {
+      "type": "windows"
+    }
+  },
+  "user": {
+    "name": "a.admin"
+  },
   "process": {
     "name": "powershell.exe",
     "pid": 4100,
     "command_line": "powershell -c Get-CimInstance Win32_ShadowCopy | Select-Object ID,InstallDate",
-    "pe": {"original_file_name": "PowerShell.EXE"},
-    "parent": {"name": "explorer.exe"}
+    "pe": {
+      "original_file_name": "PowerShell.EXE"
+    },
+    "parent": {
+      "name": "explorer.exe"
+    },
+    "executable": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
   }
 }
