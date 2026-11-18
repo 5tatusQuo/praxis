@@ -1,0 +1,75 @@
+name: praxis-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hygiene:
+    name: Secrets and workflow lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Secret scan (gitleaks)
+        run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git /repo --redact --no-banner
+      - name: Workflow lint (actionlint)
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -color
+
+  validate:
+    name: Validate, test and render
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --locked
+      - name: Code style
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Unit tests
+        run: uv run pytest -q
+      - name: Content schema, docs and tuning hooks
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ -n "$BASE_REF" ]; then
+            uv run praxis validate --base "origin/$BASE_REF"
+          else
+            uv run praxis validate
+          fi
+      - name: Render every client
+        run: uv run praxis render --out rendered
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rendered-rules
+          path: rendered/
+
+  lab:
+    name: Lab staging (replay test events)
+    needs: validate
+    # The lab SIEM is on the self-hosted runner. Never run code from forks there.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, praxis]
+    env:
+      PRAXIS_ELASTIC_LAB_ES_URL: ${{ vars.PRAXIS_ELASTIC_LAB_ES_URL }}
+      PRAXIS_ELASTIC_LAB_KIBANA_URL: ${{ vars.PRAXIS_ELASTIC_LAB_KIBANA_URL }}
+      PRAXIS_ELASTIC_LAB_CA_CERT: ${{ vars.PRAXIS_ELASTIC_LAB_CA_CERT }}
+      PRAXIS_ELASTIC_LAB_LAB_API_KEY: ${{ secrets.PRAXIS_ELASTIC_LAB_LAB_API_KEY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --locked
+      - name: Replay test events in the lab SIEM
+        run: uv run praxis lab test
