@@ -107,7 +107,9 @@ some hosts, or a source that went quiet:
 ./px change merge <number>
 ```
 
-`change merge` takes five to ten minutes: the checks replay every detection's
+If `change merge` ends with "merged" but the deploy still running (the
+runner was busy), run the same command again: it waits for that deploy and
+shows its result. `change merge` takes five to ten minutes: the checks replay every detection's
 test events in the lab, and the deploy waits for each rule's first run. It prints progress while it waits for the
 checks, merges, and waits for the deploy; only the clients a change affects
 are redeployed. It reports each rule as `created` and its first run as
@@ -239,6 +241,10 @@ proposal and ask for a new one:
 ./px change close <number> --reason "Reviewer verdict fail: <the blocker>"
 ./px pack plan ironbridge --month 2026-12 --budget 3
 ```
+
+The new proposal knows what failed: the catalog candidates behind a blocked
+rule are not picked again, and the Reviewer checks the earlier blockers
+against the new rules.
 
 When the verdict is `pass`:
 

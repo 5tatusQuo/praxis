@@ -123,8 +123,13 @@ def run_hunt(
         }
         hypotheses.append({**hypothesis, "results": results, "tested": bool(results)})
     slug = re.sub(r"[^a-z0-9]+", "-", prompt.lower()).strip("-")[:48].strip("-")
+    # Two hunts on one day can start with the same words; never overwrite a record.
+    hunt_id, n = f"{date.today().isoformat()}-{slug}", 1
+    while (content_dir / "hunts" / f"{hunt_id}.yml").exists():
+        n += 1
+        hunt_id = f"{date.today().isoformat()}-{slug}-{n}"
     hunt = {
-        "id": f"{date.today().isoformat()}-{slug}",
+        "id": hunt_id,
         "prompt": prompt,
         "created": date.today().isoformat(),
         "clients": client_ids,
