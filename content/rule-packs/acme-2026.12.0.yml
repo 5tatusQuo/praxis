@@ -1,0 +1,141 @@
+id: acme-2026.12.0
+client: acme
+month: 2026-12
+created: '2026-11-18'
+status: proposed
+budget: 3
+snapshot:
+  taken_at: '2026-11-18T03:27:12Z'
+  summary:
+    rules:
+      blind: 1
+      healthy: 2
+      disabled: 0
+    covered: 5
+    blind_rule: 2
+    techniques: 706
+    visible_pct: 75.64
+    coverage_pct: 0.71
+    detection_gap: 527
+    visibility_gap: 172
+    weighted_coverage_pct: 3.1
+brief:
+  headline: This pack detects service deletion attempts, RDP configuration changes, and PowerShell reverse
+    shell behavior through process events without registry events.
+  adds:
+  - Detects service registry deletion commands.
+  - Detects RDP configuration change commands.
+  - Detects PowerShell commands that create and write TCP streams.
+  leaves_open:
+  - Comprehensive RDP and valid account detection remain outside this pack.
+  - Run key monitoring still needs registry events.
+  - Encoded commands and absent script content can evade detection.
+picks:
+- detection: PRX-000004
+  candidate: sigma:05b2aa93-1210-42c8-8d9a-2fcc13b284f5
+  technique: T1685
+  weight: 1.0
+  justification: ''
+  quality:
+    score: 94
+    passes: true
+    tier: ttp
+    parts:
+      specificity: 30
+      pyramid: 25
+      durability: 10
+      maturity: 9
+      overlap: 10
+      backtest: 10
+    closest_existing: PRX-000005
+    closest_similarity: 0.1
+    flags: []
+    backtest:
+      hits: 0
+      days: 30
+  lab:
+    passed: true
+    cases: 14
+  why: The rule detects service deletion attempts through reg.exe commands without requiring registry
+    events or specific security products.
+  caveat: Review approved maintenance because service deletion commands do not prove that a security tool
+    stopped.
+  changed: Added native EQL with optional metadata for renamed binaries, service keys and values, and
+    numbered control sets.
+  name: Service registry deletion via reg.exe
+- detection: PRX-000005
+  candidate: sigma:0d5675be-bc88-4172-86d3-1e96a4476536
+  technique: T1021.001
+  weight: 1.0
+  justification: ''
+  quality:
+    score: 94
+    passes: true
+    tier: ttp
+    parts:
+      specificity: 30
+      pyramid: 25
+      durability: 10
+      maturity: 9
+      overlap: 10
+      backtest: 10
+    closest_existing: PRX-000004
+    closest_similarity: 0.1
+    flags: []
+    backtest:
+      hits: 0
+      days: 30
+  lab:
+    passed: true
+    cases: 18
+  why: The rule detects RDP configuration change attempts through reg.exe commands without requiring registry
+    events.
+  caveat: Review authorized changes, including TLS hardening, because commands do not prove successful
+    changes or lateral movement.
+  changed: Added native EQL for renamed binaries and numbered control sets, accepted argument variations,
+    and removed mandatory REG_DWORD and /f arguments.
+  name: RDP registry configuration modified via reg.exe
+- detection: PRX-000006
+  candidate: sigma:edc2f8ae-2412-4dfd-b9d5-0c57727e70be
+  technique: T1059.001
+  weight: 0.833
+  justification: ''
+  quality:
+    score: 94
+    passes: true
+    tier: ttp
+    parts:
+      specificity: 30
+      pyramid: 25
+      durability: 10
+      maturity: 9
+      overlap: 10
+      backtest: 10
+    closest_existing: PRX-000002
+    closest_similarity: 0.27
+    flags: []
+    backtest:
+      hits: 0
+      days: 30
+  lab:
+    passed: true
+    cases: 10
+  why: The rule combines TCPClient, GetStream, and Write in PowerShell commands to detect reverse shell
+    behavior without relying on tool names.
+  caveat: Review administrative scripts because matching commands do not prove a successful connection.
+  changed: Added native EQL for PowerShell and pwsh, supported renamed binaries and case variations, and
+    removed the leading space requirement for TCPClient.
+  name: Potential PowerShell reverse shell via TCP stream
+rejected: []
+review:
+  verdict: pass
+  summary: The queries match the stated scope, and independent checks support the selections. No issue
+    requires a change before merge.
+  comments: []
+agents:
+  model: gpt-6.1-sol
+usage:
+  llm_calls: 35
+  input_tokens: 266611
+  output_tokens: 18446
+  tool_calls: 61

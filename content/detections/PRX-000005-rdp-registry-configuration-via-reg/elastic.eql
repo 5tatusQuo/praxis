@@ -1,0 +1,5 @@
+process where host.os.type == "windows" and event.type == "start" and
+  (process.name : "reg.exe" or ?process.pe.original_file_name : "reg.exe") and
+  (?process.args : "add" or process.command_line : ("* add *", "*\tadd *", "* add\t*", "*\tadd\t*", "* \"add\" *")) and
+  process.command_line : ("*\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\*", "*\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\"*", "*\\SYSTEM\\ControlSet???\\Control\\Terminal Server\\*", "*\\SYSTEM\\ControlSet???\\Control\\Terminal Server\"*") and
+  process.command_line : ("*AllowTSConnections*", "*fDenyTSConnections*", "*fEnableWinStation*", "*fSingleSessionPerUser*", "*IdleWinStationPoolCount*", "*MaxInstanceCount*", "*SecurityLayer*", "*TSAdvertise*", "*TSAppCompat*", "*TSEnabled*", "*TSUserEnabled*", "*EnableConcurrentSessions*", "*\\WinStations\\RDP-Tcp*")

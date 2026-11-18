@@ -1,0 +1,23 @@
+{
+  "@timestamp": "2026-01-01T00:00:01Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "cleanup.exe",
+    "pe": {
+      "original_file_name": "REG.EXE"
+    },
+    "command_line": "cleanup.exe DELETE \"HKLM\\SYSTEM\\ControlSet001\\services\\SecurityAgent\" /f"
+  }
+}

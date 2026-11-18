@@ -1,0 +1,20 @@
+{
+  "@timestamp": "2026-01-01T01:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "reg.exe",
+    "command_line": "reg.exe query HKLM\\SYSTEM\\CurrentControlSet\\Services\\SecurityAgent"
+  }
+}
