@@ -564,7 +564,7 @@ def report(pack: dict[str, Any], snapshot: dict[str, Any]) -> str:
         lines += [
             "",
             "**Still open after this pack:** "
-            + "; ".join(_cell(g) for g in brief["leaves_open"])
+            + "; ".join(_cell(g).rstrip(".") for g in brief["leaves_open"])
             + ".",
         ]
     closing = expected_changes(pack, snapshot["techniques"])
