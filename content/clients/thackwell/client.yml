@@ -1,0 +1,13 @@
+id: thackwell
+name: Thackwell Orme Building & Engineering (fictional)
+sector: sitecraft
+fictional: true
+assets:
+  endpoints: 55
+platforms:
+  elastic:
+    connection: lab
+    space: thackwell
+    namespace: thackwell
+packs:
+- baseline

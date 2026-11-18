@@ -1,0 +1,15 @@
+sector: sitecraft
+description: Ransomware and extortion crews that hit building contractors and engineering
+  firms, plus espionage groups described as targeting construction and engineering.
+groups:
+  - G1024  # Akira
+  - G1040  # Play
+  - G1032  # INC Ransom
+  - G1051  # Medusa Group
+  - G1046  # Storm-1811
+  - G0098  # BlackTech
+  - G0117  # Fox Kitten
+techniques:
+  T1490: 0.3
+references:
+  - https://attack.mitre.org/groups/
