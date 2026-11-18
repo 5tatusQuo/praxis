@@ -1,0 +1,24 @@
+{
+  "@timestamp": "2026-11-01T10:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "helper.exe",
+    "executable": "C:\\Program Files\\ReasonLabs\\helper.exe",
+    "parent": {
+      "name": "DNS.exe",
+      "executable": "C:\\Program Files\\ReasonLabs\\DNS\\ui\\DNS.exe"
+    }
+  }
+}
