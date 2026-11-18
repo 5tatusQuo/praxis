@@ -1,0 +1,24 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "name": "ws-lab-07",
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "net.exe",
+    "command_line": "net.exe use P: \\\\fs-lab-01\\projects",
+    "pe": {
+      "original_file_name": "net.exe"
+    }
+  }
+}

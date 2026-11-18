@@ -1,0 +1,24 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "name": "ws-lab-07",
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "net1.exe",
+    "command_line": "net1 use Z: \\\\dc-lab-01\\C$",
+    "pe": {
+      "original_file_name": "net1.exe"
+    }
+  }
+}
