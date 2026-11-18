@@ -7,6 +7,7 @@ import { cookies } from "next/headers";
 
 export const SESSION_COOKIE = "praxis_session";
 export const LOGIN_COOKIE = "praxis_login";
+export const ID_TOKEN_COOKIE = "praxis_id_token";
 export const ADMIN_ROLE = "praxis-admin";
 const SESSION_HOURS = 8;
 

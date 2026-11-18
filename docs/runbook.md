@@ -304,6 +304,29 @@ counts code measured. Hypotheses it marks durable are candidates for step 6 or 7
 Offboarding removes the client's rules and keys from the SIEM, and with the
 two flags its Kibana space and telemetry. It cannot be undone.
 
+## The dashboard
+
+```bash
+deploy/dashboard.sh
+```
+
+It forwards the dashboard to http://127.0.0.1:3000, opens it, and prints the
+sign-in name (`operator`) and password. Use exactly that address: sign-in does
+not work at `localhost` or on another port.
+
+`operator` is an administrator and sees everything. To give someone a view of
+only some clients, create them a user:
+
+```bash
+deploy/remote.sh dashboard-user dana 'a-long-password' --client ironbridge
+deploy/remote.sh dashboard-user lee 'another-password' --admin
+```
+
+A client-scoped user sees those clients on the Fleet page and nothing else:
+rule packs, hunts, audit and settings are for administrators. The same command
+changes a password or adds a role. The AI assistant does not use the
+dashboard; it works through `./px`.
+
 ## What PRAXIS does not do yet
 
 These are limits of the product today, not steps you are doing wrong:
@@ -315,8 +338,6 @@ These are limits of the product today, not steps you are doing wrong:
   there is no second SIEM here to test against.
 - **Elastic and EQL only.** Splunk, Sentinel and ES|QL rules come later.
   Exclusions match case-sensitively, which is how Kibana exception lists work.
-- **The dashboard has no login of its own.** It listens on the server's
-  localhost only, so reaching it needs SSH access to the server.
 
 ## If something fails
 

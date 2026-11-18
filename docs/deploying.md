@@ -19,7 +19,8 @@ This is the reference deployment and the only one proven end to end.
    runner as a service. `deploy/server/publish-keys.sh` gives it the keys:
    deploy keys for CD, read keys for collectors, and lab and read keys (never
    deploy keys) for the API.
-5. Reach the dashboard through an SSH tunnel: `ssh -L 3000:localhost:3000 <server>`.
+5. Open the dashboard with `deploy/dashboard.sh` from your workstation. It prints the
+   sign-in details. Sign-in is Keycloak, served under the dashboard's own address at `/kc`.
 
 From a workstation, `deploy/remote.sh up full` does steps 1 and 2 over SSH for
 the server named in `.env`, and `deploy/with-server.sh <command>` runs a

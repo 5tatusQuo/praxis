@@ -426,6 +426,14 @@ def _git(args: list[str], cwd: Path) -> str:
     return result.stdout.strip() if result.returncode == 0 else ""
 
 
+def _pack_state(repo: ContentRepo, pack_id: str) -> str:
+    """A pack's state in plain words. Git is the truth; the database may lag it."""
+    pack = repo.rule_packs.get(pack_id)
+    if pack is None:
+        return "proposed, not merged"
+    return "merged, in shadow" if pack.status == "proposed" else pack.status
+
+
 def status(content_dir: Path) -> dict[str, Any]:
     """Where everything stands: content, working tree, and the server if it is reachable."""
     repo = core.load_repo(content_dir)
@@ -496,10 +504,7 @@ def status(content_dir: Path) -> dict[str, Any]:
             "rule_pack_proposals": [
                 {
                     **{k: p[k] for k in ("id", "client_id", "verdict", "pr_url")},
-                    # Git is the truth for a pack's state; the database may lag it.
-                    "status": repo.rule_packs[p["id"]].status
-                    if p["id"] in repo.rule_packs
-                    else "not merged",
+                    "status": _pack_state(repo, p["id"]),
                 }
                 for p in packs
             ],

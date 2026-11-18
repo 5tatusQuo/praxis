@@ -1,6 +1,6 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { discover, LOGIN_COOKIE, oidc, sealSession, SESSION_COOKIE, sessionMaxAge, unseal } from "@/lib/session";
+import { discover, ID_TOKEN_COOKIE, LOGIN_COOKIE, oidc, sealSession, SESSION_COOKIE, sessionMaxAge, unseal } from "@/lib/session";
 
 type Pending = { state: string; nonce: string; verifier: string; next: string };
 
@@ -53,5 +53,7 @@ export async function GET(request: Request) {
     path: "/",
     maxAge: sessionMaxAge,
   });
+  // Kept only so that signing out can end the Keycloak session too.
+  jar.set(ID_TOKEN_COOKIE, tokens.id_token, { httpOnly: true, sameSite: "lax", path: "/logout", maxAge: sessionMaxAge });
   return Response.redirect(`${oidc.publicUrl}${pending.next}`, 303);
 }
