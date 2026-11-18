@@ -1,0 +1,11 @@
+sector: architecture
+description: Ransomware and data-theft crews that hit architecture and structural engineering
+  practices for extortion, plus espionage groups after drawings and project data.
+groups:
+  - G1024  # Akira
+  - G1040  # Play
+  - G1032  # INC Ransom
+  - G0098  # BlackTech
+  - G0117  # Fox Kitten
+references:
+  - https://attack.mitre.org/groups/

@@ -1,0 +1,13 @@
+id: brindlewick
+name: Brindlewick Trusswright Partners (fictional)
+sector: architecture
+fictional: true
+assets:
+  endpoints: 70
+platforms:
+  elastic:
+    connection: lab
+    space: brindlewick
+    namespace: brindlewick
+packs:
+- baseline
