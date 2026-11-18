@@ -14,6 +14,8 @@ Use `./px` from the repo root for everything:
 ./px status          # where everything stands; run this first, and whenever unsure
 ./px --help          # every command
 ./px client --help   # every command in a group
+./px client add --help   # one command's options
+./px detection list   # the detections in the library and who runs them
 ```
 
 `./px` runs `praxis` connected to the server named in `.env`, so SIEM reads,
@@ -229,6 +231,17 @@ Read the proposal with `./px change show <number>` (add `--diff` for the exact
 lines it changes): the description is the
 report. The dashboard's Rule packs page shows the same.
 
+The last line of `pack plan` gives the Reviewer's verdict. **If it is `fail`,
+do not merge.** The blocker is in the pull request's description. Close the
+proposal and ask for a new one:
+
+```bash
+./px change close <number> --reason "Reviewer verdict fail: <the blocker>"
+./px pack plan ironbridge --month 2026-12 --budget 3
+```
+
+When the verdict is `pass`:
+
 ```bash
 ./px change merge <number>                  # the rules deploy in shadow mode
 ./px pack promote ironbridge-2026.12.0      # later: take them live (--drop PRX-... discards one)
@@ -267,6 +280,7 @@ them, then let the Tuner agent study them and propose a tested exclusion:
 
 ```bash
 ./px alerts ironbridge --rule PRX-000002 --wait-for 25   # users and hosts show as pseudonyms (id-...)
+# it waits up to 8 minutes; --timeout <seconds> changes that
 ./px tune PRX-000002 --client ironbridge --hint "many alerts from the backup agent"
 ./px change merge <number>
 ```
@@ -317,7 +331,8 @@ what it verified ("verified in the SIEM: no PRAXIS rules, no active keys, no
 Kibana space, no telemetry"); if anything is left it fails and names it. It
 cannot be undone.
 
-It leaves the shared library alone and lists what it kept: the sector's threat
+It names any open pull request that is still for this client, with the command
+to close it. It leaves the shared library alone and lists what it kept: the sector's threat
 profile, the records of the client's rule packs and hunts (history), and any
 detection that no client runs now, with the commands to reassign or retire it.
 The client's coverage history stays in the database but no longer shows on
