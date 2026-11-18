@@ -314,6 +314,11 @@ def _print_snapshot(snapshot: dict) -> None:
             else (
                 f"{d['hosts']}/{d['expected_hosts']} hosts, fields {d['field_population']:.0%}"
                 + (f", missing: {', '.join(missing)}" if missing else "")
+                + (
+                    f"; {c['techniques_using']} techniques rely on it at reduced confidence"
+                    if missing and c.get("techniques_using")
+                    else ""
+                )
             )
         )
         components.add_row(c["name"], str(c["score"]), c["source"], detail)
@@ -330,10 +335,28 @@ def _print_snapshot(snapshot: dict) -> None:
             ", ".join(r["techniques"]),
         )
     console.print(rules)
-    gaps = Table("technique", "name", "weight", "visibility", title="top detection gaps")
+    # A gap may already have a detection in the library that this client does not run.
+    running = {r["id"] for r in snapshot["rules"]}
+    shelf: dict[str, list[str]] = {}
+    for bundle in _repo().detections.values():
+        if bundle.id in running or bundle.meta.lifecycle == "deprecated":
+            continue
+        for ref in bundle.meta.attack:
+            shelf.setdefault(ref.technique, []).append(bundle.id)
+    gaps = Table(
+        "technique", "name", "weight", "visibility", "in the library", title="top detection gaps"
+    )
     for t in top_gaps(snapshot, "detection_gap", 10):
-        gaps.add_row(t["id"], t["name"], f"{t['weight']:.2f}", str(t["visibility"]))
+        have = sorted(shelf.get(t["id"], []))
+        gaps.add_row(
+            t["id"], t["name"], f"{t['weight']:.2f}", str(t["visibility"]), ", ".join(have) or "-"
+        )
     console.print(gaps)
+    console.print(
+        "[dim]'in the library': detections for that technique this client does not run yet; "
+        "add one with ./px detection assign. Visibility gaps are mostly techniques whose data "
+        "sources this client does not send at all.[/dim]"
+    )
     unmapped = [s["table"] for s in snapshot["sources"] if not s["mapped"]]
     if unmapped:
         console.print(f"[yellow]tables with no datamap-catalog note:[/yellow] {unmapped}")
@@ -792,7 +815,7 @@ def hunt(
         url = gitops.open_pull_request(
             root,
             branch,
-            f"Hunt: {prompt[:60]}",
+            "Hunt: " + (prompt if len(prompt) <= 70 else prompt[:70].rsplit(" ", 1)[0] + "..."),
             body + AGENT_FOOTER,
             f"Hunt record {record['id']} (ai:hunt-planner)",
         )
@@ -1054,7 +1077,10 @@ def alerts(
             _out(rows, as_json)
             err.print(
                 f"[red]error[/red] {rule} has {rows[0]['alerts_30d']} alerts after {timeout}s, fewer "
-                f"than {wait_for}. Check that the rule is deployed and enabled: ./px coverage {client_id}"
+                f"than {wait_for}. A rule runs every few minutes, so new events can take one "
+                f"interval to raise alerts: repeat the command with a longer --timeout. If it "
+                f"stays at this number, check the rule is deployed and enabled: "
+                f"./px coverage {client_id}"
             )
             raise typer.Exit(1)
         err.print(f"[dim]{rule}: {rows[0]['alerts_30d']} alerts so far; waiting[/dim]")
@@ -1465,17 +1491,27 @@ def change_home(as_json: Annotated[bool, typer.Option("--json")] = False) -> Non
 
 
 @change_app.command("show")
-def change_show(number: int, as_json: Annotated[bool, typer.Option("--json")] = False) -> None:
+def change_show(
+    number: int,
+    diff: Annotated[
+        bool, typer.Option("--diff", help="Also print the exact lines it adds and removes.")
+    ] = False,
+    as_json: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
     """Read a pull request: its description, the files it changes, and its checks."""
     from praxis import changes
 
     result = _op(lambda: changes.show(get_settings().content_dir, number))
+    if diff:
+        result["diff"] = _op(lambda: changes.diff(get_settings().content_dir, number))
     if as_json:
         _out(result, True)
         return
-    body = result.pop("body", "")
+    body, lines = result.pop("body", ""), result.pop("diff", "")
     _out(result, False)
     console.print("\n" + body, highlight=False, markup=False)
+    if lines:
+        print("\n" + lines)
 
 
 @change_app.command("close")

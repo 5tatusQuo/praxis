@@ -135,6 +135,12 @@ def show(path: Path, number: int, with_body: bool = True) -> dict[str, Any]:
     return view
 
 
+def diff(path: Path, number: int) -> str:
+    """The exact lines a pull request adds and removes."""
+    root = repo_root(path)
+    return _run(["gh", "pr", "diff", str(number)], root)
+
+
 def close(path: Path, number: int, reason: str) -> dict[str, Any]:
     """Close a pull request without merging it, with a comment saying why."""
     root = repo_root(path)

@@ -191,6 +191,13 @@ def build_snapshot(
             else 0
         )
 
+    for entry in components:
+        entry["techniques_using"] = sum(
+            1
+            for t in attack.bundle()["techniques"].values()
+            if entry["name"] in t["data_components"]
+        )
+
     counts = {k: sum(1 for t in techniques_out if t["class"] == k) for k in CLASSES}
     total_weight = sum(t["weight"] for t in techniques_out)
     covered_weight = sum(t["weight"] for t in techniques_out if t["class"] == "covered")
