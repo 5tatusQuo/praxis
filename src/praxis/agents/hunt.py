@@ -122,7 +122,7 @@ def run_hunt(
             if (client, hypothesis["query"].strip()) in ran
         }
         hypotheses.append({**hypothesis, "results": results, "tested": bool(results)})
-    slug = re.sub(r"[^a-z0-9]+", "-", prompt.lower()).strip("-")[:48]
+    slug = re.sub(r"[^a-z0-9]+", "-", prompt.lower()).strip("-")[:48].strip("-")
     hunt = {
         "id": f"{date.today().isoformat()}-{slug}",
         "prompt": prompt,
@@ -177,7 +177,7 @@ def report(hunt: dict[str, Any]) -> str:
         (
             f"{len(durable)} hypothesis(es) look durable enough to become detections: "
             + "; ".join(durable)
-            + ". Turn them into a hunt pack with `praxis pack plan` once reviewed."
+            + ". Turn one into a detection with `./px detection write`, or let `./px pack plan` pick them up."
             if durable
             else "No hypothesis was marked durable; this hunt is a record of what was checked."
         ),

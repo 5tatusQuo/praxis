@@ -25,7 +25,8 @@ on_server() {
   local identity="$1"; shift
   ssh "$PRAXIS_SERVER" "cd $APP && export PATH=\$HOME/.local/bin:\$PATH && . deploy/server/env.sh $identity && $*"
 }
-restart_stack() { ssh "$PRAXIS_SERVER" "cd $APP && sg docker -c 'deploy/server/bootstrap.sh full' >/dev/null" && echo "stack restarted with the new keys"; }
+# The API reads its keys when it starts, so new keys need a restart (about 15 seconds).
+restart_stack() { ssh "$PRAXIS_SERVER" "cd $APP && sg docker -c 'deploy/server/bootstrap.sh full' >/dev/null 2>&1" && echo "API restarted so it can use the new keys"; }
 
 cmd="${1:-}"; shift || true
 case "$cmd" in
@@ -37,7 +38,7 @@ case "$cmd" in
     # and the API, then proof that both identities work. Safe to repeat.
     client="${1:?usage: deploy/remote.sh provision <client> [--rotate]}"; rotate="${2:-}"
     sync_repo
-    on_server admin "uv run praxis admin provision $client --env-out /opt/praxis/keys.env $rotate && deploy/server/publish-keys.sh"
+    on_server admin "uv run --quiet praxis admin provision $client --env-out /opt/praxis/keys.env $rotate && deploy/server/publish-keys.sh"
     restart_stack
     on_server "" "uv run praxis connection $client"
     ;;

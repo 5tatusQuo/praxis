@@ -41,13 +41,29 @@ def _checked(content_dir: Path, touched: list[Path]) -> ContentRepo:
 
 # -- reference lookups -----------------------------------------------------------
 def attack_groups(query: str) -> list[dict[str, Any]]:
-    """ATT&CK groups whose id or name matches, with how many techniques each uses."""
+    """ATT&CK groups matching a name, an alias, an id, or words in their description.
+
+    The description is where ATT&CK says who a group targets, so a sector word
+    such as "construction" or "healthcare" finds the groups reported against it.
+    """
     wanted = query.strip().lower()
-    return [
-        {"id": gid, "name": g["name"], "techniques": len(g["techniques"])}
-        for gid, g in attack.bundle()["groups"].items()
-        if wanted in gid.lower() or wanted in g["name"].lower()
-    ]
+    found = []
+    for gid, group in attack.bundle()["groups"].items():
+        names = [gid, group["name"], *group.get("aliases", [])]
+        description = group.get("description", "")
+        by_name = any(wanted in n.lower() for n in names)
+        if not by_name and wanted not in description.lower():
+            continue
+        found.append(
+            {
+                "id": gid,
+                "name": group["name"],
+                "techniques": len(group["techniques"]),
+                "matched": "name" if by_name else "description",
+                "about": description[:220],
+            }
+        )
+    return sorted(found, key=lambda g: (g["matched"] != "name", g["id"]))
 
 
 def attack_technique(technique_id: str) -> dict[str, Any]:
@@ -235,6 +251,57 @@ def client_add(
             f'./px change submit "Onboard {client_id}"',
             "./px change merge <number>",
         ],
+    }
+
+
+def lab_source(
+    content_dir: Path,
+    client_id: str,
+    source: str,
+    hosts: int | None = None,
+    events_per_day: int = 200,
+    silent_for_days: int = 0,
+    remove: bool = False,
+) -> dict[str, Any]:
+    """Add, change or remove a source in a client's lab telemetry profile.
+
+    This is how the lab models what a client really sends: a source only some
+    hosts report to, or one that went quiet (`silent_for_days`).
+    """
+    repo = core.load_repo(content_dir)
+    client = repo.clients.get(client_id)
+    if client is None:
+        raise OpsError(f"unknown client {client_id!r}")
+    known = sorted(src for (_platform, src) in repo.datamap)
+    if not remove and source not in known:
+        raise OpsError(f"{source!r} is not in the data map. Known sources: {known}")
+    path = content_dir / "clients" / client_id / "lab" / "telemetry.yml"
+    profile = yaml.safe_load(path.read_text()) if path.is_file() else {"sources": []}
+    rows = [row for row in profile["sources"] if row["source"] != source]
+    if remove and len(rows) == len(profile["sources"]):
+        raise OpsError(f"{client_id}'s lab profile has no source {source!r}")
+    if not remove:
+        row: dict[str, Any] = {
+            "source": source,
+            "hosts": hosts or (client.assets.endpoints if client.assets else 10),
+            "events_per_day": events_per_day,
+        }
+        if silent_for_days:
+            row["silent_for_days"] = silent_for_days
+        rows.append(row)
+    if not rows:
+        raise OpsError("a lab profile needs at least one source")
+    original = path.read_text() if path.is_file() else None
+    _write_yaml(path, {"sources": rows}, "# Synthetic telemetry for the lab.\n")
+    try:
+        _checked(content_dir, [path])
+    except OpsError:
+        path.write_text(original) if original else path.unlink()
+        raise
+    return {
+        "client": client_id,
+        "sources": rows,
+        "next": f"./px lab seed {client_id}, then ./px change submit and merge",
     }
 
 
@@ -427,7 +494,14 @@ def status(content_dir: Path) -> dict[str, Any]:
                 for row in fleet
             },
             "rule_pack_proposals": [
-                {k: p[k] for k in ("id", "client_id", "status", "verdict", "pr_url")} for p in packs
+                {
+                    **{k: p[k] for k in ("id", "client_id", "verdict", "pr_url")},
+                    # Git is the truth for a pack's state; the database may lag it.
+                    "status": repo.rule_packs[p["id"]].status
+                    if p["id"] in repo.rule_packs
+                    else "not merged",
+                }
+                for p in packs
             ],
         }
         for client_id, entry in out["clients"].items():

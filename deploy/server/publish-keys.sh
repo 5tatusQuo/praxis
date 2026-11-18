@@ -19,8 +19,9 @@ write() { # write <path> <content>
   printf '%s\n' "$2" | sudo tee "$1" >/dev/null
   sudo chown "root:$GROUP" "$1"
   sudo chmod 640 "$1"
-  echo "wrote $1"
+  written=$((written + 1))
 }
+written=0
 
 sudo install -d -m 750 -o root -g "$GROUP" /etc/praxis/deploy
 write /etc/praxis/lab.env "$CONNECTION
@@ -40,4 +41,4 @@ PRAXIS_DATABASE_URL=postgresql://praxis:${PG_PASSWORD}@localhost:5432/praxis"
 
 umask 077
 grep -E '^PRAXIS_ELASTIC_LAB_(LAB|READ)_API_KEY' "$KEYS" > /opt/praxis/api.env
-echo "wrote /opt/praxis/api.env"
+echo "keys published: $written files for the runner, plus /opt/praxis/api.env"

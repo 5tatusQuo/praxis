@@ -28,8 +28,10 @@ saying what is wrong and what to do.
 - **Every change ships through a pull request, and merging deploys it.**
   `./px change submit` opens one; `./px change merge` waits for the checks,
   merges, waits for the deploy and reports what happened to each rule.
-- **Agents propose, a person approves.** `pack plan`, `tune` and `hunt` open a
-  pull request on a branch that starts with `ai/`. Read it before merging.
+- **Agents propose, a person approves.** `pack plan`, `tune` and `hunt` each
+  start from `main`, open a pull request on a branch that starts with `ai/`,
+  and return you to `main`. Read it with `./px change show` before merging.
+- **Several `./px` commands can run at once**, for example while a merge waits.
 - **Offboarding deletes things for good.** It asks for `--yes`.
 
 ## 1. Create the client
@@ -39,7 +41,8 @@ Gaps are ranked by how many of those groups use each technique.
 
 ```bash
 ./px sector list                          # sectors that already have one
-./px attack groups akira                  # find group ids by name
+./px attack groups construction           # groups ATT&CK reports against a sector (searches descriptions)
+./px attack groups akira                  # or find a group by name or alias
 ./px sector add construction \
   --description "Ransomware crews that have hit construction and engineering firms." \
   --group G1024 --group G1032 --group G0096 --technique T1490=0.3
@@ -47,6 +50,9 @@ Gaps are ranked by how many of those groups use each technique.
 ./px client add ironbridge --name "Ironbridge Construction" \
   --sector construction --endpoints 40
 ```
+
+Name the sector after the client's industry, in one lower-case word. ATT&CK
+lists threat actors as groups; ransomware families and tools are not groups.
 
 `client add` writes the manifest, a lab telemetry profile that covers every
 log source the client's rules read, and its `packs.lock`. The client gets the
@@ -62,8 +68,10 @@ log source the client's rules read, and its `packs.lock`. The client gets the
 ./px client provision ironbridge
 ```
 
-This creates the client's Kibana space and three scoped API keys (lab, read,
-deploy), hands them to the runner and the API on the server, and ends with a
+This creates the client's Kibana space and its own read and deploy keys (the
+lab key is shared by every client, so a second client gets two new keys, not
+three). It then hands the keys to the runner and the API on the server, which
+rewrites the key files for every client and restarts the API, and ends with a
 connection check. Expect `ok` for `read`, with "write correctly refused", and
 `ok` for `deploy`. It is safe to repeat. `./px client check ironbridge`
 repeats only the check; `--rotate` replaces the keys.
@@ -77,6 +85,16 @@ repeats only the check; `--rotate` replaces the keys.
 Writes 14 days of synthetic events to each source in the client's lab
 profile. The nightly workflow tops it up from then on.
 
+The profile starts with the sources the client's rules read. To model what a
+client really sends, shape it before seeding, for example logons from only
+some hosts, or a source that went quiet:
+
+```bash
+./px sources                                                     # what the lab can generate
+./px lab source ironbridge logs-system.security --hosts 25
+./px lab source ironbridge logs-endpoint.events.file --silent-for-days 5
+```
+
 ## 4. Deploy
 
 ```bash
@@ -84,26 +102,31 @@ profile. The nightly workflow tops it up from then on.
 ./px change merge <number>
 ```
 
-`change merge` reports each rule as `created` and its first run as
+`change merge` takes a few minutes. It prints progress while it waits for the
+checks, merges, and waits for the deploy; only the clients a change affects
+are redeployed. It reports each rule as `created` and its first run as
 `succeeded`. A rule the client sends no telemetry for reports `no telemetry`:
 it is deployed, and coverage will show it as a blind rule.
 
 ## 5. Read the coverage
 
 ```bash
-./px coverage ironbridge          # add --json for the full snapshot
+./px coverage ironbridge          # --summary for the headline numbers, --json for everything
 ./px drift ironbridge             # does the SIEM match Git?
 ```
 
 You get a visibility score per data component, each rule's status, and the top
-detection gaps ranked by threat weight. `docs/visibility-scoring.md` explains
+detection gaps ranked by threat weight. A rule on a sub-technique also covers
+its parent technique, so "covered" can be higher than the number of techniques
+listed against the rules. `docs/visibility-scoring.md` explains
 every number. The same view is on the dashboard: `deploy/dashboard.sh` opens it.
 
 ## 6. Add a rule by hand
 
 Write one spec file with the metadata, the query, the README text and the
-test events. `./px detection write --schema` prints the format; this is a
-complete example:
+test events. Keep it anywhere, inside or outside the repo: `change submit`
+only includes files under `content/`. `./px detection write --schema` prints
+the format and each text field's limits; this is a complete example:
 
 ```yaml
 # certutil.yml
@@ -169,6 +192,9 @@ negative_tests:                   # benign look-alikes that must stay quiet
 ./px change merge <number>
 ```
 
+`./px detection show <id>` prints an existing detection, including a test
+event, if you want one to model yours on.
+
 A new detection is `staged`: it deploys in shadow mode (named `[shadow] ...`,
 lowest severity, tagged `praxis-shadow`) and gives no coverage yet. To take it
 live:
@@ -178,8 +204,9 @@ live:
 ./px change submit "Promote PRX-000007" && ./px change merge <number>
 ```
 
-Text limits apply to the spec (for example, no sentence over 25 words); the
-command says which field to shorten. The query must not name indices.
+Each text field has a word limit and a sentence-length limit, listed by
+`--schema` (most sentences 25 words, triage steps 20). The command says which
+field to shorten. The query must not name indices.
 
 ## 7. Have the agents propose a pack
 
@@ -190,8 +217,9 @@ command says which field to shorten. The query must not name indices.
 The Curator reads the coverage and picks from the catalog of upstream rules, a
 Platform Engineer agent writes each detection, a Reviewer agent challenges the
 result, and code measures the scores, backtests and lab results. It takes
-several minutes and prints a pull-request link. The description is the report;
-the dashboard's Rule packs page shows the same.
+about ten minutes, prints a pull-request link, and puts you back on `main`.
+Read the proposal with `./px change show <number>`: the description is the
+report. The dashboard's Rule packs page shows the same.
 
 ```bash
 ./px change merge <number>                  # the rules deploy in shadow mode
@@ -210,16 +238,33 @@ times:
 ./px lab replay PRX-000002 --client ironbridge --file backup-agent.json --repeat 25
 ```
 
-Rules run every 5 minutes, so alerts take up to that long to appear. Then let
-the Tuner agent study the alerts and propose a tested exclusion:
+The file holds one event, or a list of events, in the same shape as a test
+event (`./px detection show PRX-000002` prints one). For example:
+
+```json
+{
+  "event": {"category": ["process"], "type": ["start"], "kind": "event"},
+  "host": {"name": "fs-01", "os": {"type": "windows"}},
+  "process": {
+    "name": "vssadmin.exe",
+    "executable": "C:\\Windows\\System32\\vssadmin.exe",
+    "command_line": "vssadmin.exe delete shadows /for=D: /oldest /quiet",
+    "parent": {"name": "agent.exe", "executable": "C:\\Program Files\\Backup\\agent.exe"}
+  }
+}
+```
+
+Rules run every 5 minutes, so alerts take up to that long to appear. Wait for
+them, then let the Tuner agent study them and propose a tested exclusion:
 
 ```bash
+./px alerts ironbridge --rule PRX-000002 --wait-for 25
 ./px tune PRX-000002 --client ironbridge --hint "many alerts from the backup agent"
 ./px change merge <number>
 ```
 
-The pull request states the exclusion in plain words and the measured impact
-("removes 28 of 32 matches over the last 30 days"). The dashboard's Tuning
+The command and the pull request both state the exclusion in plain words and
+the measured impact ("removes 28 of 32 matches over the last 30 days"). The dashboard's Tuning
 studio shows a rule's alerts and lets you try an exclusion before proposing it.
 
 Tuning files can also be written by hand in
@@ -242,7 +287,11 @@ counts code measured. Hypotheses it marks durable are candidates for step 6 or 7
 | What | Command |
 | --- | --- |
 | Where does everything stand? | `./px status` |
-| Open pull requests and their checks | `./px change status`, `./px change status <number>` |
+| Open pull requests | `./px change status` |
+| Read one pull request | `./px change show <number>` |
+| Close one without merging | `./px change close <number> --reason "<why>"` |
+| Get back to an up-to-date `main` | `./px change home` |
+| A client's alerts per rule | `./px alerts ironbridge` |
 | Fresh coverage and drift check now | `gh workflow run praxis-nightly.yml` (it also runs every night) |
 | Did someone edit a rule in Kibana? | `./px drift ironbridge`. The nightly run puts such edits back and opens an issue |
 | What expires soon? | `./px expiry` |
@@ -277,6 +326,7 @@ These are limits of the product today, not steps you are doing wrong:
 | A check fails on "packs.lock" | Run `./px lock`, then `./px change submit` again |
 | "Lab staging" fails | `./px lab test <id>` shows which case fired or stayed quiet wrongly |
 | `the working tree has uncommitted changes` | Agent commands start from a clean `main`: submit or discard your changes first |
+| `you are on branch ...` | Run `./px change home`, then repeat the command |
 | `no ChatGPT credential` | Sign in on the dashboard's Settings page (`deploy/dashboard.sh`) |
 | `the ChatGPT plan's usage limit is reached` | Wait; see https://chatgpt.com/settings/usage |
 | `./px` cannot reach the server | Check `PRAXIS_SERVER` in `.env` and that `ssh` to it works without a password |

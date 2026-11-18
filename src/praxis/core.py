@@ -292,3 +292,42 @@ def expiring(repo: ContentRepo, within_days: int) -> list[dict]:
         for item, when in sorted(items, key=lambda i: str(i[1]))
         if when is not None and when <= horizon
     ]
+
+
+def affected_clients(repo: ContentRepo, base: str) -> list[str]:
+    """Clients whose rendered rules may differ between `base` and now.
+
+    A change to platform code or a platform overlay affects everyone. A change
+    to a detection, a pack or a client's own folder affects only its clients.
+    Records (rule packs, hunts), docs, the data map and threat profiles change
+    no rule. When in doubt, everyone.
+    """
+    everyone = sorted(repo.clients)
+    top = _git(["rev-parse", "--show-toplevel"], repo.root)
+    diff = _git(["diff", "--name-only", base, "HEAD"], repo.root) if top else None
+    if diff is None:
+        return everyone
+    content = str(repo.root.resolve().relative_to(Path(top.strip()))) + "/"
+    harmless = ("docs/", "tests/", "web/", "README.md", "PROGRESS.md", "PLAN.md", "CLAUDE.md")
+    affected: set[str] = set()
+    for path in filter(None, diff.splitlines()):
+        if not path.startswith(content):
+            if path.startswith(harmless) or path.endswith(".md"):
+                continue
+            return everyone
+        parts = path[len(content) :].split("/")
+        if parts[0] == "clients" and len(parts) > 1:
+            affected.add(parts[1])
+        elif parts[0] == "detections" and len(parts) > 1:
+            detection_id = parts[1][:10]
+            affected |= {
+                c.id
+                for c in repo.clients.values()
+                if detection_id in {b.id for b in repo.detections_for(c)}
+            }
+        elif parts[0] == "content-packs":
+            pack = parts[-1].removesuffix(".yml")
+            affected |= {c.id for c in repo.clients.values() if pack in c.packs}
+        elif parts[0] == "overlays":
+            return everyone
+    return sorted(affected & set(everyone))

@@ -83,7 +83,13 @@ def main(stix_path: str) -> None:
     groups = {}
     for o in objects:
         if o["type"] == "intrusion-set" and live(o):
-            groups[o["id"]] = {"id": external_id(o), "name": o["name"], "techniques": set()}
+            groups[o["id"]] = {
+                "id": external_id(o),
+                "name": o["name"],
+                "aliases": [a for a in o.get("aliases", []) if a != o["name"]],
+                "description": " ".join(o.get("description", "").split())[:700],
+                "techniques": set(),
+            }
     for o in objects:
         if o["type"] != "relationship" or o.get("relationship_type") != "uses" or not live(o):
             continue
@@ -94,7 +100,12 @@ def main(stix_path: str) -> None:
             if technique_id in techniques:
                 group["techniques"].update({technique_id, technique_id.split(".")[0]})
     groups_out = {
-        g["id"]: {"name": g["name"], "techniques": sorted(g["techniques"])}
+        g["id"]: {
+            "name": g["name"],
+            "aliases": g["aliases"],
+            "description": g["description"],
+            "techniques": sorted(g["techniques"]),
+        }
         for g in sorted(groups.values(), key=lambda g: g["id"])
     }
 

@@ -28,7 +28,17 @@ def start_branch(root: Path, branch: str) -> None:
     if not branch.startswith(AGENT_BRANCH_PREFIX):
         raise GitError(f"agent branches must start with {AGENT_BRANCH_PREFIX!r}")
     if _run(["git", "status", "--porcelain"], root):
-        raise GitError("the working tree has uncommitted changes; commit or stash them first")
+        raise GitError(
+            "the working tree has uncommitted changes. Ship them with `./px change submit` "
+            "or discard them, then run this again"
+        )
+    on = current_branch(root)
+    if on != "main":
+        raise GitError(
+            f"you are on branch {on!r}; agent commands start from main, so that each proposal "
+            "stands alone. Run `./px change home`, then run this again"
+        )
+    _run(["git", "pull", "-q", "--ff-only"], root)
     _run(["git", "checkout", "-q", "-b", branch], root)
 
 
@@ -51,8 +61,11 @@ def open_pull_request(root: Path, branch: str, title: str, body: str, message: s
     _run(["git", "add", "-A"], root)
     _run(["git", "commit", "-q", "-m", message], root)
     _run(["git", "push", "-q", "-u", "origin", branch], root)
-    return _run(
+    url = _run(
         ["gh", "pr", "create", "--title", title, "--body-file", "-", "--head", branch],
         root,
         stdin=body,
     ).splitlines()[-1]
+    # Leave the operator where they started: on main, ready for the next command.
+    _run(["git", "checkout", "-q", "main"], root)
+    return url

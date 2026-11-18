@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -33,33 +34,79 @@ def _json(args: list[str], cwd: Path) -> Any:
     return json.loads(out) if out else []
 
 
-def submit(path: Path, title: str, body: str = "") -> dict[str, Any]:
-    """Commit everything in the working tree to a branch and open a pull request."""
+def _say(message: str) -> None:
+    """Progress for whoever is waiting. On stderr, so --json output stays clean."""
+    print(f"[praxis] {message}", file=sys.stderr, flush=True)
+
+
+def home(path: Path) -> dict[str, Any]:
+    """Go back to an up-to-date `main`. Refuses to leave uncommitted work behind."""
     root = repo_root(path)
-    if not _run(["git", "status", "--porcelain"], root):
-        raise GitError("there is nothing to submit: the working tree has no changes")
+    dirty = _run(["git", "status", "--porcelain"], root)
+    if dirty:
+        raise GitError(
+            "there are uncommitted changes; ship them with `./px change submit` or discard "
+            "them before going back to main"
+        )
+    was = _run(["git", "branch", "--show-current"], root)
+    _run(["git", "checkout", "-q", MAIN], root)
+    _run(["git", "pull", "-q", "--ff-only"], root)
+    return {
+        "was_on": was,
+        "now_on": MAIN,
+        "commit": _run(["git", "rev-parse", "--short", "HEAD"], root),
+    }
+
+
+def submit(path: Path, title: str, body: str = "", everything: bool = False) -> dict[str, Any]:
+    """Commit the content changes to a branch and open a pull request.
+
+    Only files under the content folder are included, so scratch files next to
+    them (a spec, an events file) never end up in a pull request. `everything`
+    includes the whole working tree.
+    """
+    root = repo_root(path)
+    scope = ["."] if everything else [str(path.resolve().relative_to(root))]
+    changed = _run(["git", "status", "--porcelain", "--", *scope], root)
+    others = [
+        line[3:]
+        for line in _run(["git", "status", "--porcelain"], root).splitlines()
+        if line not in changed.splitlines()
+    ]
+    if not changed:
+        hint = (
+            f" Other changes exist outside it ({', '.join(others[:5])}); pass --all to include them."
+            if others
+            else ""
+        )
+        raise GitError(f"there is nothing to submit under {scope[0]}/.{hint}")
     branch = _run(["git", "branch", "--show-current"], root)
     if branch == MAIN:
         slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:48] or "change"
         branch = f"change/{slug}"
         _run(["git", "checkout", "-q", "-b", branch], root)
-    _run(["git", "add", "-A"], root)
+    _run(["git", "add", "-A", "--", *scope], root)
     _run(["git", "commit", "-q", "-m", title + (f"\n\n{body}" if body else "")], root)
     _run(["git", "push", "-q", "-u", "origin", branch], root)
     existing = _json(["gh", "pr", "list", "--head", branch, "--json", "number,url"], root)
     if existing:
-        return {"branch": branch, "pull_request": existing[0]["number"], "url": existing[0]["url"]}
-    url = _run(
-        ["gh", "pr", "create", "--title", title, "--body-file", "-", "--head", branch],
-        root,
-        stdin=body or title,
-    ).splitlines()[-1]
-    return {
+        number, url = existing[0]["number"], existing[0]["url"]
+    else:
+        url = _run(
+            ["gh", "pr", "create", "--title", title, "--body-file", "-", "--head", branch],
+            root,
+            stdin=body or title,
+        ).splitlines()[-1]
+        number = int(url.rstrip("/").rsplit("/", 1)[-1])
+    result: dict[str, Any] = {
         "branch": branch,
-        "pull_request": int(url.rstrip("/").rsplit("/", 1)[-1]),
+        "pull_request": number,
         "url": url,
-        "next": "praxis change merge <number> waits for the checks, merges and reports the deploy",
+        "next": f"./px change merge {number}",
     }
+    if others:
+        result["not_included"] = others
+    return result
 
 
 def _checks(root: Path, number: int) -> list[dict[str, str]]:
@@ -70,22 +117,43 @@ def status(path: Path, number: int | None = None) -> Any:
     """Checks of one pull request, or the list of open pull requests."""
     root = repo_root(path)
     if number is None:
-        return _json(["gh", "pr", "list", "--json", "number,title,headRefName,url,author"], root)
-    view = _json(["gh", "pr", "view", str(number), "--json", "state,title,headRefName,url"], root)
+        rows = _json(["gh", "pr", "list", "--json", "number,title,headRefName,url"], root)
+        return [{**row, "opened_by_an_agent": row["headRefName"].startswith("ai/")} for row in rows]
+    return show(path, number, with_body=False)
+
+
+def show(path: Path, number: int, with_body: bool = True) -> dict[str, Any]:
+    """One pull request: what it says, which files it changes, and its checks."""
+    root = repo_root(path)
+    fields = "state,title,headRefName,baseRefName,url,files" + (",body" if with_body else "")
+    view = _json(["gh", "pr", "view", str(number), "--json", fields], root)
     if not view:
         raise GitError(f"there is no pull request {number}")
-    return {**view, "checks": {c["name"]: c["bucket"] for c in _checks(root, number)}}
+    view["opened_by_an_agent"] = view["headRefName"].startswith("ai/")
+    view["files"] = [f["path"] for f in view.get("files", [])]
+    view["checks"] = {c["name"]: c["bucket"] for c in _checks(root, number)}
+    return view
+
+
+def close(path: Path, number: int, reason: str) -> dict[str, Any]:
+    """Close a pull request without merging it, with a comment saying why."""
+    root = repo_root(path)
+    _run(["gh", "pr", "close", str(number), "--delete-branch", "--comment", reason], root)
+    return {"pull_request": number, "closed": True}
 
 
 def merge(path: Path, number: int, wait: int = 900) -> dict[str, Any]:
     """Wait for checks, merge, then wait for the deploy the merge triggers."""
     root = repo_root(path)
     deadline = time.monotonic() + wait
-    view = _json(["gh", "pr", "view", str(number), "--json", "state,headRefName"], root)
+    view = _json(["gh", "pr", "view", str(number), "--json", "state,headRefName,baseRefName"], root)
     if not view:
         raise GitError(f"there is no pull request {number}")
     if view["state"] != "OPEN":
         raise GitError(f"pull request {number} is {view['state'].lower()}, not open")
+    if view["baseRefName"] != MAIN:
+        raise GitError(f"pull request {number} targets {view['baseRefName']}, not {MAIN}")
+    _say(f"pull request {number}: waiting for its checks")
     checks: list[dict[str, str]] = []
     while time.monotonic() < deadline:
         checks = _checks(root, number)
@@ -95,16 +163,22 @@ def merge(path: Path, number: int, wait: int = 900) -> dict[str, Any]:
     summary = {c["name"]: c["bucket"] for c in checks}
     failed = [name for name, bucket in summary.items() if bucket not in ("pass", "skipping")]
     if not checks or failed:
-        reason = (
-            "checks did not finish in time"
-            if not checks or "pending" in summary.values()
-            else "a check failed"
-        )
-        return {"ok": False, "merged": False, "reason": reason, "checks": summary}
+        pending = not checks or "pending" in summary.values()
+        reason = "checks did not finish in time" if pending else f"failed: {', '.join(failed)}"
+        return {
+            "ok": False,
+            "merged": False,
+            "reason": reason,
+            "checks": summary,
+            "next": f"./px change show {number} for details; fix, then ./px change submit again",
+        }
+    _say("checks passed; merging")
     _run(["gh", "pr", "merge", str(number), "--merge", "--delete-branch"], root)
-    _run(["git", "checkout", "-q", MAIN], root)
-    _run(["git", "pull", "-q"], root)
-    sha = _run(["git", "rev-parse", "HEAD"], root)
+    if not _run(["git", "status", "--porcelain"], root):
+        _run(["git", "checkout", "-q", MAIN], root)
+        _run(["git", "pull", "-q", "--ff-only"], root)
+    _run(["git", "fetch", "-q", "origin", MAIN], root)
+    sha = _run(["git", "rev-parse", f"origin/{MAIN}"], root)
     result: dict[str, Any] = {"ok": True, "merged": True, "commit": sha[:7], "checks": summary}
 
     run = None
@@ -121,6 +195,7 @@ def merge(path: Path, number: int, wait: int = 900) -> dict[str, Any]:
     if run is None:
         result["deploy"] = "none: this change touched nothing that deploys"
         return result
+    _say("merged; waiting for the deploy (it redeploys only the clients this change affects)")
     while run["status"] != "completed" and time.monotonic() < deadline:
         time.sleep(10)
         run = _json(
@@ -136,12 +211,13 @@ def merge(path: Path, number: int, wait: int = 900) -> dict[str, Any]:
         )
     log = _run(["gh", "run", "view", str(run["databaseId"]), "--log"], root, check=False)
     lines = []
+    pattern = re.compile(
+        r"^│ PRX-\d{6} │ (created|updated|unchanged|deleted|succeeded|failed|timeout|"
+        r"no telemetry|drift|missing|disabled)"
+    )
     for line in log.splitlines():
         text = line.split("Z ", 1)[-1].strip()
-        if re.match(
-            r"^│ PRX-\d{6} │ (created|updated|unchanged|deleted|succeeded|failed|timeout|no telemetry|drift|missing|disabled)",
-            text,
-        ):
+        if pattern.match(text):
             job = line.split("\t", 1)[0]
             cells = [c.strip() for c in text.strip("│").split("│")]
             lines.append(f"{job}: {cells[0]} {cells[1]}")

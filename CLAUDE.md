@@ -20,7 +20,9 @@ Rules while operating:
 - Client names are invented. Never write a real company name, hostname or
   credential anywhere in this repo. It is public.
 - Ship every change with `./px change submit "<what it does>"`, then
-  `./px change merge <number>`. Merging deploys to the SIEM.
+  `./px change merge <number>`. Merging deploys to the SIEM. `./px change show`
+  reads a pull request, `./px change close` closes one, and `./px change home`
+  returns to `main`.
 - Ask the person before you merge a pull request an agent opened (its branch
   starts with `ai/`), before `./px client offboard`, and before anything else
   that deletes data or cannot be undone.

@@ -6,4 +6,9 @@
 # that hand off to the server. Try `./px status` first, and `./px --help`.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
+# Help needs no server.
+for arg in "$@"; do
+  if [ "$arg" = "--help" ] || [ "$arg" = "-h" ]; then cd "$ROOT" && exec uv run --quiet praxis "$@"; fi
+done
+[ $# -eq 0 ] && { cd "$ROOT" && exec uv run --quiet praxis --help; }
 exec "$ROOT/deploy/with-server.sh" uv run --quiet praxis "$@"
