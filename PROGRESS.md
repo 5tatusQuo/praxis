@@ -29,7 +29,27 @@ Gate: *first AI-curated pack merged after human review.*
 8. Dashboard: Rule packs, Pack review, Tuning studio (live impact preview), Audit.
 9. Gate run: the Curator proposes a pack for `acme`, CI passes, you review and merge.
 
-## Phase 4, built ahead while Phase 3 waits
+## Phase 4 status
+
+Proven with the real model on 2026-11-18 (`gpt-6.1-sol` on the owner's ChatGPT plan):
+
+- **Hunt Planner**: PR #17. It looked the group up in ATT&CK, wrote hypotheses
+  with native queries and ran each read-only against `acme`. Hit counts in the
+  record come from the queries code ran.
+- **Tuner**: PR #22, on the third attempt. The first two runs exposed faults in
+  the tuning tool, not just the model:
+  1. Four conditions meant to apply together were stored as four alternative
+     exclusions; one alone would have silenced the rule. Closed unmerged (#18).
+     Fixed in #19: conditions under `also`, and the tool now refuses
+     pseudonymised values, bad expiry dates and uncited evidence.
+  2. The backtest capped every count at 5, so the Tuner was told its exclusion
+     removed almost nothing. Closed unmerged (#20). Fixed in #21.
+
+Still open before v1.0: the demo video (needs a person), and the first pack's
+14-day shadow period and promotion PR. Promotion is not automated yet: it is a
+hand edit of `lifecycle: staged` to `production` in a pull request.
+
+## Phase 4 groundwork (built earlier)
 
 Gate: *v1.0 public release on GitHub.* Not attempted: v1.0 should not be
 tagged before the Phase 3 gate has really passed.
@@ -54,8 +74,16 @@ signatures, and signed commits on the content repo.
 
 ## Blocked on you
 
-1. **Your go-ahead before I tag v1.0** (the Phase 4 gate). Before asking, I
-   will prove the Hunt Planner and the Tuner with the real model.
+1. **Two agent pull requests to review** (I do not merge agent proposals):
+   - https://github.com/5tatusQuo/praxis/pull/22 — Tuner: one exclusion for
+     PRX-000002 at `acme` (backup agent pruning shadow copies). Measured:
+     removes 28 of 32 matches over 30 days; the 4 that remain are the replayed
+     attack events.
+   - https://github.com/5tatusQuo/praxis/pull/17 — Hunt Planner: a Scattered
+     Spider hunt record for healthcare clients. It adds a history file only.
+2. **Your go-ahead before I tag v1.0** (the Phase 4 gate). Tagging runs the
+   release workflow for the first time: it publishes two container images to
+   GitHub Container Registry and creates a public release.
 
 Decided by you on 2026-11-18: cloud work (Helm, Terraform) and the other SIEMs
 come last, in Phase 5, and Phase 5 waits until Phases 0–4 are completely done.
@@ -128,12 +156,15 @@ come last, in Phase 5, and Phase 5 waits until Phases 0–4 are completely done.
 | 2026-11-18 | With OpenAI, the final answer comes back through a `submit_answer` function tool, and requests send `store: false`, `stream: true` and the full history each turn. | The preview's documented rules. Its docs do not say whether JSON-schema structured output is supported, so the provider does not depend on it. |
 | 2026-11-18 | Agent text follows the ASD-STE100 writing rules and fixed templates with word limits. Code rejects answers over a word or sentence limit; the pull-request report is one table plus short lists. Limits are listed in `docs/agents.md`. | Your review of the first pack: too much text for a person to read, and it repeated numbers the page already shows. Only sentence length and word counts are checked by code; the STE dictionary is not applied. |
 | 2026-11-18 | A shadow (staged) rule gives no coverage until it is promoted; snapshots report it under its own status. | The first pack's three shadow rules were being counted as covered techniques, which overstated coverage: their alerts do not reach the SOC. |
+| 2026-11-18 | An exclusion can carry more conditions under `also` that must all match; separate exclusions stay alternatives. | The Tuner needs a way to say "all of these together". Without it, narrowing an exclusion widened it. |
+| 2026-11-18 | Backtests count up to 1000 matches and report when they hit that cap. | An EQL search only counts what it returns; the old limit of 5 made every count wrong above 5. Earlier pack backtests reported 0, which was unaffected. |
 
 ## Open problems
 
 - The dashboard has no login of its own yet (Keycloak is not built). Anyone who can reach its port can use the ChatGPT sign-in and the token endpoint. Today the port listens on the server's localhost only, so that means people with SSH access.
 - OpenAI's plan-usage preview: the exact request shape for function tools is not in the docs I could read. The provider sends plain function tools and falls back to a namespace wrapper if they are refused; expect adjustments on first contact. One ChatGPT account funds every agent run, whoever starts it.
 - Agent sandbox: PLAN.md calls for each agent run in a container with no network except the MCP server and the LLM endpoint. Today agents run as a normal process on the operator's workstation. Their tools are allow-listed per role and none can deploy, but the process itself is not confined.
+- The Tuner's own notes can lag the fixes: a model's wording describes what its tools told it. Numbers in a pull request come from code, so trust those over the prose.
 - Fingerprint overlap is approximate (it ignores boolean structure) and did not flag the SigmaHQ rules closest to PRX-000001 and PRX-000002 as duplicates. The Curator also sees the library by technique, and the Reviewer checks overlap, but the automatic check should be tightened.
 - The pySigma first drafts use `.caseless` sub-fields and `any where`, which PRAXIS rewrites; drafts are starting points and the Engineer agent is expected to rewrite them.
 - Runner isolation: lab (pull request) and deploy (main) jobs run as the same user on one runner. Only repo collaborators can start jobs there, but a stricter split (separate runner users or ephemeral runners) is worth doing before any real client is connected.
