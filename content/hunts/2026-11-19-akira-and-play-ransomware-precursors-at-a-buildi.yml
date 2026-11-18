@@ -1,0 +1,103 @@
+id: 2026-11-19-akira-and-play-ransomware-precursors-at-a-buildi
+prompt: 'Akira and Play ransomware precursors at a building contractor and engineering firm: network scanning,
+  remote desktop lateral movement, credential dumping and shadow copy deletion on Windows hosts'
+created: '2026-11-19'
+clients:
+- pellwick
+summary: The hunt found shadow deletion commands under a backup agent. The samples do not establish malicious
+  activity. Missing logon types prevent confirmation of remote desktop sessions. Missing file events prevent
+  confirmation of dump creation.
+hypotheses:
+- title: Scanning tools ran on Windows hosts
+  technique: T1046
+  rationale: The requested precursor includes network scanning. This query tests tool execution, not network
+    activity.
+  query: 'process where host.os.type == "windows" and event.type == "start" and (process.name : ("nmap.exe",
+    "masscan.exe", "advanced_ip_scanner*.exe", "advanced_port_scanner*.exe", "netscan.exe") or ?process.pe.original_file_name
+    : ("*advanced_ip_scanner*", "*advanced_port_scanner*", "netscan.exe", "nmap.exe"))'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No matching executions appeared. Renamed tools and other scanning methods remain outside
+    this query. Retain the existing detection instead of adding a duplicate.
+  durable: false
+  results:
+    pellwick:
+      hits: 0
+      days: 30
+  tested: true
+- title: Remote desktop clients targeted explicit hosts
+  technique: T1021.001
+  rationale: The actor mapping reports remote desktop use. Explicit destinations can identify attempts
+    to move between hosts.
+  query: 'process where host.os.type == "windows" and event.type == "start" and (process.name : "mstsc.exe"
+    or ?process.pe.original_file_name : "mstsc.exe") and process.command_line : "*/v:*"'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No matching executions appeared. Missing logon types blocked session classification. Restore
+    logon types before testing successful remote desktop access.
+  durable: false
+  results:
+    pellwick:
+      hits: 0
+      days: 30
+  tested: true
+- title: Dump utilities attempted credential access
+  technique: T1003.001
+  rationale: The actor mapping reports credential dumping. This query extends the existing method check
+    to other utilities.
+  query: 'process where host.os.type == "windows" and event.type == "start" and (process.name : ("procdump*.exe",
+    "rdrleakdiag.exe", "SqlDumper.exe", "TTTracer.exe", "rundll32.exe") or ?process.pe.original_file_name
+    : ("procdump*", "RdrLeakDiag.exe", "SqlDumper.exe", "TTTracer.exe", "RUNDLL32.EXE")) and process.command_line
+    : ("*lsass*", "*MiniDump*", "*/fullmemdmp*", "*0x01100*", "*-dumpFull*", "*comsvcs*#*24*")'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No matching executions appeared. The query can extend the existing detection. Check the
+    target process during review because diagnostic dumps can match.
+  durable: true
+  results:
+    pellwick:
+      hits: 0
+      days: 30
+  tested: true
+- title: Windows utilities deleted or reduced shadow copies
+  technique: T1490
+  rationale: The requested precursor includes shadow deletion. The returned actor mappings do not establish
+    this technique.
+  query: 'process where host.os.type == "windows" and event.type == "start" and ((process.name : ("powershell.exe",
+    "pwsh.exe", "wmic.exe", "vssadmin.exe", "diskshadow.exe") and process.command_line : "*shadow*" and
+    process.command_line : "*delete*") or (process.name : "vssadmin.exe" and process.command_line : "*resize*"
+    and process.command_line : "*shadowstorage*"))'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: The samples show a backup agent deleting the oldest shadow copy. Confirm the backup schedule
+    and command approval. Retain the existing detection.
+  durable: false
+  results:
+    pellwick:
+      hits: 29
+      days: 30
+  tested: true
+- title: Network enumeration identified remote systems
+  technique: T1018
+  rationale: Both actor mappings report remote system discovery. Network enumeration can identify targets
+    before lateral movement.
+  query: 'process where host.os.type == "windows" and event.type == "start" and (process.name : ("net.exe",
+    "net1.exe") or ?process.pe.original_file_name : ("net.exe", "net1.exe")) and process.command_line
+    : "* view*"'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No matching executions appeared. Other discovery methods remain untested. Reuse the existing
+    library detection if this method needs monitoring.
+  durable: false
+  results:
+    pellwick:
+      hits: 0
+      days: 30
+  tested: true
+agents:
+  model: gpt-6.1-sol
+usage:
+  llm_calls: 7
+  input_tokens: 92523
+  output_tokens: 2504
+  tool_calls: 22
