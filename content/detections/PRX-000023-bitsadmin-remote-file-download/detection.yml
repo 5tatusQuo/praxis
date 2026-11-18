@@ -1,0 +1,28 @@
+id: PRX-000023
+name: Bitsadmin used to download a file from a URL
+intent: Detects bitsadmin starting a transfer from a web or FTP address, a built-in way for
+  intruders to bring tools onto a host without a browser.
+version: 1
+lifecycle: staged
+owner: detection-engineering
+severity: medium
+risk_score: 47
+attack:
+- technique: T1105
+  tactic: TA0011
+data_components:
+- Process Creation
+pyramid_tier: ttp
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.process-*
+provenance:
+  source: praxis
+  licence: Apache-2.0
+references:
+- https://attack.mitre.org/techniques/T1105/
+- https://lolbas-project.github.io/lolbas/Binaries/Bitsadmin/
+false_positives:
+- Software deployment scripts that still fetch installers with bitsadmin.
+- Administrators who download a vendor update by hand.

