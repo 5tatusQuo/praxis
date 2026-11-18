@@ -1,0 +1,3 @@
+process where host.os.type == "windows" and event.type == "start" and
+  (process.name : "winget.exe" or ?process.pe.original_file_name : "winget.exe") and
+  process.command_line regex~ """.*[ 	]+\"?source\"?[ 	]+\"?add\"?([ 	]+.*)?"""

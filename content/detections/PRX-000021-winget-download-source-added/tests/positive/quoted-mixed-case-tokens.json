@@ -1,0 +1,20 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "WINGET.EXE",
+    "command_line": "\"C:\\Program Files\\WindowsApps\\winget.exe\"\t\"SoUrCe\"\t\"AdD\"\t-n external -a https://packages.example.invalid"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "@timestamp": "2026-11-01T10:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "helper.exe",
+    "executable": "C:\\Temp\\helper.exe",
+    "pe": {
+      "original_file_name": "Cmd.Exe"
+    },
+    "parent": {
+      "name": "service.exe",
+      "pe": {
+        "original_file_name": "DNS.EXE"
+      },
+      "executable": "C:\\Temp\\service.exe"
+    }
+  }
+}
