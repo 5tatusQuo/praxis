@@ -1,6 +1,6 @@
 [project]
 name = "praxis"
-version = "0.1.0"
+version = "1.0.0"
 description = "Multi-tenant, AI-driven detection engineering platform"
 readme = "README.md"
 license = "Apache-2.0"

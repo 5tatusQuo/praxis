@@ -5,7 +5,7 @@ is the state of the build.
 
 ## Current phase
 
-**Phase 4 · Hunts and launch** — in progress. Phases 0 to 3 passed on 2026-11-18.
+**Phase 4 · Hunts and launch** — v1.0 being released. Phases 0 to 3 passed on 2026-11-18.
 
 ## Phase 3 plan
 
@@ -45,9 +45,15 @@ Proven with the real model on 2026-11-18 (`gpt-6.1-sol` on the owner's ChatGPT p
   2. The backtest capped every count at 5, so the Tuner was told its exclusion
      removed almost nothing. Closed unmerged (#20). Fixed in #21.
 
-Still open before v1.0: the demo video (needs a person), and the first pack's
-14-day shadow period and promotion PR. Promotion is not automated yet: it is a
-hand edit of `lifecycle: staged` to `production` in a pull request.
+- **Agent proposals merged by the owner**: the tuning (#22) and the hunt
+  record (#17).
+- **First pack promoted** (#25, on the owner's say-so, the same day it was
+  staged; the 14-day shadow period was not observed). `praxis pack promote`
+  (#24) replaces the hand edit. Checked in Kibana: the three rules carry their
+  own severity and no shadow tag. `acme` went from 5 to 11 covered techniques
+  and from 3.1% to 9.58% threat-weighted coverage.
+
+The demo video is deferred to the very end, by the owner's decision.
 
 ## Phase 4 groundwork (built earlier)
 
@@ -74,19 +80,11 @@ signatures, and signed commits on the content repo.
 
 ## Blocked on you
 
-1. **Two agent pull requests to review** (I do not merge agent proposals):
-   - https://github.com/5tatusQuo/praxis/pull/22 — Tuner: one exclusion for
-     PRX-000002 at `acme` (backup agent pruning shadow copies). Measured:
-     removes 28 of 32 matches over 30 days; the 4 that remain are the replayed
-     attack events.
-   - https://github.com/5tatusQuo/praxis/pull/17 — Hunt Planner: a Scattered
-     Spider hunt record for healthcare clients. It adds a history file only.
-2. **Your go-ahead before I tag v1.0** (the Phase 4 gate). Tagging runs the
-   release workflow for the first time: it publishes two container images to
-   GitHub Container Registry and creates a public release.
+Nothing right now.
 
-Decided by you on 2026-11-18: cloud work (Helm, Terraform) and the other SIEMs
-come last, in Phase 5, and Phase 5 waits until Phases 0–4 are completely done.
+Decided by you on 2026-11-18: cloud work (Helm, Terraform), the other SIEMs
+and the demo video come last, in Phase 5, and Phase 5 waits until Phases 0–4
+are completely done. You approved tagging v1.0 and promoting the first pack.
 
 ## Done
 
@@ -158,6 +156,8 @@ come last, in Phase 5, and Phase 5 waits until Phases 0–4 are completely done.
 | 2026-11-18 | A shadow (staged) rule gives no coverage until it is promoted; snapshots report it under its own status. | The first pack's three shadow rules were being counted as covered techniques, which overstated coverage: their alerts do not reach the SOC. |
 | 2026-11-18 | An exclusion can carry more conditions under `also` that must all match; separate exclusions stay alternatives. | The Tuner needs a way to say "all of these together". Without it, narrowing an exclusion widened it. |
 | 2026-11-18 | Backtests count up to 1000 matches and report when they hit that cap. | An EQL search only counts what it returns; the old limit of 5 made every count wrong above 5. Earlier pack backtests reported 0, which was unaffected. |
+| 2026-11-18 | The demo video moves to the very end (after Phase 5's SIEM and cloud work). PLAN.md updated. | Your decision. |
+| 2026-11-18 | The first pack was promoted the day it was staged. | Your decision. The usual 14 days in shadow exist to catch noise on live data; the lab's telemetry is synthetic, so little would have been learned by waiting. |
 
 ## Open problems
 
