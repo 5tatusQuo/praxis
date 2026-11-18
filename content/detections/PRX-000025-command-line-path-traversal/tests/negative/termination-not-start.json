@@ -1,0 +1,20 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "end"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "payload.exe",
+    "executable": "C:\\Temp\\payload.exe",
+    "command_line": "C:\\Temp\\decoy.exe\\..\\payload.exe"
+  }
+}

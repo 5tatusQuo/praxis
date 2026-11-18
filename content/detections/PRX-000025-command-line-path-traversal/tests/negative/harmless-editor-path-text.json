@@ -1,0 +1,20 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "editor.exe",
+    "executable": "C:\\Tools\\editor.exe",
+    "command_line": "editor.exe C:\\Temp\\..\\..\\Windows\\notes.txt"
+  }
+}

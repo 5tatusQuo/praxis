@@ -1,0 +1,20 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "googledrivesync.exe",
+    "executable": "C:\\Program Files\\Google\\Drive\\googledrivesync.exe",
+    "command_line": "\"C:\\Program Files\\Google\\Drive\\googledrivesync.exe\\..\\googledrivesync.exe\""
+  }
+}

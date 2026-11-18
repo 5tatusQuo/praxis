@@ -1,0 +1,19 @@
+{
+  "@timestamp": "2026-11-01T11:00:04Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "mshta.exe"
+  }
+}

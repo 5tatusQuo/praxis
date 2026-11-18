@@ -1,0 +1,18 @@
+process where host.os.type == "windows" and event.type == "start" and
+  (
+    process.name : ("cscript.exe", "wscript.exe", "mshta.exe") or
+    ?process.pe.original_file_name : ("cscript.exe", "wscript.exe", "mshta.exe") or
+    (
+      (process.name : ("powershell.exe", "pwsh.exe") or
+       ?process.pe.original_file_name : ("PowerShell.EXE", "pwsh.exe", "pwsh.dll")) and
+      ?process.command_line : ("* -ep bypass *", "* -ep bypass", "* -ExecutionPolicy bypass *", "* -ExecutionPolicy bypass", "* -w hidden *", "* -w hidden", "* -WindowStyle hidden *", "* -WindowStyle hidden")
+    )
+  ) and
+  ?process.command_line : (
+    "*:\\PerfLogs\\*", "*:\\Users\\Public\\*", "*%Public%\\*",
+    "*\\AppData\\Local\\Temp\\*", "*\\AppData\\Roaming\\Temp\\*",
+    "*\\Temporary Internet Files\\*", "*\\Windows\\Temp\\*",
+    "*\\Start Menu\\Programs\\Startup\\*", "*%TEMP%\\*", "*%TMP%\\*", "*%LocalAppData%\\Temp\\*",
+    "*:\\Users\\*\\Favorites\\*", "*:\\Users\\*\\Favourites\\*", "*:\\Users\\*\\Contacts\\*",
+    "*:\\Users\\*\\Documents\\*", "*:\\Users\\*\\Music\\*", "*:\\Users\\*\\Pictures\\*", "*:\\Users\\*\\Videos\\*"
+  )

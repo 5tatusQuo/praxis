@@ -1,0 +1,20 @@
+{
+  "@timestamp": "2026-11-01T11:00:05Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "end"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "wscript.exe",
+    "command_line": "wscript.exe C:\\Users\\Public\\update.vbs"
+  }
+}

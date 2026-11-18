@@ -1,0 +1,20 @@
+{
+  "@timestamp": "2026-11-01T11:00:03Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "wscript.exe",
+    "command_line": "wscript.exe C:\\Users\\alice\\AppData\\Local\\Templates\\report.vbs"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "helper.exe",
+    "executable": "C:\\Windows\\Temp\\helper.exe",
+    "command_line": "C:\\Windows\\Temp\\x\\..\\..\\Temp\\helper.exe",
+    "pe": {
+      "original_file_name": "Cmd.Exe"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "@timestamp": "2026-11-01T11:00:01Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "notepad.exe",
+    "command_line": "notepad.exe C:\\Users\\Public\\instructions.txt -ep bypass /e:javascript"
+  }
+}

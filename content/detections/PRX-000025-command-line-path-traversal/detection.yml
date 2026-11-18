@@ -1,0 +1,33 @@
+id: PRX-000025
+name: Command line path traversal evasion
+intent: Detects unusual parent directory references in Windows command lines that can hide
+  executable paths from simple detection rules.
+version: 1
+lifecycle: staged
+owner: ai:platform-engineer-elastic
+severity: medium
+risk_score: 47
+attack:
+- technique: T1036
+  tactic: TA0005
+data_components:
+- Process Creation
+- Command Execution
+pyramid_tier: ttp
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.process-*
+    - logs-windows.sysmon_operational-*
+provenance:
+  source: sigmahq
+  upstream_id: 1327381e-6ab0-4f38-b583-4c1b8346a56b
+  upstream_commit: 088855f00b65a19e345b09c1619272b44f92fea4
+  upstream_author: Christian Burkard (Nextron Systems)
+  licence: DRL-1.1
+references:
+- https://web.archive.org/web/20211012220242/https://twitter.com/Hexacorn/status/1448037865435320323
+- https://twitter.com/Gal_B1t/status/1062971006078345217
+false_positives:
+- Installers and administrative commands can use parent directory references in arguments.
+  Confirm the resolved path before escalation.
