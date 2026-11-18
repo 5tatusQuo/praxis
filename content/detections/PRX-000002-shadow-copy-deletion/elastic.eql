@@ -1,0 +1,12 @@
+process where host.os.type == "windows" and event.type == "start" and
+  (
+    ((process.name : "vssadmin.exe" or ?process.pe.original_file_name : "VSSADMIN.EXE") and
+      process.command_line : ("*delete*shadows*", "*resize*shadowstorage*")) or
+    ((process.name : "wmic.exe" or ?process.pe.original_file_name : "wmic.exe") and
+      process.command_line : "*shadowcopy*delete*") or
+    ((process.name : ("powershell.exe", "pwsh.exe") or
+        ?process.pe.original_file_name : ("PowerShell.EXE", "pwsh.dll")) and
+      process.command_line : ("*Win32_ShadowCopy*Delete*", "*Win32_ShadowCopy*Remove-*")) or
+    ((process.name : "diskshadow.exe" or ?process.pe.original_file_name : "diskshadow.exe") and
+      process.command_line : "*delete*shadows*")
+  )

@@ -1,0 +1,12 @@
+{
+  "event": {"category": ["process"], "type": ["start"], "kind": "event"},
+  "host": {"name": "srv-lab-01", "os": {"type": "windows"}},
+  "user": {"name": "j.doe"},
+  "process": {
+    "name": "powershell.exe",
+    "pid": 4100,
+    "command_line": "powershell -c Get-WmiObject Win32_ShadowCopy | ForEach-Object { $_.Delete() }",
+    "pe": {"original_file_name": "PowerShell.EXE"},
+    "parent": {"name": "wscript.exe"}
+  }
+}
