@@ -18,3 +18,17 @@ sources:
       - rules/windows/registry
       - rules/windows/network_connection
       - rules/windows/file
+
+  - name: elastic
+    kind: elastic
+    repo: https://github.com/elastic/detection-rules.git
+    commit: c678d34edbaa6a98db56ab575334b6ad233422a0
+    licence: Elastic-2.0
+    # Elastic License 2.0. Redistribution approved by the repo owner on
+    # 2026-11-18; derived detections keep the licence, rule id and commit in
+    # provenance and the original rule in reference/elastic.toml. The licence
+    # does not allow offering the rules as a hosted service to third parties.
+    # Only EQL rules are ingested for now.
+    redistribute: true
+    paths:
+      - rules/windows

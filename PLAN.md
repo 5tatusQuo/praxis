@@ -448,7 +448,7 @@ The mark is an original pair of explorer's goggles, not Jak's: those are Naughty
 | Auth | Keycloak (OIDC), RBAC per client | Cloud IdPs drop in later |
 | Delivery | GitHub Actions, self-hosted runner, Docker Compose → Helm → Terraform | Local first, cloud ready |
 
-**Build rule: Elastic first.** Elastic is the only SIEM until Phase 5. Every feature in Phases 0–4 is built and proven end to end against Elastic, but always behind the platform interface (`praxis.platforms`): nothing outside a platform module may assume Elastic, and each platform-specific step (query validation, tuning hook, envelope render, lab test, backtest, deploy, collect) is a method on that interface. Phase 5 then adds Splunk and Sentinel as two more implementations, without reworking the core. Until then, "multi-client" means several clients on the bundled Elastic, one Kibana space and one data-stream namespace each.
+**Build rule: Elastic first.** Elastic is the only SIEM until Phase 5. Every feature in Phases 0–4 is built and proven end to end against Elastic, but always behind the platform interface (`praxis.platforms`): nothing outside a platform module may assume Elastic, and each platform-specific step (query validation, tuning hook, envelope render, lab test, backtest, deploy, collect) is a method on that interface. Phase 5 then adds Splunk and Sentinel as two more implementations, without reworking the core. Cloud deployment (Helm, Terraform) is proven in Phase 5 too: everything before it runs on the one local server, and Phase 5 does not start until Phases 0–4 are completely done. Until then, "multi-client" means several clients on the bundled Elastic, one Kibana space and one data-stream namespace each.
 
 **Roadmap** — first AI-curated pack lands in week 15; v1.0 ships in week 20; Splunk and Sentinel follow in Phase 5 (indicative, part-time weeks):
 
@@ -458,8 +458,8 @@ The mark is an original pair of explorer's goggles, not Jak's: those are Naughty
 | 1 · Multi-client core | 4–7 | Content packs + tuning overlays · platform interface · lab tests per client render · Connect mode (Elastic) · CD with `packs.lock` | One rule, tuned differently for 2 clients, live on Elastic |
 | 2 · Visibility and gaps | 8–10 | Collectors · data-component mapping · gap engine · Navigator layers · dashboard v1 | Coverage snapshot matches a manual audit of one client |
 | 3 · AI agents | 11–15 | MCP server · Curator, Reviewer, Tuner · Pack review + Tuning studio · monthly packs | **First AI-curated pack merged after human review** |
-| 4 · Hunts and launch | 16–20 | Hunt Planner + hunt packs · brand and docs · demo video · Helm + Terraform (AWS first) | v1.0 public release on GitHub |
-| 5 · More SIEMs | 21–26 | Splunk and Sentinel platform implementations · parity tests across platforms · Connect mode for both | One rule, tuned differently for 2 clients, live on 3 SIEMs |
+| 4 · Hunts and launch | 16–20 | Hunt Planner + hunt packs · brand and docs · demo video | v1.0 public release on GitHub |
+| 5 · More SIEMs and cloud | 21–26 | Splunk and Sentinel platform implementations · parity tests across platforms · Connect mode for both · Helm + Terraform (AWS first) proven on real infrastructure | One rule, tuned differently for 2 clients, live on 3 SIEMs; core running on a cloud deployment |
 
 Each gate is a demo you can post: a short video or write-up per gate builds an audience while you build the product.
 
@@ -467,7 +467,7 @@ Each gate is a demo you can post: a short video or write-up per gate builds an a
 
 - [ ] Test SIEMs: Splunk developer licence for CI containers, and a low-cost Sentinel workspace for deploy tests?
 - [ ] Which LLM provider and model for agents, and do any clients require a local-only model?
-- [ ] Licence for the public `praxis` repo (Apache-2.0 is the usual choice for adoption)?
+- [x] Licence for the public `praxis` repo: Apache-2.0.
 - [ ] Synthetic demo clients: build 3 fictional clients (e.g. healthcare, finance, retail) with lab telemetry so the public demo uses no real data?
 
 ## Sources and credits

@@ -44,8 +44,8 @@ Built and checked without a model:
 - **Brand**: the Praxis lens mark, app icon, CLI banner, `docs/brand`.
 - **Docs**: `docs/deploying.md`, `docs/agents.md`.
 - **Helm chart** (`deploy/helm/praxis`) and **Terraform for AWS**
-  (`deploy/terraform/aws`). Both pass lint and validate in CI. Neither has
-  been installed on a real cluster or applied to a real AWS account.
+  (`deploy/terraform/aws`), written early. Both pass lint and validate in CI.
+  Proving them on real infrastructure now belongs to Phase 5.
 - **Release workflow**: a version tag builds and publishes both images to
   GitHub Container Registry with SBOM and provenance, then creates the release.
   It has never run.
@@ -55,26 +55,23 @@ signatures, and signed commits on the content repo.
 
 ## Blocked on you
 
-1. **An Anthropic API key.** No credential is configured on this machine
-   (`ANTHROPIC_API_KEY` is unset and the `ant` CLI is not installed). The agents
-   have only run against a scripted stand-in so far; the first real model call
-   has not happened, so expect small fixes on first contact.
-   The same applies to the Hunt Planner and the Tuner.
-2. **Your review.** The gate is "merged after human review": once the pack PR
-   exists, a person has to read and merge it. I will not merge an AI-curated
-   pack myself.
+1. **Log in once so the agents can call Claude.** You chose OAuth over an API
+   key. The Anthropic CLI (`ant` 2.11.0) is installed on the workstation; run
+   `ant auth login` once (it opens a browser). The SDK then picks the profile
+   up by itself, no key in any file. No agent has made a real model call yet,
+   so expect small fixes on first contact.
+2. **Your review of the pack PR.** There is no pull request to review yet: the
+   pack PR is what the Curator produces on its first real run, which needs the
+   login above. Once it exists, a person reads and merges it; I will not merge
+   an AI-curated pack myself.
+3. **Your go-ahead before I tag v1.0** (end of Phase 4).
 
-3. **For Phase 4:** an AWS account if you want the Terraform module applied
-   and proven, and your go-ahead before I tag v1.0.
-4. **For Phase 5:** a Splunk licence or developer licence and a Microsoft
-   Sentinel workspace (an Azure subscription). Both are paid or licensed
-   accounts, so I have not started Phase 5.
-5. **Licence calls:** whether Elastic `detection-rules` (Elastic License 2.0)
-   and Splunk ESCU content may be ingested and their text redistributed.
-
-To run the gate once the key is set (`export ANTHROPIC_API_KEY=...`):
+To run the Phase 3 gate after logging in:
 
     deploy/with-server.sh uv run praxis pack plan acme --month 2026-12 --budget 3
+
+Decided by you on 2026-11-18: cloud work (Helm, Terraform) and the other SIEMs
+come last, in Phase 5, and Phase 5 waits until Phases 0–4 are completely done.
 
 ## Done
 
@@ -86,8 +83,9 @@ To run the gate once the key is set (`export ANTHROPIC_API_KEY=...`):
 - **Phase 2 (2026-11-18).** Data map, lab telemetry, read-only collectors, gap
   engine, snapshots, Navigator layers, API, dashboard v1, nightly workflow.
 - **Phase 3, everything that needs no model (2026-11-18).** Steps 1 to 8 above.
-  Proven live: 1,683 SigmaHQ rules ingested at a pinned commit (1,649 with a
-  first-draft Elastic query) and stored in the server's Postgres; the MCP
+  Proven live: 2,075 upstream rules ingested at pinned commits (1,683 SigmaHQ,
+  392 Elastic EQL; 2,005 with a first-draft Elastic query) and stored in the
+  server's Postgres; the MCP
   server answers `tools/list` and `tools/call` over stdio; the Tuning studio
   preview measured a real exclusion for `globex` (1 of 1 match suppressed over
   30 days, both positive tests still fire, example silenced). Proven in unit
@@ -98,7 +96,7 @@ To run the gate once the key is set (`export ANTHROPIC_API_KEY=...`):
 
 - Phase 3 gate run (needs the key and your review).
 - Phase 4 gate: prove the Hunt Planner with a real model, then tag v1.0 with your go-ahead.
-- Phase 5: Splunk and Sentinel platform implementations (needs the accounts above).
+- Phase 5, only after Phases 0–4 are completely done: Splunk and Sentinel, then cloud deployment.
 
 ## Decisions
 
@@ -131,10 +129,13 @@ To run the gate once the key is set (`export ANTHROPIC_API_KEY=...`):
 | 2026-11-18 | Guardrails, scores, backtests and lab results in a pack are computed by code after the agents answer. A Reviewer `blocker` fails the pack whatever verdict it wrote. | "Deterministic first, AI second": a model cannot talk its way past the budget or report its own test results. |
 | 2026-11-18 | Agents run from a workstation through `deploy/with-server.sh` (SSH tunnels, lab and read keys passed in the environment only) and open the PR with your own GitHub login. | A PR opened by the Actions bot does not trigger CI, and the server has no GitHub credentials. No deploy key is ever fetched. The container sandbox per agent run in PLAN.md is not built yet; see Open problems. |
 | 2026-11-18 | Catalog search is Postgres full-text plus technique filters. No vector index yet. | Embeddings need a second provider or a local model; full-text and ATT&CK ids are enough to find candidates. pgvector is in the image for when it is wanted. |
-| 2026-11-18 | Only SigmaHQ is ingested (DRL 1.1, redistribution with attribution; author, id and commit kept in provenance and `reference/sigma.yml`). Elastic `detection-rules` and Splunk ESCU are not ingested yet. | Their licences need your decision before their rule text goes into a public repo. `sources.yml` has a `redistribute` switch per source for exactly this. |
+| 2026-11-18 | SigmaHQ is ingested under DRL 1.1 (redistribution with attribution; author, id and commit kept in provenance and `reference/sigma.yml`). `sources.yml` has a `redistribute` switch per source. | Superseded in part the same day: see the Elastic `detection-rules` row below. |
 | 2026-11-18 | Tuning studio v1 is a deterministic preview (alerts, rendered rule, override editor, live impact). The Tuner agent is driven from the CLI (`praxis tune`), and proposing from the browser is not wired. Monaco is not used yet. | The preview is the part that needs no secret in the browser path. Opening PRs from the web needs a GitHub App or token on the server, which is your call. |
 | 2026-11-18 | The API container gets lab and read keys only (`/opt/praxis/api.env`); deploy keys stay with the runner. CD mirrors `content/` to `/var/lib/praxis/content` for the API. | Keeps "no service but CD can deploy" true while the studio can backtest and replay. |
 | 2026-11-18 | `external_llm: false` in `client.yml` stops every agent for that client. | PLAN.md's per-client switch for data minimisation. |
+| 2026-11-18 | Agents authenticate with an OAuth profile from `ant auth login`; an API key in `ANTHROPIC_API_KEY` still works and takes precedence if set. | Your choice: OAuth is what you have. The SDK resolves the profile by itself, so no code changed and no secret is stored in the repo or in `.env`. |
+| 2026-11-18 | Cloud deployment moved from Phase 4 to Phase 5, with Splunk and Sentinel; Phase 5 starts only when Phases 0–4 are completely done. PLAN.md updated. | Your decision. The Helm chart and Terraform module already written stay in the repo, lint-checked but unproven, until then. |
+| 2026-11-18 | Elastic `detection-rules` is ingested (EQL rules under `rules/windows`, pinned commit, `redistribute: true`); Splunk ESCU will be ingested with the Splunk platform in Phase 5. | You approved ingesting and redistributing both. ESCU is SPL, which no platform can draft or test until Phase 5. Derived detections keep licence, rule id and commit in provenance. |
 
 ## Open problems
 

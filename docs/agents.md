@@ -37,8 +37,9 @@ and labelled as untrusted data. Set `external_llm: false` in a client's
 
 ## Running them
 
-Agents use Claude through the Anthropic SDK. Set `ANTHROPIC_API_KEY`; the
-model defaults to `claude-opus-5-5` and can be changed with `PRAXIS_LLM_MODEL`
+Agents use Claude through the Anthropic SDK. Log in once with `ant auth login`
+(OAuth, nothing to store), or set `ANTHROPIC_API_KEY`, which wins if both are
+present. The model defaults to `claude-opus-5-5` and can be changed with `PRAXIS_LLM_MODEL`
 (effort with `PRAXIS_LLM_EFFORT`). Run them from a workstation against the
 server:
 
