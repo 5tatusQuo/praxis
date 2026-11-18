@@ -229,5 +229,6 @@ class Hunt(Strict):
     clients: list[Slug] = Field(min_length=1)
     summary: str
     hypotheses: list[dict]
+    failed_queries: list[dict] = []
     agents: dict = {}
     usage: dict = {}

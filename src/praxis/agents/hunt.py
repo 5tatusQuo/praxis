@@ -135,6 +135,8 @@ def run_hunt(
         "clients": client_ids,
         "summary": answer["summary"],
         "hypotheses": hypotheses,
+        # Queries the SIEM refused, from the code's own log. Not evidence of absence.
+        "failed_queries": box.hunt_failures,
         "agents": {"model": llm.name},
         "usage": trail.usage(),
     }
@@ -174,6 +176,16 @@ def report(hunt: dict[str, Any]) -> str:
             h["query"].strip(),
             "```",
         ]
+    if hunt.get("failed_queries"):
+        lines += [
+            "",
+            "## Queries that failed",
+            "",
+            "The SIEM refused these queries, so they tested nothing. "
+            "A hypothesis that relied on one is not shown to be clean.",
+        ]
+        for f in hunt["failed_queries"]:
+            lines += ["", f"`{f['client']}`: {f['error']}", "", "```", f["query"], "```"]
     durable = [h["title"] for h in hunt["hypotheses"] if h["durable"]]
     lines += [
         "",
