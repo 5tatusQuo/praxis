@@ -1,0 +1,28 @@
+id: PRX-000020
+name: PowerShell started with a long encoded command
+intent: Detects PowerShell starting with a long Base64 encoded command, which attackers use
+  to hide download cradles and ransomware staging from command-line review.
+version: 1
+lifecycle: staged
+owner: detection-engineering
+severity: medium
+risk_score: 47
+attack:
+- technique: T1027.010
+  tactic: TA0005
+data_components:
+- Process Creation
+- Command Execution
+pyramid_tier: ttp
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.process-*
+provenance:
+  source: praxis
+  licence: Apache-2.0
+references:
+- https://attack.mitre.org/techniques/T1027/010/
+false_positives:
+- Management and deployment agents that wrap their scripts in an encoded command.
+- Installers that pass a generated script to PowerShell this way.
