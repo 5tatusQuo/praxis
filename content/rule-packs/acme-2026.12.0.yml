@@ -62,6 +62,7 @@ picks:
     stopped.
   changed: Added native EQL with optional metadata for renamed binaries, service keys and values, and
     numbered control sets.
+  name: Service registry deletion via reg.exe
 - detection: PRX-000005
   candidate: sigma:0d5675be-bc88-4172-86d3-1e96a4476536
   technique: T1021.001
@@ -93,6 +94,7 @@ picks:
     changes or lateral movement.
   changed: Added native EQL for renamed binaries and numbered control sets, accepted argument variations,
     and removed mandatory REG_DWORD and /f arguments.
+  name: RDP registry configuration modified via reg.exe
 - detection: PRX-000006
   candidate: sigma:edc2f8ae-2412-4dfd-b9d5-0c57727e70be
   technique: T1059.001
@@ -123,6 +125,7 @@ picks:
   caveat: Review administrative scripts because matching commands do not prove a successful connection.
   changed: Added native EQL for PowerShell and pwsh, supported renamed binaries and case variations, and
     removed the leading space requirement for TCPClient.
+  name: Potential PowerShell reverse shell via TCP stream
 rejected: []
 review:
   verdict: pass
