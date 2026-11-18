@@ -37,15 +37,24 @@ and labelled as untrusted data. Set `external_llm: false` in a client's
 
 ## Running them
 
-Agents use Claude through the Anthropic SDK. Log in once with `ant auth login`
-(OAuth, nothing to store), or set `ANTHROPIC_API_KEY`, which wins if both are
-present. The model defaults to `claude-opus-5-5` and can be changed with `PRAXIS_LLM_MODEL`
-(effort with `PRAXIS_LLM_EFFORT`). Run them from a workstation against the
-server:
+**Sign in with ChatGPT.** Open the dashboard with `deploy/dashboard.sh`, go to
+Settings and press "Sign in with ChatGPT". Your ChatGPT plan then pays for the
+agents' model calls, and you can pick the model on the same page. Use the
+`http://127.0.0.1:3000` address the script opens: the sign-in can only return
+to 127.0.0.1. PRAXIS gets no access to your ChatGPT conversations, the tokens
+stay on the server, and "Sign out of ChatGPT" revokes them. Usage shows up at
+https://chatgpt.com/settings/usage.
+
+Then run agents from a workstation against the server:
 
 ```bash
 deploy/with-server.sh uv run praxis pack plan acme --month 2026-12 --budget 3
 ```
+
+**Or Claude.** Without a ChatGPT sign-in, agents use Claude through the
+Anthropic SDK: log in with `ant auth login` or set `ANTHROPIC_API_KEY`
+(model `claude-opus-5-5`, change with `PRAXIS_LLM_MODEL`). Set
+`PRAXIS_LLM_PROVIDER=openai` or `anthropic` to force one.
 
 Every model call, tool call and guardrail decision is stored in the audit log
 and shown on the dashboard's Audit page.

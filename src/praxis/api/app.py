@@ -247,3 +247,78 @@ def client_rules(client_id: str) -> list[dict]:
         }
         for b in repo.detections_for(client)
     ]
+
+
+# -- LLM connection: Sign in with ChatGPT ----------------------------------------------
+class StartSignIn(BaseModel):
+    redirect_uri: str
+
+
+class Callback(BaseModel):
+    params: dict[str, str]
+
+
+class ModelChoice(BaseModel):
+    model: str
+
+
+def _chatgpt():
+    from praxis.chatgpt_auth import ChatGPTAuth
+
+    return ChatGPTAuth()
+
+
+def _auth_call(action):
+    from praxis.chatgpt_auth import ChatGPTAuthError
+
+    try:
+        return action()
+    except ChatGPTAuthError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@app.get("/api/llm", dependencies=secured)
+def llm_status(models: bool = False) -> dict:
+    """Which model credential the agents will use. Never returns a token."""
+    auth = _chatgpt()
+    status = auth.status()
+    listed: list[dict] = []
+    if models and status["plan_usage"]:
+        try:
+            listed = auth.models()
+        except Exception as error:  # the page still renders if OpenAI is unreachable
+            status["models_error"] = str(error)[:200]
+    return {"chatgpt": {**status, "models": listed}}
+
+
+@app.post("/api/llm/chatgpt/start", dependencies=secured)
+def chatgpt_start(body: StartSignIn) -> dict:
+    return {"url": _auth_call(lambda: _chatgpt().start(body.redirect_uri))}
+
+
+@app.post("/api/llm/chatgpt/callback", dependencies=secured)
+def chatgpt_callback(body: Callback) -> dict:
+    return _auth_call(lambda: _chatgpt().complete(body.params))
+
+
+@app.post("/api/llm/chatgpt/model", dependencies=secured)
+def chatgpt_model(body: ModelChoice) -> dict:
+    auth = _chatgpt()
+    if body.model not in {m["slug"] for m in _auth_call(auth.models)}:
+        raise HTTPException(status_code=422, detail="that model is not available to this account")
+    auth.set_model(body.model)
+    return auth.status()
+
+
+@app.post("/api/llm/chatgpt/disconnect", dependencies=secured)
+def chatgpt_disconnect() -> dict:
+    auth = _chatgpt()
+    _auth_call(auth.disconnect)
+    return auth.status()
+
+
+@app.post("/api/llm/chatgpt/token", dependencies=secured)
+def chatgpt_token() -> dict:
+    """A short-lived access token for an operator's agent run. Refresh tokens never leave."""
+    auth = _chatgpt()
+    return _auth_call(lambda: {"access_token": auth.access_token(), "model": auth.chosen_model()})

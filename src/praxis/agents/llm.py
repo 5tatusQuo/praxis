@@ -206,3 +206,15 @@ class ScriptedLLM:
             content, failed = run_tool(toolbox, registry[name], arguments)
             self.seen.append({"actor": actor, "tool": name, "result": content, "error": failed})
         raise AgentError(f"script for {actor} ran out")
+
+
+def default_llm() -> LLM:
+    """Pick the provider: PRAXIS_LLM_PROVIDER, else ChatGPT when signed in, else Claude."""
+    from praxis.agents import openai_llm
+
+    provider = os.environ.get("PRAXIS_LLM_PROVIDER", "auto").lower()
+    if provider == "openai" or (provider == "auto" and openai_llm.chatgpt_connected()):
+        return openai_llm.OpenAILLM()
+    if provider in ("auto", "anthropic", "claude"):
+        return ClaudeLLM()
+    raise AgentError(f"unknown PRAXIS_LLM_PROVIDER {provider!r}; use openai or anthropic")

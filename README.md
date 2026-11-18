@@ -101,9 +101,10 @@ uv run praxis coverage acme       # collect (read-only) and classify every techn
 uv run praxis drift acme          # does the SIEM still match packs.lock?
 ```
 
-Agents need a Claude credential: log in once with `ant auth login` (OAuth) or
-set `ANTHROPIC_API_KEY`. They run from your workstation against the server
-through SSH tunnels:
+Agents need a model. Run `deploy/dashboard.sh`, open Settings and press
+"Sign in with ChatGPT" to use your ChatGPT plan; or use Claude with
+`ant auth login` or `ANTHROPIC_API_KEY`. Agents run from your workstation
+against the server through SSH tunnels:
 
 ```bash
 deploy/with-server.sh uv run praxis catalog sync                  # rebuild the candidate catalog
@@ -111,9 +112,8 @@ deploy/with-server.sh uv run praxis pack plan acme --month 2026-12 --budget 3
 deploy/with-server.sh uv run praxis tune PRX-000002 --client globex
 ```
 
-The dashboard listens on port 3000 of the server, on localhost only. Reach it
-through an SSH tunnel: `ssh -L 3000:localhost:3000 <server>`, then open
-http://localhost:3000.
+The dashboard listens on port 3000 of the server, on localhost only.
+`deploy/dashboard.sh` forwards it over SSH and opens http://127.0.0.1:3000.
 
 ## Documentation
 

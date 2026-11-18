@@ -242,7 +242,7 @@ Agents work through one tool surface, a **PRAXIS MCP server**, that wraps the pl
 | Hunt Planner | Turns an actor or threat prompt into hypotheses and per-SIEM hunt queries | Hunt pack |
 | Reviewer | Independent critic with no authoring context; challenges every pack and PR | Review comments, pass/fail |
 
-**As built (Phase 3).** The tools live in one registry (`praxis.agents.toolbox`) that the agents call in-process and that `praxis mcp` serves over MCP, so the surface is identical either way. Agents run on the Claude Messages API with a loop PRAXIS hosts, because the tools must reach SIEMs on your network. Opening the pull request is done by code after the guardrails pass, not by an agent tool. Catalog search is Postgres full-text plus ATT&CK filters for now.
+**As built (Phase 3).** The tools live in one registry (`praxis.agents.toolbox`) that the agents call in-process and that `praxis mcp` serves over MCP, so the surface is identical either way. Agents run with a loop PRAXIS hosts, because the tools must reach SIEMs on your network. The model provider is swappable: OpenAI's Responses API on the operator's ChatGPT plan (Sign in with ChatGPT, from the dashboard's Settings page), or Claude through the Anthropic SDK. Opening the pull request is done by code after the guardrails pass, not by an agent tool. Catalog search is Postgres full-text plus ATT&CK filters for now.
 
 ### Guardrails against weak and over-fitted rules
 
@@ -466,7 +466,7 @@ Each gate is a demo you can post: a short video or write-up per gate builds an a
 **Open questions** (the first is only needed for Phase 5, the second for Phase 3):
 
 - [ ] Test SIEMs: Splunk developer licence for CI containers, and a low-cost Sentinel workspace for deploy tests?
-- [ ] Which LLM provider and model for agents, and do any clients require a local-only model?
+- [x] LLM provider for agents: Sign in with ChatGPT (OpenAI) or Claude, chosen per install; `external_llm: false` per client turns agents off. A local-only model is not built.
 - [x] Licence for the public `praxis` repo: Apache-2.0.
 - [ ] Synthetic demo clients: build 3 fictional clients (e.g. healthcare, finance, retail) with lab telemetry so the public demo uses no real data?
 

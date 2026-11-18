@@ -7,7 +7,8 @@ COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --locked --no-install-project
 COPY src ./src
 RUN uv sync --locked --no-editable
-RUN useradd --system --uid 10001 praxis
+RUN useradd --system --uid 10001 praxis && install -d -o praxis -m 700 /state
+ENV PRAXIS_STATE_DIR=/state
 USER praxis
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8000

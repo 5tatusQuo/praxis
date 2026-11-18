@@ -55,18 +55,21 @@ signatures, and signed commits on the content repo.
 
 ## Blocked on you
 
-1. **Log in once so the agents can call Claude.** You chose OAuth over an API
-   key. The Anthropic CLI (`ant` 2.11.0) is installed on the workstation; run
-   `ant auth login` once (it opens a browser). The SDK then picks the profile
-   up by itself, no key in any file. No agent has made a real model call yet,
-   so expect small fixes on first contact.
-2. **Your review of the pack PR.** There is no pull request to review yet: the
-   pack PR is what the Curator produces on its first real run, which needs the
-   login above. Once it exists, a person reads and merges it; I will not merge
-   an AI-curated pack myself.
+1. **Sign in with ChatGPT in the dashboard.** Run `deploy/dashboard.sh`, open
+   Settings, press "Sign in with ChatGPT" and allow plan usage. Everything up
+   to the browser step is proven live (OpenAI accepts the sign-in request and
+   sends the browser to its login page). Not proven until you do it: the
+   consent screen, the code exchange, and the first model call on your plan.
+   OpenAI's docs are unclear on whether this self-serve path is open to every
+   account or still partly behind a waitlist; if the sign-in is refused, that
+   is the likely reason.
+2. **Your review of the pack PR.** There is nothing to review yet: the pack PR
+   is what the Curator produces on its first real run, which needs the sign-in
+   above. Once it exists, a person reads and merges it; I will not merge an
+   AI-curated pack myself.
 3. **Your go-ahead before I tag v1.0** (end of Phase 4).
 
-To run the Phase 3 gate after logging in:
+To run the Phase 3 gate after signing in:
 
     deploy/with-server.sh uv run praxis pack plan acme --month 2026-12 --budget 3
 
@@ -133,12 +136,18 @@ come last, in Phase 5, and Phase 5 waits until Phases 0–4 are completely done.
 | 2026-11-18 | Tuning studio v1 is a deterministic preview (alerts, rendered rule, override editor, live impact). The Tuner agent is driven from the CLI (`praxis tune`), and proposing from the browser is not wired. Monaco is not used yet. | The preview is the part that needs no secret in the browser path. Opening PRs from the web needs a GitHub App or token on the server, which is your call. |
 | 2026-11-18 | The API container gets lab and read keys only (`/opt/praxis/api.env`); deploy keys stay with the runner. CD mirrors `content/` to `/var/lib/praxis/content` for the API. | Keeps "no service but CD can deploy" true while the studio can backtest and replay. |
 | 2026-11-18 | `external_llm: false` in `client.yml` stops every agent for that client. | PLAN.md's per-client switch for data minimisation. |
-| 2026-11-18 | Agents authenticate with an OAuth profile from `ant auth login`; an API key in `ANTHROPIC_API_KEY` still works and takes precedence if set. | Your choice: OAuth is what you have. The SDK resolves the profile by itself, so no code changed and no secret is stored in the repo or in `.env`. |
+| 2026-11-18 | (Superseded the same day by Sign in with ChatGPT, below.) Claude can authenticate with an OAuth profile from `ant auth login` or an API key. | Kept as the fallback provider. |
 | 2026-11-18 | Cloud deployment moved from Phase 4 to Phase 5, with Splunk and Sentinel; Phase 5 starts only when Phases 0–4 are completely done. PLAN.md updated. | Your decision. The Helm chart and Terraform module already written stay in the repo, lint-checked but unproven, until then. |
 | 2026-11-18 | Elastic `detection-rules` is ingested (EQL rules under `rules/windows`, pinned commit, `redistribute: true`); Splunk ESCU will be ingested with the Splunk platform in Phase 5. | You approved ingesting and redistributing both. ESCU is SPL, which no platform can draft or test until Phase 5. Derived detections keep licence, rule id and commit in provenance. |
+| 2026-11-18 | The agents' model credential is "Sign in with ChatGPT" from the dashboard (OpenAI's plan-usage flow for open-source, self-hosted apps); the agents then run on OpenAI's Responses API. Claude via `ant auth login` or an API key remains as the fallback provider (`PRAXIS_LLM_PROVIDER`). | Your decision: a dashboard login is what a user expects, and Anthropic offers no OAuth flow a web app can use. PLAN.md already calls for a swappable provider. |
+| 2026-11-18 | The sign-in returns to the dashboard's own `/auth/callback` on `http://127.0.0.1:<port>`, reached through the SSH tunnel (`deploy/dashboard.sh`). | OpenAI's flow only allows a 127.0.0.1 loopback redirect. Their documented route for a remote server is "sign in locally, copy the credential file over SSH"; serving the callback through the tunnel reaches the same result without copying tokens by hand. It is not a setup their docs describe, so it may need revisiting. |
+| 2026-11-18 | Tokens live in one mode-600 file in the API container's own volume, not in Postgres. The API hands a short-lived access token (never the refresh token) to an operator's agent run over the tunnel. | Follows OpenAI's storage rules (protected self-hosted storage, atomic writes, serialised refresh). The token endpoint exists because agents still run on the workstation; it goes away when agent runs move to the server. |
+| 2026-11-18 | With OpenAI, the final answer comes back through a `submit_answer` function tool, and requests send `store: false`, `stream: true` and the full history each turn. | The preview's documented rules. Its docs do not say whether JSON-schema structured output is supported, so the provider does not depend on it. |
 
 ## Open problems
 
+- The dashboard has no login of its own yet (Keycloak is not built). Anyone who can reach its port can use the ChatGPT sign-in and the token endpoint. Today the port listens on the server's localhost only, so that means people with SSH access.
+- OpenAI's plan-usage preview: the exact request shape for function tools is not in the docs I could read. The provider sends plain function tools and falls back to a namespace wrapper if they are refused; expect adjustments on first contact. One ChatGPT account funds every agent run, whoever starts it.
 - Agent sandbox: PLAN.md calls for each agent run in a container with no network except the MCP server and the LLM endpoint. Today agents run as a normal process on the operator's workstation. Their tools are allow-listed per role and none can deploy, but the process itself is not confined.
 - Fingerprint overlap is approximate (it ignores boolean structure) and did not flag the SigmaHQ rules closest to PRX-000001 and PRX-000002 as duplicates. The Curator also sees the library by technique, and the Reviewer checks overlap, but the automatic check should be tightened.
 - The pySigma first drafts use `.caseless` sub-fields and `any where`, which PRAXIS rewrites; drafts are starting points and the Engineer agent is expected to rewrite them.

@@ -49,6 +49,8 @@ services:
         required: false
     volumes:
       - ${PRAXIS_CONTENT_PATH:-/var/lib/praxis/content}:/content:ro
+      # The ChatGPT sign-in (tokens, mode 600). Not in the database on purpose.
+      - apistate:/state
       - /etc/praxis/ca.crt:/certs/ca.crt:ro
     ports:
       - "${API_BIND:-127.0.0.1}:8000:8000"
@@ -162,6 +164,7 @@ services:
 
 volumes:
   pgdata:
+  apistate:
   certs:
   esdata01:
   kibanadata:
