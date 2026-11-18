@@ -1,0 +1,24 @@
+{
+  "@timestamp": "2026-11-01T10:06:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "sc.exe",
+    "parent": {
+      "name": "java.exe",
+      "command_line": "java.exe -Dcatalina.home=C:\\Apps\\server org.apache.catalina.startup.Bootstrap"
+    }
+  }
+}

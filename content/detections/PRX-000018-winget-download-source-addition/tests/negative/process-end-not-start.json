@@ -1,0 +1,20 @@
+{
+  "@timestamp": "2026-01-01T00:01:06Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "end"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "winget.exe",
+    "command_line": "winget.exe source add --name Research"
+  }
+}

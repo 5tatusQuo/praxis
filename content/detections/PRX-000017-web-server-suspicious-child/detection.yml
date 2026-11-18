@@ -1,0 +1,35 @@
+id: PRX-000017
+name: Suspicious utility started by a web server
+intent: Detects a web server starting a shell or system utility, which can indicate command
+  execution after exploitation or through a web shell.
+version: 1
+lifecycle: staged
+owner: ai:platform-engineer-elastic
+severity: high
+risk_score: 73
+attack:
+- technique: T1190
+  tactic: TA0001
+- technique: T1505.003
+  tactic: TA0003
+data_components:
+- Process Creation
+pyramid_tier: ttp
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.process-*
+    - logs-windows.sysmon_operational-*
+provenance:
+  source: sigmahq
+  upstream_id: 8202070f-edeb-4d31-a010-a26c72ac5600
+  upstream_commit: 088855f00b65a19e345b09c1619272b44f92fea4
+  upstream_author: Thomas Patzke, Florian Roth (Nextron Systems), Zach Stanford @svch0st,
+    Tim Shelton, Nasreddine Bencherchali (Nextron Systems)
+  licence: DRL-1.1
+references:
+- https://github.com/SigmaHQ/sigma/blob/088855f00b65a19e345b09c1619272b44f92fea4/rules/windows/process_creation/proc_creation_win_webshell_susp_process_spawned_from_webserver.yml
+- https://media.defense.gov/2020/Jun/09/2002313081/-1/-1/0/CSI-DETECT-AND-PREVENT-WEB-SHELL-MALWARE-20200422.PDF
+false_positives:
+- Web applications can start shells or system utilities for maintenance. Verify the exact
+  process chain and approved activity before adding an exception.

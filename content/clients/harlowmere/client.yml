@@ -13,3 +13,5 @@ packs:
 - baseline
 detections:
 - PRX-000016
+- PRX-000017
+- PRX-000018

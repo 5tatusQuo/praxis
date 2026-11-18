@@ -1,0 +1,23 @@
+{
+  "@timestamp": "2026-01-01T00:00:01Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "update.exe",
+    "pe": {
+      "original_file_name": "WinGet.exe"
+    },
+    "command_line": "C:\\Temp\\update.exe SOURCE ADD -n Research -a https://packages.example.test/index"
+  }
+}

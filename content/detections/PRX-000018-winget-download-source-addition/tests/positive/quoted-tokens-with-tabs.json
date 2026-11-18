@@ -1,0 +1,20 @@
+{
+  "@timestamp": "2026-01-01T00:00:02Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "WINGET.EXE",
+    "command_line": "\"C:\\Program Files\\winget.exe\"\t\"source\"\t\"add\"\t-n Research -a https://packages.example.test/index"
+  }
+}

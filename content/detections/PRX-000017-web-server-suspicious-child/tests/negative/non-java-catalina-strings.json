@@ -1,0 +1,25 @@
+{
+  "@timestamp": "2026-11-01T11:03:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "cmd.exe",
+    "parent": {
+      "name": "explorer.exe",
+      "executable": "C:\\Tomcat\\explorer.exe",
+      "command_line": "explorer.exe C:\\Tomcat\\catalina.jar"
+    }
+  }
+}

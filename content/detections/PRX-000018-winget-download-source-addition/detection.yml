@@ -1,0 +1,33 @@
+id: PRX-000018
+name: Winget download source addition
+intent: Detects Winget attempts to add a download source, which can introduce untrusted packages
+  for later execution.
+version: 1
+lifecycle: staged
+owner: ai:platform-engineer-elastic
+severity: medium
+risk_score: 47
+attack:
+- technique: T1059
+  tactic: TA0002
+data_components:
+- Process Creation
+- Command Execution
+pyramid_tier: ttp
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.process-*
+    - logs-windows.sysmon_operational-*
+provenance:
+  source: sigmahq
+  upstream_id: 05ebafc8-7aa2-4bcd-a269-2aec93f9e842
+  upstream_commit: 088855f00b65a19e345b09c1619272b44f92fea4
+  upstream_author: Nasreddine Bencherchali (Nextron Systems)
+  licence: DRL-1.1
+references:
+- https://learn.microsoft.com/en-us/windows/package-manager/winget/source
+- https://github.com/SigmaHQ/sigma/blob/088855f00b65a19e345b09c1619272b44f92fea4/rules/windows/process_creation/proc_creation_win_winget_add_custom_source.yml
+- https://web.archive.org/web/20250828100901/https://github.com/nasbench/Misc-Research/tree/b9596e8109dcdb16ec353f316678927e507a5b8d/LOLBINs/Winget
+false_positives:
+- Administrators and software management tools can add approved package sources.

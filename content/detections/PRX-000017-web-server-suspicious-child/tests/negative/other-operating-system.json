@@ -1,0 +1,23 @@
+{
+  "@timestamp": "2026-11-01T11:05:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "linux"
+    }
+  },
+  "process": {
+    "name": "sh.exe",
+    "parent": {
+      "name": "httpd.exe"
+    }
+  }
+}
