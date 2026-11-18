@@ -155,7 +155,20 @@ class Platform(ABC):
         """Onboard a client (space/app, scoped identities). Returns ENV=value lines for new keys."""
 
     @abstractmethod
-    def deploy(self, rules: list[RenderedRule], client: Client) -> list[DeployAction]:
+    def deprovision(self, client: Client, delete_space: bool, delete_data: bool) -> list[str]:
+        """Offboard a client from its SIEM: rules and identities, optionally space and data.
+
+        Returns what was removed. Cannot be undone.
+        """
+
+    @abstractmethod
+    def live_differences(self, rule: RenderedRule, client: Client) -> list[str]:
+        """Field-by-field differences between a rendered rule and what the SIEM runs."""
+
+    @abstractmethod
+    def deploy(
+        self, rules: list[RenderedRule], client: Client, force: bool = False
+    ) -> list[DeployAction]:
         """Make the client's SIEM match `rules`: create, update in place, delete extras."""
 
     @abstractmethod

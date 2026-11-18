@@ -73,6 +73,9 @@ any MCP client through `praxis mcp`.
 You need [uv](https://docs.astral.sh/uv/) and, for the stack, Docker.
 
 ```bash
+./px status                       # where everything stands (needs a server in .env)
+./px --help                       # every command; docs/runbook.md walks through them
+
 uv sync
 uv run praxis validate            # schemas, README template, ATT&CK ids, tuning hooks
 uv run praxis render              # platform envelopes for every client
@@ -120,7 +123,7 @@ The dashboard listens on port 3000 of the server, on localhost only.
 
 - [PLAN.md](PLAN.md): architecture and roadmap.
 - [PROGRESS.md](PROGRESS.md): what is built, the evidence for each gate, and what is still open.
-- [docs/runbook.md](docs/runbook.md): onboard a client and run it, step by step, with the known rough spots.
+- [docs/runbook.md](docs/runbook.md): operate a client start to finish, one command per step. Written for people and for AI assistants.
 - [docs/deploying.md](docs/deploying.md): one server with Docker Compose, Kubernetes with Helm, AWS with Terraform.
 - [docs/agents.md](docs/agents.md): what each agent does, what code decides for them, and how to run them.
 - [docs/visibility-scoring.md](docs/visibility-scoring.md): how visibility is scored and gaps are classified.

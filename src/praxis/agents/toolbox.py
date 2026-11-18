@@ -18,7 +18,7 @@ from typing import Any
 
 import yaml
 
-from praxis import attack, core, db
+from praxis import attack, core, db, ops
 from praxis.catalog import quality
 from praxis.catalog.fingerprint import eql_triples
 from praxis.catalog.sync import library_triples
@@ -83,6 +83,8 @@ class Toolbox:
     audit: Audit = lambda action, detail: None
     # Detections written in this session; only these may be overwritten.
     created: set[str] = field(default_factory=set)
+    # Who is credited as a new detection's owner. Default: the platform engineer agent.
+    owner: str | None = None
     # Alert ids this session was shown; tuning evidence must cite one of them.
     seen_alerts: set[str] = field(default_factory=set)
     # For a hunt across several clients: the only clients the session may touch.
@@ -401,6 +403,77 @@ class Toolbox:
                 _object({**client, **query, **indices}, ["client", "query", "indices"]),
                 self.run_hunt_query,
             ),
+            # -- operator tools: for the person's own AI assistant, not for PRAXIS's agents
+            Tool(
+                "status",
+                "Where everything stands: detections, clients, packs, the working tree and, "
+                "when connected, coverage per client and whether a model sign-in exists. "
+                "Start here.",
+                _object({}, []),
+                lambda: ops.status(self.content_dir),
+            ),
+            Tool(
+                "client_add",
+                "Create a client: manifest, lab telemetry profile for the rules it gets, and "
+                "its lock file. The sector needs a threat profile (see sector_add). Returns the "
+                "next steps. Client names must be invented, never a real company.",
+                _object(
+                    {
+                        "client_id": {"type": "string", "description": "lower case, hyphens"},
+                        "name": _STRING,
+                        "sector": _STRING,
+                        "endpoints": {"type": "integer", "description": "hosts expected to report"},
+                        "packs": {"type": "array", "items": _STRING},
+                    },
+                    ["client_id", "name", "sector", "endpoints"],
+                ),
+                lambda **a: ops.client_add(self.content_dir, **a),
+                writes=True,
+            ),
+            Tool(
+                "client_subscribe",
+                "Give a client content packs or single detections, or take them away.",
+                _object(
+                    {
+                        "client_id": _STRING,
+                        "packs": {"type": "array", "items": _STRING},
+                        "detections": {"type": "array", "items": _STRING},
+                        "remove": {"type": "boolean"},
+                    },
+                    ["client_id"],
+                ),
+                lambda **a: ops.client_subscribe(self.content_dir, **a),
+                writes=True,
+            ),
+            Tool(
+                "sector_add",
+                "Create a sector's threat profile from ATT&CK group ids (find them with "
+                "attack_group). Gaps are ranked by how many of these groups use a technique.",
+                _object(
+                    {
+                        "sector": _STRING,
+                        "description": _STRING,
+                        "groups": {"type": "array", "items": _STRING, "minItems": 1},
+                    },
+                    ["sector", "description", "groups"],
+                ),
+                lambda **a: str(ops.sector_add(self.content_dir, **a)),
+                writes=True,
+            ),
+            Tool(
+                "detection_lifecycle",
+                "Move a detection to staged (shadow), production (alerts reach the SOC) or "
+                "deprecated (removed at the next deploy).",
+                _object(
+                    {
+                        "detection_id": _STRING,
+                        "lifecycle": {"enum": ["draft", "staged", "production", "deprecated"]},
+                    },
+                    ["detection_id", "lifecycle"],
+                ),
+                lambda **a: ops.detection_lifecycle(self.content_dir, **a),
+                writes=True,
+            ),
         ]
         return {tool.name: tool for tool in defined}
 
@@ -413,7 +486,7 @@ class Toolbox:
             result = tool.handler(**arguments)
             self.audit(f"tool:{name}", {"arguments": _brief(arguments), "ok": True})
             return json.dumps(result, default=str), False
-        except ToolError as err:
+        except (ToolError, ops.OpsError) as err:
             self.audit(f"tool:{name}", {"arguments": _brief(arguments), "error": str(err)})
             return str(err), True
         except TypeError as err:  # wrong or missing arguments
@@ -651,7 +724,7 @@ class Toolbox:
             "intent": spec["intent"],
             "version": 1,
             "lifecycle": "staged",
-            "owner": f"ai:platform-engineer-{platform}",
+            "owner": self.owner or f"ai:platform-engineer-{platform}",
             "severity": spec["severity"],
             "risk_score": spec["risk_score"],
             "attack": spec["attack"],

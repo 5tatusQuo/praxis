@@ -133,3 +133,41 @@ def provision(client: Client, rotate: bool = False) -> list[str]:
             if key:
                 lines.append(f"{_env_name(target.connection, role, client.id)}={key}")
     return lines
+
+
+def deprovision(client: Client, delete_space: bool, delete_data: bool) -> list[str]:
+    """Remove a client from Elastic. Runs with the ADMIN identity. Cannot be undone."""
+    target = client.platforms.elastic
+    removed: list[str] = []
+    with ElasticConnection.from_env(target.connection, "admin") as conn:
+        rules_url = f"/s/{target.space}/api/detection_engine/rules"
+        found = call(conn.kibana, "GET", f"{rules_url}/_find", params={"per_page": 500}, ok=(404,))
+        for rule in (found or {}).get("data", []):
+            if "PRAXIS" not in rule.get("tags", []):
+                continue
+            call(conn.kibana, "DELETE", rules_url, params={"rule_id": rule["rule_id"]})
+            call(
+                conn.kibana,
+                "DELETE",
+                f"/s/{target.space}/api/exception_lists",
+                params={
+                    "list_id": f"praxis-{client.id}-{rule['rule_id'].lower()}",
+                    "namespace_type": "single",
+                },
+                ok=(404,),
+            )
+            removed.append(f"rule {rule['rule_id']}")
+        for role in ("deploy", "read"):
+            name = f"praxis-{role}-{client.id}"
+            keys = _active_keys(conn, name)
+            if keys:
+                call(conn.es, "DELETE", "/_security/api_key", json={"ids": [k["id"] for k in keys]})
+                removed.append(f"api key {name}")
+        if delete_space:
+            call(conn.kibana, "DELETE", f"/api/spaces/space/{target.space}", ok=(404,))
+            removed.append(f"kibana space {target.space}")
+        if delete_data:
+            for kind in ("logs", "metrics", "traces"):
+                call(conn.es, "DELETE", f"/_data_stream/{kind}-*-{target.namespace}", ok=(404,))
+            removed.append(f"telemetry data streams in namespace {target.namespace}")
+    return removed

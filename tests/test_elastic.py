@@ -353,3 +353,53 @@ def test_backtest_counts_every_match_not_just_the_samples(repo, monkeypatch):
         repo.clients["testco"], "process where true", ["logs-x-*"]
     )
     assert result["hits"] == 32 and result["capped"] is False and len(result["samples"]) == 5
+
+
+def test_a_rule_with_no_telemetry_does_not_fail_the_deploy(repo, kibana):
+    platform, client = get_platform("elastic"), repo.clients["testco"]
+    rules = render(repo)
+    platform.deploy(rules, client)
+    kibana.rules["PRX-000900"]["execution_summary"]["last_execution"] = {
+        "date": "2026-01-01T00:00:05.000Z",
+        "status": "partial failure",
+        "message": "Unable to find matching indices for rule X. This warning will persist...",
+    }
+    (result,) = platform.smoke(rules, client)
+    assert result.ok and result.status == "no telemetry"
+    kibana.rules["PRX-000900"]["execution_summary"]["last_execution"]["message"] = "shard failure"
+    assert not platform.smoke(rules, client)[0].ok, "any other partial failure still fails"
+
+
+def test_force_rewrites_an_unchanged_rule(repo, kibana):
+    platform, client = get_platform("elastic"), repo.clients["testco"]
+    rules = render(repo)
+    platform.deploy(rules, client)
+    kibana.rules["PRX-000900"]["query"] = "process where false"  # a console edit keeps the hash tag
+    assert [a.action for a in platform.deploy(rules, client)] == ["unchanged"]
+    assert [a.action for a in platform.deploy(rules, client, force=True)] == ["updated"]
+    assert kibana.rules["PRX-000900"]["query"] == rules[0].envelope["query"]
+
+
+def test_drift_sees_console_edits(repo, monkeypatch):
+    (rule,) = render(repo)
+    live = {**rule.envelope}
+
+    def connect(name, role, client_id=None):
+        transport = httpx.MockTransport(lambda request: httpx.Response(200, json=live))
+        client = httpx.Client(base_url="http://kibana.test", transport=transport)
+        return ElasticConnection(name, role, client, client)
+
+    monkeypatch.setattr(connection_module.ElasticConnection, "from_env", staticmethod(connect))
+    platform, target = get_platform("elastic"), repo.clients["testco"]
+    assert platform.live_differences(rule, target) == []
+    live["query"] = "process where false"
+    live["enabled"] = False
+    assert platform.live_differences(rule, target) == ["query was changed", "enabled was changed"]
+
+
+def test_connection_check_explains_a_missing_deploy_key(repo, monkeypatch):
+    for name in ("ES_URL", "KIBANA_URL", "READ_API_KEY", "DEPLOY_API_KEY", "DEPLOY_API_KEY_TESTCO"):
+        monkeypatch.delenv(f"PRAXIS_ELASTIC_LAB_{name}", raising=False)
+    checks = {c.role: c for c in get_platform("elastic").check_connection(repo.clients["testco"])}
+    assert checks["deploy"].ok and "deploy/remote.sh check testco" in checks["deploy"].detail
+    assert not checks["read"].ok, "a missing read key is a real failure"

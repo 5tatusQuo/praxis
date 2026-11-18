@@ -20,8 +20,8 @@ from praxis.platforms.base import (
     RenderedRule,
     SmokeResult,
 )
-from praxis.platforms.elastic.connection import ApiError, ElasticConnection, call
-from praxis.platforms.elastic.provision import provision
+from praxis.platforms.elastic.connection import ApiError, ElasticConnection, _has_key, call
+from praxis.platforms.elastic.provision import deprovision, provision
 from praxis.platforms.elastic.render import (
     MANAGED_TAG,
     SHADOW_TAG,
@@ -35,6 +35,10 @@ from praxis.settings import get_settings
 from praxis.visibility.inventory import RuleHealth, SourceInventory
 
 LAB_NAMESPACE_PREFIX = "praxislab"
+# Fields a console edit could change; compared with the render to find drift.
+DRIFT_FIELDS = (
+    "name", "query", "index", "interval", "from", "severity", "risk_score", "enabled", "tags",
+)  # fmt: skip
 BACKTEST_LIMIT = 1000  # most matches a backtest counts; more than this is simply 'too noisy'
 _HARD_CODED_INDEX = re.compile(r"\b_index\b|\bfrom\s+(logs|metrics|traces)-", re.IGNORECASE)
 _SINGLE = {"namespace_type": "single"}
@@ -401,10 +405,59 @@ class ElasticPlatform(Platform):
     def provision(self, client: Client, rotate: bool = False) -> list[str]:
         return provision(client, rotate)
 
+    def deprovision(self, client: Client, delete_space: bool, delete_data: bool) -> list[str]:
+        return deprovision(client, delete_space, delete_data)
+
+    def live_differences(self, rule: RenderedRule, client: Client) -> list[str]:
+        """What someone changed in Kibana: compare the fields PRAXIS renders."""
+        with self._read_conn(client) as conn:
+            try:
+                live = call(
+                    conn.kibana,
+                    "GET",
+                    self._rules_url(client),
+                    params={"rule_id": rule.detection_id},
+                )
+            except ApiError as err:
+                if err.status == 404:
+                    return ["the rule is not in the SIEM"]
+                raise
+            differences = [
+                f"{name} was changed"
+                for name in DRIFT_FIELDS
+                if live.get(name) != rule.envelope.get(name)
+            ]
+            wanted = len(rule.extras.get("exception_items", []))
+            lists = live.get("exceptions_list") or []
+            if bool(lists) != bool(wanted):
+                differences.append("exception list was added or removed")
+            elif wanted:
+                found = call(
+                    conn.kibana,
+                    "GET",
+                    f"{self._space_url(client)}/exception_lists/items/_find",
+                    params={"list_id": exception_list_id(client.id, rule.detection_id), **_SINGLE},
+                    ok=(404,),
+                )
+                if (found or {}).get("total") != wanted:
+                    differences.append("exception items were changed")
+        return differences
+
     def check_connection(self, client: Client) -> list[ConnectionCheck]:
         target = client.platforms.elastic
         checks = []
         for role in ("read", "deploy"):
+            if role == "deploy" and not _has_key(target.connection, role, client.id):
+                # Deploy keys stay on the server and its runner by design.
+                checks.append(
+                    ConnectionCheck(
+                        role,
+                        True,
+                        "skipped: no deploy key here (they stay on the server). "
+                        f"Check it there with `deploy/remote.sh check {client.id}`",
+                    )
+                )
+                continue
             try:
                 with ElasticConnection.from_env(target.connection, role, client.id) as conn:
                     hits = call(
@@ -488,7 +541,9 @@ class ElasticPlatform(Platform):
         reference = {**rule.envelope["exceptions_list"][0], "id": created["id"]}
         return {**rule.envelope, "exceptions_list": [reference]}
 
-    def deploy(self, rules: list[RenderedRule], client: Client) -> list[DeployAction]:
+    def deploy(
+        self, rules: list[RenderedRule], client: Client, force: bool = False
+    ) -> list[DeployAction]:
         actions: list[DeployAction] = []
         with self._deploy_conn(client) as conn:
             existing = self._managed_rules(conn, client)
@@ -496,7 +551,8 @@ class ElasticPlatform(Platform):
             for rule in rules:
                 current = existing.pop(rule.detection_id, None)
                 unchanged = (
-                    current is not None
+                    not force
+                    and current is not None
                     and deployed_hash(current) == rule.content_hash[:16]
                     and current.get("enabled") == rule.envelope["enabled"]
                 )
@@ -581,6 +637,10 @@ class ElasticPlatform(Platform):
             or last["status"] in ("running", "going to run")
         ):
             return None
-        return SmokeResult(
-            rule_id, last["status"] == "succeeded", last["status"], last.get("message", "")
-        )
+        message = last.get("message", "")
+        if last["status"] == "partial failure" and "Unable to find matching indices" in message:
+            # Deployed and running; the client simply sends none of this rule's
+            # log sources. That is a visibility gap, which coverage reports as
+            # a blind rule, not a failed deploy.
+            return SmokeResult(rule_id, True, "no telemetry", "none of its log sources exist yet")
+        return SmokeResult(rule_id, last["status"] == "succeeded", last["status"], message)

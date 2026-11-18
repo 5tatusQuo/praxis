@@ -45,6 +45,15 @@ def _env(connection: str, key: str, required: bool = True) -> str | None:
     return value or None
 
 
+def _has_key(connection: str, role: str, client_id: str | None) -> bool:
+    key = f"{role.upper()}_API_KEY"
+    suffix = f"_{client_id.upper().replace('-', '_')}" if client_id else ""
+    return bool(
+        (suffix and _env(connection, key + suffix, required=False))
+        or _env(connection, key, required=False)
+    )
+
+
 @dataclass
 class ElasticConnection:
     name: str
