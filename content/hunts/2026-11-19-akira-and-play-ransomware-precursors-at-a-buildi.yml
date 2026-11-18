@@ -1,0 +1,89 @@
+id: 2026-11-19-akira-and-play-ransomware-precursors-at-a-buildi
+prompt: 'Akira and Play ransomware precursors at a building and engineering contractor: remote service
+  lateral movement, credential dumping and shadow copy deletion on Windows file servers holding project
+  drawings'
+created: '2026-11-19'
+clients:
+- dunmerrow
+summary: The samples suggest backup maintenance, not confirmed ransomware. Confirm file server roles and
+  review deletion activity. File telemetry cannot confirm dump creation or access to drawings.
+hypotheses:
+- title: An operator creates a service on a remote host
+  technique: T1021.002
+  rationale: Play uses administrative shares for lateral movement. Remote service creation can reveal
+    a path beyond the existing PsExec detection.
+  query: 'process where host.os.type == "windows" and event.type == "start" and process.name : "sc.exe"
+    and process.command_line : "*\\\\*" and process.command_line : "* create *" and process.command_line
+    : "*binPath*"'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No matching remote service creation appeared. This does not exclude other remote execution
+    methods. Review authorization for future matches.
+  durable: true
+  results:
+    dunmerrow:
+      hits: 0
+      days: 30
+  tested: true
+- title: An operator targets LSASS with a dump utility
+  technique: T1003.001
+  rationale: Play dumps credentials. This query tests a utility path beyond the existing memory dump detections.
+  query: 'process where host.os.type == "windows" and event.type == "start" and (process.name : ("procdump.exe",
+    "procdump64.exe", "procdump64a.exe") or process.pe.original_file_name : "procdump*") and process.command_line
+    : "*lsass*"'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No matching invocation appeared. This does not exclude credential dumping through other
+    tools or a numeric process identifier.
+  durable: true
+  results:
+    dunmerrow:
+      hits: 0
+      days: 30
+  tested: true
+- title: An operator deletes shadow copies before encryption
+  technique: T1490
+  rationale: The requested precursor warrants validation of existing deletion coverage. The supplied actor
+    records do not explicitly report this technique.
+  query: 'process where host.os.type == "windows" and event.type == "start" and ((process.name : "vssadmin.exe"
+    and process.command_line : "* delete *" and process.command_line : "*shadows*") or (process.name :
+    "wmic.exe" and process.command_line : "*shadowcopy*" and process.command_line : "*delete*") or (process.name
+    : ("powershell.exe", "pwsh.exe") and process.command_line : "*Win32_ShadowCopy*" and process.command_line
+    : ("*Remove-WmiObject*", "*Remove-CimInstance*", "*.Delete(*")))'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: The samples show a backup agent deleting the oldest shadow copy on D:. Verify the maintenance
+    schedule and review the remaining events before attribution.
+  durable: false
+  results:
+    dunmerrow:
+      hits: 28
+      days: 30
+  tested: true
+failed_queries:
+- client: dunmerrow
+  indices:
+  - logs-endpoint.events.process-*
+  query: 'process where host.os.type == "windows" and event.type == "start" and process.name : "sc.exe"
+    and process.command_line : "*\\\\*" and process.args : "create" and process.command_line : "*binPath*"'
+  error: 'POST /logs-endpoint.events.process-dunmerrow/_eql/search -> 400: {"error":{"root_cause":[{"type":"verification_exception","reason":"Found
+    1 problem\nline 1:135: Unknown column [process.args], did you mean any of [process.name, process.name.text]?"}],"type":"verification_exception","reason":"Found
+    1 '
+- client: dunmerrow
+  indices:
+  - logs-endpoint.events.process-*
+  query: 'process where host.os.type == "windows" and event.type == "start" and ((process.name : "vssadmin.exe"
+    and process.args : "delete" and process.args : "shadows") or (process.name : "wmic.exe" and process.args
+    : "shadowcopy" and process.args : "delete") or (process.name : ("powershell.exe", "pwsh.exe") and
+    process.command_line : "*Win32_ShadowCopy*" and process.command_line : ("*Remove-WmiObject*", "*Remove-CimInstance*",
+    "*.Delete(*")))'
+  error: 'POST /logs-endpoint.events.process-dunmerrow/_eql/search -> 400: {"error":{"root_cause":[{"type":"verification_exception","reason":"Found
+    1 problem\nline 1:107: Unknown column [process.args], did you mean any of [process.name, process.name.text]?"}],"type":"verification_exception","reason":"Found
+    1 '
+agents:
+  model: gpt-6.1-sol
+usage:
+  llm_calls: 4
+  input_tokens: 20519
+  output_tokens: 1687
+  tool_calls: 9
