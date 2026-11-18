@@ -34,9 +34,11 @@ Rules while operating:
   the person wants to know about.
 - Show evidence. After a step, show the command's own output for it.
 
-The same actions are available as tools from the `praxis` MCP server
+Reading and authoring actions are also tools from the `praxis` MCP server
 (`.mcp.json`), for example `status`, `client_add`, `get_coverage`,
-`search_catalog`, `write_detection` and `run_tests`.
+`search_catalog`, `write_detection` and `run_tests`. The MCP tools cannot
+ship or deploy: pull requests, the agents (`pack plan`, `tune`, `hunt`),
+provisioning and offboarding are `./px` commands only.
 
 ## Developing PRAXIS
 
