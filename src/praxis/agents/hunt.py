@@ -41,18 +41,19 @@ for a hunt pack. Indicator sweeps and one-off checks are not durable.
 HUNT_ANSWER: dict[str, Any] = {
     "type": "object",
     "properties": {
-        "summary": {"type": "string"},
+        "summary": {"type": "string", "maxWords": 40, "maxSentenceWords": 25},
         "hypotheses": {
             "type": "array",
+            "maxItems": 6,
             "items": {
                 "type": "object",
                 "properties": {
-                    "title": {"type": "string"},
+                    "title": {"type": "string", "maxWords": 10},
                     "technique": {"type": "string"},
-                    "rationale": {"type": "string"},
+                    "rationale": {"type": "string", "maxWords": 25, "maxSentenceWords": 25},
                     "query": {"type": "string"},
                     "indices": {"type": "array", "items": {"type": "string"}},
-                    "assessment": {"type": "string"},
+                    "assessment": {"type": "string", "maxWords": 30, "maxSentenceWords": 25},
                     "durable": {"type": "boolean"},
                 },
                 "required": [

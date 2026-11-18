@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -39,6 +40,10 @@ class LLM(Protocol):
     ) -> dict[str, Any]: ...
 
 
+# Sentence ends: full stop, question or exclamation mark before a space, or a line break.
+_SENTENCE = re.compile(r"(?<=[.!?])\s+|\n+")
+
+
 def _check(value: Any, schema: dict[str, Any], path: str = "input") -> None:
     """Minimal JSON-schema check for tool inputs (types, required, enum, no extras)."""
     kind = schema.get("type")
@@ -63,12 +68,57 @@ def _check(value: Any, schema: dict[str, Any], path: str = "input") -> None:
             raise ValueError(f"{path} must be an array")
         if len(value) < schema.get("minItems", 0):
             raise ValueError(f"{path} needs at least {schema['minItems']} item(s)")
+        if len(value) > schema.get("maxItems", len(value)):
+            raise ValueError(f"{path} has {len(value)} items; the limit is {schema['maxItems']}")
         for index, item in enumerate(value):
             _check(item, schema.get("items", {}), f"{path}[{index}]")
-    elif kind == "string" and not isinstance(value, str):
-        raise ValueError(f"{path} must be a string")
+    elif kind == "string":
+        if not isinstance(value, str):
+            raise ValueError(f"{path} must be a string")
+        limit = schema.get("maxSentenceWords")
+        if limit:
+            longest = max((len(part.split()) for part in _SENTENCE.split(value)), default=0)
+            if longest > limit:
+                raise ValueError(
+                    f"{path} has a sentence of {longest} words; the limit is {limit}. "
+                    "Split it into shorter sentences"
+                )
+        words = len(value.split())
+        if words > schema.get("maxWords", words):
+            raise ValueError(
+                f"{path} is {words} words; the limit is {schema['maxWords']}. Cut it, do not "
+                "move the text elsewhere"
+            )
     elif kind == "integer" and (not isinstance(value, int) or isinstance(value, bool)):
         raise ValueError(f"{path} must be an integer")
+
+
+def model_schema(schema: dict[str, Any]) -> dict[str, Any]:
+    """A schema as the model sees it: length limits become part of the description.
+
+    `maxWords` is PRAXIS's own keyword and `maxItems` is not accepted everywhere,
+    so both are enforced by `_check` and only described to the model.
+    """
+    out: dict[str, Any] = {}
+    limits = []
+    for key, value in schema.items():
+        if key == "maxWords":
+            limits.append(f"At most {value} words.")
+        elif key == "maxSentenceWords":
+            limits.append(f"No sentence longer than {value} words.")
+        elif key == "maxItems":
+            limits.append(f"At most {value} items.")
+        elif key == "properties":
+            out[key] = {name: model_schema(sub) for name, sub in value.items()}
+        elif key == "items" and isinstance(value, dict):
+            out[key] = model_schema(value)
+        elif key == "anyOf":
+            out[key] = [model_schema(sub) for sub in value]
+        else:
+            out[key] = value
+    if limits:
+        out["description"] = " ".join(filter(None, [out.get("description"), *limits]))
+    return out
 
 
 def run_tool(toolbox: Toolbox, tool: Tool, arguments: Any) -> tuple[str, bool]:
@@ -112,7 +162,7 @@ class ClaudeLLM:
             {
                 "name": t.name,
                 "description": t.description,
-                "input_schema": t.schema,
+                "input_schema": model_schema(t.schema),
                 # Large inputs (a whole detection) stream as they are written;
                 # run_tool validates them, since the API then does not.
                 "eager_input_streaming": True,
@@ -130,7 +180,7 @@ class ClaudeLLM:
                 thinking={"type": "adaptive"},
                 output_config={
                     "effort": self.effort,
-                    "format": {"type": "json_schema", "schema": answer_schema},
+                    "format": {"type": "json_schema", "schema": model_schema(answer_schema)},
                 },
                 betas=[FALLBACK_BETA],
                 fallbacks="default",
@@ -158,9 +208,18 @@ class ClaudeLLM:
             if not calls:
                 text = "".join(b.text for b in response.content if b.type == "text")
                 try:
-                    return json.loads(text)
+                    answer = json.loads(text)
                 except json.JSONDecodeError as err:
                     raise AgentError(f"{actor}: final answer was not JSON: {err}") from err
+                try:
+                    _check(answer, answer_schema, "answer")
+                except ValueError as err:
+                    # Usually a field over its word limit: say which, and ask again.
+                    messages.append(
+                        {"role": "user", "content": f"Answer rejected: {err}. Send it again."}
+                    )
+                    continue
+                return answer
             results = []
             for block in calls:
                 tool = registry.get(block.name)

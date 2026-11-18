@@ -163,9 +163,12 @@ export type Pick = {
   candidate: string;
   technique: string;
   weight: number;
-  rationale: string;
+  why?: string;
+  caveat?: string;
+  changed?: string;
+  rationale?: string; // packs written before the short template
   justification: string;
-  engineer_notes: string;
+  engineer_notes?: string;
   quality: {
     score: number;
     tier: string;
@@ -183,14 +186,14 @@ export type Pack = {
   month: string;
   status: string;
   budget: number;
-  brief: string;
+  brief: string | { headline: string; adds: string[]; leaves_open: string[] };
   pr_url: string | null;
   picks: Pick[];
   rejected: { candidate: string; reason: string }[];
   review: {
     verdict: "pass" | "fail";
     summary: string;
-    comments: { detection_id: string; severity: string; comment: string }[];
+    comments: { detection_id: string; severity: string; issue?: string; action?: string; comment?: string }[];
   } | null;
   agents: { model?: string };
   usage: { llm_calls?: number; tool_calls?: number; input_tokens?: number; output_tokens?: number };

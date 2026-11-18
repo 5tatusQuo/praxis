@@ -202,7 +202,7 @@ class RulePack(Strict):
     status: Literal["proposed", "staged", "promoted", "dropped"]
     budget: int = Field(ge=1)
     snapshot: dict
-    brief: str
+    brief: dict | str
     picks: list[dict]
     rejected: list[dict] = []
     review: dict | None = None
