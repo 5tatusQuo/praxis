@@ -834,7 +834,7 @@ class Toolbox:
             "rule": detection_id,
             "reason": reason,
             "evidence": evidence,
-            "author": "ai:tuner (awaiting human approval)",
+            "author": "ai:tuner",  # approval is the merge of its pull request
             "expires": expires,
             "exclude": [*existing.get("exclude", []), *exclude],
             "examples": [*existing.get("examples", []), *examples],

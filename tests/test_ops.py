@@ -29,7 +29,10 @@ def test_sector_add_checks_group_ids(base):
     assert core.validate(core.load_repo(base)) == []
     with pytest.raises(ops.OpsError, match="already has a threat profile"):
         ops.sector_add(base, "construction", "Again.", ["G1024"])
-    assert ops.attack_groups("akira") == [{"id": "G1024", "name": "Akira", "techniques": 24}]
+    (akira,) = ops.attack_groups("akira")
+    assert (akira["id"], akira["name"], akira["matched"]) == ("G1024", "Akira", "name")
+    by_sector = ops.attack_groups("construction")
+    assert by_sector and all(g["matched"] == "description" for g in by_sector)
 
 
 def test_client_add_writes_everything_and_says_what_is_next(base):
@@ -114,3 +117,23 @@ def test_operator_tools_are_on_the_mcp_surface_but_not_given_to_agents(base):
         "client_add", {"client_id": "x", "name": "X", "sector": "none", "endpoints": 1}
     )
     assert failed and "has no threat profile" in text
+
+
+def test_lab_source_shapes_what_a_client_sends(base):
+    ops.sector_add(base, "construction", "Ransomware crews.", ["G1024"])
+    ops.client_add(base, "ironbridge", "Ironbridge", "construction", 40)
+    with pytest.raises(ops.OpsError, match="not in the data map"):
+        ops.lab_source(base, "ironbridge", "logs-made.up")
+    result = ops.lab_source(
+        base, "ironbridge", "logs-endpoint.events.process", hosts=25, silent_for_days=5
+    )
+    (row,) = result["sources"]
+    assert row == {
+        "source": "logs-endpoint.events.process",
+        "hosts": 25,
+        "events_per_day": 200,
+        "silent_for_days": 5,
+    }
+    assert core.validate(core.load_repo(base)) == []
+    with pytest.raises(ops.OpsError, match="needs at least one source"):
+        ops.lab_source(base, "ironbridge", "logs-endpoint.events.process", remove=True)

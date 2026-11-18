@@ -41,7 +41,8 @@ Gaps are ranked by how many of those groups use each technique.
 
 ```bash
 ./px sector list                          # sectors that already have one
-./px attack groups akira                  # find group ids by name
+./px attack groups construction           # groups ATT&CK reports against a sector (searches descriptions)
+./px attack groups akira                  # or find a group by name or alias
 ./px sector add construction \
   --description "Ransomware crews that have hit construction and engineering firms." \
   --group G1024 --group G1032 --group G0096 --technique T1490=0.3
@@ -49,6 +50,9 @@ Gaps are ranked by how many of those groups use each technique.
 ./px client add ironbridge --name "Ironbridge Construction" \
   --sector construction --endpoints 40
 ```
+
+Name the sector after the client's industry, in one lower-case word. ATT&CK
+lists threat actors as groups; ransomware families and tools are not groups.
 
 `client add` writes the manifest, a lab telemetry profile that covers every
 log source the client's rules read, and its `packs.lock`. The client gets the
@@ -81,6 +85,16 @@ repeats only the check; `--rotate` replaces the keys.
 Writes 14 days of synthetic events to each source in the client's lab
 profile. The nightly workflow tops it up from then on.
 
+The profile starts with the sources the client's rules read. To model what a
+client really sends, shape it before seeding, for example logons from only
+some hosts, or a source that went quiet:
+
+```bash
+./px sources                                                     # what the lab can generate
+./px lab source ironbridge logs-system.security --hosts 25
+./px lab source ironbridge logs-endpoint.events.file --silent-for-days 5
+```
+
 ## 4. Deploy
 
 ```bash
@@ -97,7 +111,7 @@ it is deployed, and coverage will show it as a blind rule.
 ## 5. Read the coverage
 
 ```bash
-./px coverage ironbridge          # add --json for the full snapshot
+./px coverage ironbridge          # --summary for the headline numbers, --json for everything
 ./px drift ironbridge             # does the SIEM match Git?
 ```
 
@@ -178,6 +192,9 @@ negative_tests:                   # benign look-alikes that must stay quiet
 ./px change merge <number>
 ```
 
+`./px detection show <id>` prints an existing detection, including a test
+event, if you want one to model yours on.
+
 A new detection is `staged`: it deploys in shadow mode (named `[shadow] ...`,
 lowest severity, tagged `praxis-shadow`) and gives no coverage yet. To take it
 live:
@@ -221,6 +238,22 @@ times:
 ./px lab replay PRX-000002 --client ironbridge --file backup-agent.json --repeat 25
 ```
 
+The file holds one event, or a list of events, in the same shape as a test
+event (`./px detection show PRX-000002` prints one). For example:
+
+```json
+{
+  "event": {"category": ["process"], "type": ["start"], "kind": "event"},
+  "host": {"name": "fs-01", "os": {"type": "windows"}},
+  "process": {
+    "name": "vssadmin.exe",
+    "executable": "C:\\Windows\\System32\\vssadmin.exe",
+    "command_line": "vssadmin.exe delete shadows /for=D: /oldest /quiet",
+    "parent": {"name": "agent.exe", "executable": "C:\\Program Files\\Backup\\agent.exe"}
+  }
+}
+```
+
 Rules run every 5 minutes, so alerts take up to that long to appear. Wait for
 them, then let the Tuner agent study them and propose a tested exclusion:
 
@@ -230,8 +263,8 @@ them, then let the Tuner agent study them and propose a tested exclusion:
 ./px change merge <number>
 ```
 
-The pull request states the exclusion in plain words and the measured impact
-("removes 28 of 32 matches over the last 30 days"). The dashboard's Tuning
+The command and the pull request both state the exclusion in plain words and
+the measured impact ("removes 28 of 32 matches over the last 30 days"). The dashboard's Tuning
 studio shows a rule's alerts and lets you try an exclusion before proposing it.
 
 Tuning files can also be written by hand in

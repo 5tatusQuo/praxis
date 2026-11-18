@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -18,11 +19,16 @@ from praxis.visibility.engine import top_gaps
 from praxis.visibility.navigator import coverage_layer
 
 app = typer.Typer(no_args_is_help=True, help="PRAXIS: detection engineering platform.")
-lab_app = typer.Typer(no_args_is_help=True, help="Lab SIEM: replay test events.")
+lab_app = typer.Typer(
+    no_args_is_help=True,
+    help="The lab: seed telemetry, shape what a client sends, replay events, test rules.",
+)
 admin_app = typer.Typer(no_args_is_help=True, help="Onboarding tasks that need admin access.")
 app.add_typer(lab_app, name="lab")
 app.add_typer(admin_app, name="admin")
-console = Console()
+# A wide, fixed width when output is piped (as it is for an AI assistant), so
+# tables are not squeezed and cells are not cut off.
+console = Console(width=None if sys.stdout.isatty() else 180)
 err = Console(stderr=True)
 
 
@@ -238,6 +244,35 @@ def lab_replay(
     )
 
 
+@lab_app.command("source")
+def lab_source(
+    client_id: str,
+    source: Annotated[str, typer.Argument(help="A source from `./px sources`.")],
+    hosts: Annotated[int | None, typer.Option(help="Hosts reporting; default: all.")] = None,
+    events_per_day: int = 200,
+    silent_for_days: Annotated[
+        int, typer.Option(help="The source stopped sending this many days ago.")
+    ] = 0,
+    remove: Annotated[bool, typer.Option(help="Take the source out of the profile.")] = False,
+    as_json: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Add, change or remove a log source in a client's lab telemetry profile."""
+    from praxis import ops
+
+    result = _op(
+        lambda: ops.lab_source(
+            get_settings().content_dir,
+            client_id,
+            source,
+            hosts,
+            events_per_day,
+            silent_for_days,
+            remove,
+        )
+    )
+    _out(result, as_json)
+
+
 @lab_app.command("seed")
 def lab_seed(client_ids: Annotated[list[str] | None, typer.Argument()] = None) -> None:
     """Top up a fictional client's synthetic telemetry (clients/<id>/lab/telemetry.yml)."""
@@ -311,6 +346,9 @@ def coverage(
     ] = None,
     store: Annotated[bool, typer.Option(help="Save the snapshot to the database.")] = False,
     as_json: Annotated[bool, typer.Option("--json")] = False,
+    summary: Annotated[
+        bool, typer.Option(help="Only the headline numbers and each rule's status.")
+    ] = False,
 ) -> None:
     """Collect telemetry and rule health (read-only) and classify every ATT&CK technique."""
     repo = _repo()
@@ -328,7 +366,22 @@ def coverage(
         with db.connect() as conn:
             snapshot_id = db.save_snapshot(conn, snapshot, inventory.to_dict())
         err.print(f"stored snapshot {snapshot_id}")
-    if as_json:
+    if summary:
+        data = {
+            "client": snapshot["client"],
+            "taken_at": snapshot["taken_at"],
+            **snapshot["summary"],
+            "rule_status": {
+                r["id"]: {
+                    "name": r.get("name", ""),
+                    "status": r["status"],
+                    "alerts_30d": r["alerts_30d"],
+                }
+                for r in snapshot["rules"]
+            },
+        }
+        _out(data, as_json)
+    elif as_json:
         print(json.dumps(snapshot))
     else:
         _print_snapshot(snapshot)
@@ -667,6 +720,15 @@ def tune(
         raise typer.Exit(1) from error
     console.print(result["findings"])
     console.print(f"[bold]Scope:[/bold] {result['scope_advice']}")
+    if result["impact"]:
+        impact = result["impact"]
+        removed = impact["matches_before"] - impact["matches_after"]
+        console.print(
+            f"[bold]Impact, measured:[/bold] removes {removed} of {impact['matches_before']} "
+            f"matches over the last {impact['days']} days; {impact['matches_after']} remain."
+        )
+        for text in result["exclusions"]:
+            console.print(f"[bold]Suppress when:[/bold] {text}", highlight=False)
     if not result["proposed"]:
         gitops.abandon_branch(root, branch, start)
         _store_run(None, trail, None)
@@ -713,7 +775,7 @@ def hunt(
     import re
     from datetime import date
 
-    slug = re.sub(r"[^a-z0-9]+", "-", prompt.lower()).strip("-")[:40]
+    slug = re.sub(r"[^a-z0-9]+", "-", prompt.lower()).strip("-")[:40].strip("-")
     branch = f"ai/hunt-{date.today().isoformat()}-{slug}"
     gitops.start_branch(root, branch)
     try:
