@@ -23,8 +23,9 @@ finds go into the list below before any more building.
 The gates passed without these. They are owed before Phase 5 starts.
 Suggested order, most important first:
 
-1. **Dashboard login and tenancy**: Keycloak (OIDC), roles, per-client access,
-   row-level security in Postgres. Today a bearer token and localhost-only ports.
+1. **Tenancy in the database**: row-level security in Postgres. (Dashboard
+   sign-in with Keycloak, an administrator role and per-client roles is built;
+   the API itself still trusts one bearer token held by the dashboard.)
 2. **Agent runs on the server**: a worker with a queue, "request a pack / hunt /
    tuning" from the dashboard, a GitHub App or token to open pull requests,
    and the per-run container sandbox. Today agents run from a workstation.
@@ -196,10 +197,11 @@ are completely done. You approved tagging v1.0 and promoting the first pack.
 | 2026-11-18 | Backtests count up to 1000 matches and report when they hit that cap. | An EQL search only counts what it returns; the old limit of 5 made every count wrong above 5. Earlier pack backtests reported 0, which was unaffected. |
 | 2026-11-18 | The demo video moves to the very end (after Phase 5's SIEM and cloud work). PLAN.md updated. | Your decision. |
 | 2026-11-18 | The first pack was promoted the day it was staged. | Your decision. The usual 14 days in shadow exist to catch noise on live data; the lab's telemetry is synthetic, so little would have been learned by waiting. |
+| 2026-11-18 | Dashboard sign-in is Keycloak, served under the dashboard's own address (`/kc`), with a hand-written OpenID Connect flow in the dashboard rather than an auth library. Roles: `praxis-admin` sees everything; `client:<id>` sees that client. | One address means the browser and the dashboard's server agree on the issuer and no second port is tunnelled. The auth library's stable release does not support this Next.js version. Keycloak runs in dev mode on its embedded database, which is fine for one local server and not for production. |
 
 ## Open problems
 
-- The dashboard has no login of its own yet (Keycloak is not built). Anyone who can reach its port can use the ChatGPT sign-in and the token endpoint. Today the port listens on the server's localhost only, so that means people with SSH access.
+- The dashboard now requires sign-in, but the API behind it still accepts one shared bearer token, and Keycloak runs in dev mode with its embedded database. Access control is enforced in the dashboard, not in the API or the database.
 - OpenAI's plan-usage preview: the exact request shape for function tools is not in the docs I could read. The provider sends plain function tools and falls back to a namespace wrapper if they are refused; expect adjustments on first contact. One ChatGPT account funds every agent run, whoever starts it.
 - Agent sandbox: PLAN.md calls for each agent run in a container with no network except the MCP server and the LLM endpoint. Today agents run as a normal process on the operator's workstation. Their tools are allow-listed per role and none can deploy, but the process itself is not confined.
 - The Tuner's own notes can lag the fixes: a model's wording describes what its tools told it. Numbers in a pull request come from code, so trust those over the prose.

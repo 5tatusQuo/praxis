@@ -42,6 +42,10 @@ case "$cmd" in
     restart_stack
     on_server "" "uv run praxis connection $client"
     ;;
+  dashboard-user)
+    # Create or update a dashboard user: <username> <password> [--admin] [--client <id>]...
+    ssh "$PRAXIS_SERVER" "cd $APP && sg docker -c 'deploy/server/dashboard-user.sh $*'"
+    ;;
   check)
     client="${1:?usage: deploy/remote.sh check <client>}"
     sync_repo
@@ -54,5 +58,5 @@ case "$cmd" in
     on_server admin "uv run praxis admin deprovision $client --yes $* && deploy/server/forget-keys.sh $client && deploy/server/publish-keys.sh"
     restart_stack
     ;;
-  *) echo "usage: deploy/remote.sh sync | up [mode] | provision <client> | check <client> | deprovision <client> | run <command>" >&2; exit 2 ;;
+  *) echo "usage: deploy/remote.sh sync | up [mode] | provision <client> | check <client> | deprovision <client> | dashboard-user <name> <password> [--admin|--client <id>] | run <command>" >&2; exit 2 ;;
 esac

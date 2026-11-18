@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin";
 import { Panel } from "@/components/Stat";
 import { api } from "@/lib/api";
 
@@ -17,6 +18,7 @@ type Status = {
 const button = "rounded-md border border-brass px-3 py-1.5 text-sm text-brass hover:bg-brass hover:text-obsidian";
 
 export default async function Settings({ searchParams }: { searchParams: Promise<{ error?: string; connected?: string }> }) {
+  await requireAdmin();
   const { error, connected } = await searchParams;
   const status = await api<Status>("/api/llm?models=true");
   const chatgpt = status?.chatgpt;

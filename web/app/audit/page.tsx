@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin";
 import { Panel } from "@/components/Stat";
 import { api, type AuditRow, when } from "@/lib/api";
 
@@ -9,6 +10,7 @@ function brief(detail: Record<string, unknown>): string {
 }
 
 export default async function Audit() {
+  await requireAdmin();
   const rows = (await api<AuditRow[]>("/api/audit?limit=300")) ?? [];
   return (
     <div className="space-y-6">

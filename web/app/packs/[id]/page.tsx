@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Panel, Stat } from "@/components/Stat";
@@ -20,6 +21,7 @@ const SEVERITY_COLOUR: Record<string, string> = {
 };
 
 export default async function PackReview({ params }: { params: Promise<{ id: string }> }) {
+  await requireAdmin();
   const { id } = await params;
   const pack = await api<Pack>(`/api/packs/${encodeURIComponent(id)}`);
   if (!pack) notFound();

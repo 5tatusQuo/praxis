@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import Link from "next/link";
 import { Mark } from "@/components/Mark";
+import { currentSession, oidc } from "@/lib/session";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -13,7 +14,8 @@ export const metadata: Metadata = {
   description: "Detection coverage across every client",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const session = await currentSession();
   return (
     <html lang="en" className={`${inter.variable} ${grotesk.variable} ${mono.variable}`}>
       <body className="min-h-screen font-sans antialiased">
@@ -41,6 +43,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/settings" className="hover:text-fog">
                 Settings
               </Link>
+              {session && oidc.enabled ? (
+                <form action="/logout" method="post" className="flex items-center gap-2">
+                  <span className="text-fog">{session.name}</span>
+                  <button className="text-mute hover:text-fog">Sign out</button>
+                </form>
+              ) : null}
             </nav>
           </div>
         </header>

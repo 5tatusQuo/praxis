@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { canSee, currentSession } from "@/lib/session";
 import { Heatmap, Legend } from "@/components/Heatmap";
 import { Panel, Stat } from "@/components/Stat";
 import {
@@ -72,6 +73,7 @@ function GapTable({ rows, empty }: { rows: Technique[]; empty: string }) {
 
 export default async function ClientOverview({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  if (!canSee(await currentSession(), id)) notFound();
   const path = `/api/clients/${encodeURIComponent(id)}`;
   const [snapshot, history, diff] = await Promise.all([
     api<Snapshot>(`${path}/coverage`),

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { api, type FleetRow, when } from "@/lib/api";
 import { Panel } from "@/components/Stat";
+import { canSee, currentSession } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,8 @@ function Bar({ row }: { row: FleetRow }) {
 }
 
 export default async function Fleet() {
-  const fleet = (await api<FleetRow[]>("/api/fleet")) ?? [];
+  const session = await currentSession();
+  const fleet = ((await api<FleetRow[]>("/api/fleet")) ?? []).filter((row) => canSee(session, row.client_id));
   return (
     <div className="space-y-6">
       <div>
