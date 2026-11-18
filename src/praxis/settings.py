@@ -24,6 +24,8 @@ class Settings:
     deploy_dir: Path | None
     # Name of the SIEM connection used for lab tests (see platforms/*/connection.py).
     lab_connection: str
+    # Where pinned upstream rule sources are checked out.
+    sources_cache: Path
 
 
 def _find_config(start: Path) -> Path | None:
@@ -81,6 +83,7 @@ def load_settings(start: Path | None = None) -> Settings:
         content_dir=content_dir,
         deploy_dir=path_setting("deploy_dir"),
         lab_connection=lab_connection,
+        sources_cache=path_setting("sources_cache") or Path.home() / ".cache/praxis/sources",
     )
 
 

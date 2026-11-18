@@ -99,12 +99,18 @@ export type Diff = {
 
 const BASE = process.env.PRAXIS_API_URL ?? "http://localhost:8000";
 
-export async function api<T>(path: string): Promise<T | null> {
+export async function api<T>(path: string, body?: unknown): Promise<T | null> {
   const headers: Record<string, string> = {};
   if (process.env.PRAXIS_API_TOKEN) {
     headers.Authorization = `Bearer ${process.env.PRAXIS_API_TOKEN}`;
   }
-  const response = await fetch(`${BASE}${path}`, { headers, cache: "no-store" });
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  const response = await fetch(`${BASE}${path}`, {
+    headers,
+    cache: "no-store",
+    method: body === undefined ? "GET" : "POST",
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`praxis-api ${path} returned ${response.status}`);
   return (await response.json()) as T;
@@ -134,3 +140,95 @@ export const CLASS_COLOUR: Record<GapClass, string> = {
 export function when(iso: string): string {
   return new Date(iso).toISOString().replace("T", " ").slice(0, 16) + " UTC";
 }
+
+export type PackRow = {
+  id: string;
+  client_id: string;
+  month: string;
+  status: string;
+  pr_url: string | null;
+  created_at: string;
+  picks: number;
+  verdict: string | null;
+};
+
+export type Pick = {
+  detection: string;
+  candidate: string;
+  technique: string;
+  weight: number;
+  rationale: string;
+  justification: string;
+  engineer_notes: string;
+  quality: {
+    score: number;
+    tier: string;
+    passes: boolean;
+    flags: string[];
+    parts: Record<string, number>;
+    backtest?: { hits: number; days: number };
+  };
+  lab: { passed: boolean; cases: number };
+};
+
+export type Pack = {
+  id: string;
+  client: string;
+  month: string;
+  status: string;
+  budget: number;
+  brief: string;
+  pr_url: string | null;
+  picks: Pick[];
+  rejected: { candidate: string; reason: string }[];
+  review: {
+    verdict: "pass" | "fail";
+    summary: string;
+    comments: { detection_id: string; severity: string; comment: string }[];
+  } | null;
+  agents: { model?: string };
+  usage: { llm_calls?: number; tool_calls?: number; input_tokens?: number; output_tokens?: number };
+};
+
+export type AuditRow = {
+  id: number;
+  at: string;
+  actor: string;
+  client_id: string | null;
+  action: string;
+  detail: Record<string, unknown>;
+};
+
+export type RuleDetail = {
+  client: string;
+  detection: string;
+  name: string;
+  query: string;
+  language: string;
+  envelope: { severity: string; interval: string; enabled: boolean; index: string[]; tags: string[] };
+  tuning: {
+    reason: string;
+    evidence: string[];
+    author: string;
+    expires: string | null;
+    exclude: { field: string; op: string; value: string | string[] }[];
+  } | null;
+  alerts: {
+    error?: string;
+    alerts?: number;
+    days?: number;
+    top_values?: Record<string, { value: string; alerts: number }[]>;
+    samples?: Record<string, unknown>[];
+  };
+};
+
+export type Preview = {
+  matches_before: number;
+  matches_after: number;
+  suppressed: number;
+  days: number;
+  positives: { name: string; fires: boolean }[];
+  positives_still_fire: boolean;
+  examples: { fires_untuned: boolean; fires_tuned: boolean }[];
+  examples_silenced: boolean;
+};

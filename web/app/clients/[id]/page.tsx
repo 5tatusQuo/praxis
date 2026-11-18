@@ -198,7 +198,7 @@ export default async function ClientOverview({ params }: { params: Promise<{ id:
       </Panel>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Panel title="Deployed rules" note="Health as the SIEM reports it.">
+        <Panel title="Deployed rules" note="Health as the SIEM reports it. Open a rule to tune it.">
           <table className="w-full text-left text-sm">
             <thead className="text-xs uppercase tracking-wide text-mute">
               <tr>
@@ -211,7 +211,11 @@ export default async function ClientOverview({ params }: { params: Promise<{ id:
             <tbody>
               {snapshot.rules.map((r) => (
                 <tr key={`${r.platform}-${r.id}`} className="border-t border-line">
-                  <td className="py-1.5 pr-3 font-mono text-xs">{r.id}</td>
+                  <td className="py-1.5 pr-3 font-mono text-xs">
+                    <Link href={`/clients/${id}/rules/${r.id}`} className="text-brass hover:underline">
+                      {r.id}
+                    </Link>
+                  </td>
                   <td
                     className={`py-1.5 pr-3 ${
                       r.status === "healthy" ? "text-teal" : r.status === "blind" ? "text-ember" : "text-mute"

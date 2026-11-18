@@ -242,6 +242,8 @@ Agents work through one tool surface, a **PRAXIS MCP server**, that wraps the pl
 | Hunt Planner | Turns an actor or threat prompt into hypotheses and per-SIEM hunt queries | Hunt pack |
 | Reviewer | Independent critic with no authoring context; challenges every pack and PR | Review comments, pass/fail |
 
+**As built (Phase 3).** The tools live in one registry (`praxis.agents.toolbox`) that the agents call in-process and that `praxis mcp` serves over MCP, so the surface is identical either way. Agents run on the Claude Messages API with a loop PRAXIS hosts, because the tools must reach SIEMs on your network. Opening the pull request is done by code after the guardrails pass, not by an agent tool. Catalog search is Postgres full-text plus ATT&CK filters for now.
+
 ### Guardrails against weak and over-fitted rules
 
 The Curator never ranks on its own judgement alone. A deterministic scorer gives every candidate a profile first, and the agent must justify any pick that scores poorly.

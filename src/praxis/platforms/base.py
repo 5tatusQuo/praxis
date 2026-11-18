@@ -127,6 +127,25 @@ class Platform(ABC):
         """Read-only health of every PRAXIS-managed rule in the client's SIEM."""
 
     @abstractmethod
+    def backtest(
+        self,
+        client: Client,
+        query: str,
+        sources: list[str],
+        days: int = 30,
+        tuning: ResolvedTuning | None = None,
+    ) -> dict[str, Any]:
+        """Run a native query read-only over a client's recent data.
+
+        Returns {"hits", "days", "samples"}; samples are few and redacted, fit
+        to show an LLM. Raises on an invalid query.
+        """
+
+    @abstractmethod
+    def alert_stats(self, client: Client, detection_id: str, days: int = 30) -> dict[str, Any]:
+        """Aggregated alerts for one rule: totals, top values of key fields, redacted samples."""
+
+    @abstractmethod
     def check_connection(self, client: Client) -> list[ConnectionCheck]:
         """Connect mode: prove the read and deploy identities work for this client."""
 

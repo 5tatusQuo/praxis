@@ -50,6 +50,9 @@ class Provenance(Strict):
     source: str = Field(description="praxis, sigmahq, elastic, splunk-escu, sentinel, ...")
     upstream_id: str | None = None
     upstream_commit: str | None = None
+    upstream_author: str | None = Field(
+        default=None, description="Credit the upstream author; some licences require it."
+    )
     licence: str
 
 
@@ -134,6 +137,11 @@ class Client(Strict):
     platforms: ClientPlatforms
     packs: list[Slug] = []
     detections: list[DetectionId] = Field(default=[], description="Client-only detections.")
+    external_llm: bool = Field(
+        default=True,
+        description="False keeps this client's data away from external LLMs: agents will "
+        "not run for it and only the deterministic features work.",
+    )
 
     @model_validator(mode="after")
     def has_platform(self) -> Client:
@@ -182,3 +190,27 @@ class LabTelemetry(Strict):
     """Synthetic telemetry for a fictional client's lab namespace."""
 
     sources: list[LabSource] = Field(min_length=1)
+
+
+class RulePack(Strict):
+    """A monthly or hunt-driven proposal for one client, kept as history."""
+
+    id: str
+    client: Slug
+    month: Annotated[str, StringConstraints(pattern=r"^\d{4}-\d{2}$")]
+    created: date
+    status: Literal["proposed", "staged", "promoted", "dropped"]
+    budget: int = Field(ge=1)
+    snapshot: dict
+    brief: str
+    picks: list[dict]
+    rejected: list[dict] = []
+    review: dict | None = None
+    agents: dict = {}
+    usage: dict = {}
+
+    @model_validator(mode="after")
+    def within_budget(self) -> RulePack:
+        if len(self.picks) > self.budget:
+            raise ValueError(f"{len(self.picks)} picks exceed the budget of {self.budget}")
+        return self

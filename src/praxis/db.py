@@ -97,3 +97,133 @@ def fleet(conn: psycopg.Connection) -> list[dict[str, Any]]:
         """
     ).fetchall()
     return [{**row, "taken_at": row["taken_at"].isoformat()} for row in rows]
+
+
+# -- candidate catalog ---------------------------------------------------------
+def replace_catalog(conn: psycopg.Connection, candidates: list[dict]) -> int:
+    """Swap the whole catalog in one transaction."""
+    with conn.transaction():
+        conn.execute("TRUNCATE catalog_candidates")
+        with conn.cursor() as cursor:
+            cursor.executemany(
+                "INSERT INTO catalog_candidates (id, source, title, description, status, "
+                "techniques, platforms, score, tier, fingerprint, body) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                [
+                    (
+                        c["id"],
+                        c["source"],
+                        c["title"],
+                        c["description"],
+                        c["status"],
+                        c["techniques"],
+                        sorted(c["drafts"]),
+                        c["quality"]["score"],
+                        c["quality"]["tier"],
+                        c["fingerprint"],
+                        json.dumps(c),
+                    )
+                    for c in candidates
+                ],
+            )
+    return len(candidates)
+
+
+def search_catalog(
+    conn: psycopg.Connection,
+    *,
+    technique: str | None = None,
+    text: str | None = None,
+    platform: str | None = None,
+    min_score: int = 0,
+    limit: int = 20,
+) -> list[dict[str, Any]]:
+    """Candidates by technique (sub-techniques included) and/or meaning, best score first."""
+    where, params = ["score >= %s"], [min_score]
+    if technique:
+        where.append("EXISTS (SELECT 1 FROM unnest(techniques) t WHERE t = %s OR t LIKE %s)")
+        params += [technique, technique + ".%"]
+    if platform:
+        where.append("%s = ANY(platforms)")
+        params.append(platform)
+    rank = "0"
+    if text:
+        where.append("search @@ websearch_to_tsquery('english', %s)")
+        params.append(text)
+        rank = "ts_rank(search, websearch_to_tsquery('english', %s))"
+    sql = (
+        f"SELECT id, source, title, status, techniques, platforms, score, tier, fingerprint, "
+        f"body->'quality'->'flags' AS flags, left(description, 300) AS description, "
+        f"{rank} AS rank FROM catalog_candidates WHERE {' AND '.join(where)} "
+        f"ORDER BY rank DESC, score DESC, id LIMIT %s"
+    )
+    ordered = ([text] if text else []) + params + [min(limit, 50)]
+    return conn.execute(sql, ordered).fetchall()
+
+
+def get_candidate(conn: psycopg.Connection, candidate_id: str) -> dict | None:
+    row = conn.execute(
+        "SELECT body FROM catalog_candidates WHERE id = %s", (candidate_id,)
+    ).fetchone()
+    return row["body"] if row else None
+
+
+def catalog_stats(conn: psycopg.Connection) -> dict[str, Any]:
+    return conn.execute(
+        "SELECT count(*) AS candidates, count(*) FILTER (WHERE cardinality(platforms) > 0) AS "
+        "drafted, count(*) FILTER (WHERE score >= 60) AS passing, "
+        "count(DISTINCT fingerprint) AS distinct_logic FROM catalog_candidates"
+    ).fetchone()
+
+
+# -- rule packs and audit --------------------------------------------------------
+def save_pack(conn: psycopg.Connection, pack: dict, pr_url: str | None) -> None:
+    conn.execute(
+        "INSERT INTO pack_proposals (id, client_id, month, status, pr_url, body) "
+        "VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT (id) DO UPDATE SET "
+        "status = EXCLUDED.status, pr_url = EXCLUDED.pr_url, body = EXCLUDED.body",
+        (pack["id"], pack["client"], pack["month"], pack["status"], pr_url, json.dumps(pack)),
+    )
+    conn.commit()
+
+
+def list_packs(conn: psycopg.Connection, client_id: str | None = None) -> list[dict[str, Any]]:
+    rows = conn.execute(
+        "SELECT id, client_id, month, status, pr_url, created_at, "
+        "jsonb_array_length(body->'picks') AS picks, body->'review'->>'verdict' AS verdict "
+        "FROM pack_proposals WHERE (%s::text IS NULL OR client_id = %s) ORDER BY created_at DESC",
+        (client_id, client_id),
+    ).fetchall()
+    return [{**row, "created_at": row["created_at"].isoformat()} for row in rows]
+
+
+def get_pack(conn: psycopg.Connection, pack_id: str) -> dict | None:
+    row = conn.execute(
+        "SELECT body, pr_url, status FROM pack_proposals WHERE id = %s", (pack_id,)
+    ).fetchone()
+    return {**row["body"], "pr_url": row["pr_url"], "status": row["status"]} if row else None
+
+
+def save_audit(conn: psycopg.Connection, events: list[dict]) -> int:
+    with conn.cursor() as cursor:
+        cursor.executemany(
+            "INSERT INTO audit_log (at, actor, client_id, action, detail) "
+            "VALUES (%s, %s, %s, %s, %s)",
+            [
+                (e["at"], e["actor"], e.get("client"), e["action"], json.dumps(e["detail"]))
+                for e in events
+            ],
+        )
+    conn.commit()
+    return len(events)
+
+
+def audit_log(
+    conn: psycopg.Connection, client_id: str | None = None, limit: int = 200
+) -> list[dict[str, Any]]:
+    rows = conn.execute(
+        "SELECT id, at, actor, client_id, action, detail FROM audit_log "
+        "WHERE (%s::text IS NULL OR client_id = %s) ORDER BY id DESC LIMIT %s",
+        (client_id, client_id, min(limit, 1000)),
+    ).fetchall()
+    return [{**row, "at": row["at"].isoformat()} for row in rows]

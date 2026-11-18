@@ -37,6 +37,18 @@ case "$MODE" in
   *) echo "mode must be full or connect" >&2; exit 2 ;;
 esac
 
+# The content the API serves. CD refreshes it after every merge; seed it once
+# from this checkout so a new server has something to show.
+CONTENT=/var/lib/praxis/content
+if [ ! -d "$CONTENT" ]; then
+  sudo install -d -m 755 "$CONTENT"
+  sudo cp -a "$DEPLOY_DIR/../content/." "$CONTENT/"
+fi
+id ghrunner >/dev/null 2>&1 && sudo chown -R ghrunner "$CONTENT"
+sudo chmod -R a+rX "$CONTENT"   # the API container reads it as an unprivileged user
+sudo install -d -m 755 "$ETC_DIR"
+[ -e "$ETC_DIR/ca.crt" ] || sudo touch "$ETC_DIR/ca.crt"
+
 cd "$DEPLOY_DIR"
 docker compose "${PROFILES[@]}" up -d --build
 # `up --wait` fails when a one-shot container exits, so wait here.

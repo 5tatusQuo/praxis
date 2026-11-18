@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import secrets
@@ -36,6 +37,49 @@ LAB_NAMESPACE_PREFIX = "praxislab"
 _HARD_CODED_INDEX = re.compile(r"\b_index\b|\bfrom\s+(logs|metrics|traces)-", re.IGNORECASE)
 _SINGLE = {"namespace_type": "single"}
 SEED_LABEL = {"term": {"labels.praxis_lab": "seed"}}
+
+
+# Only these fields of an event are ever shown to an LLM, and the ones naming
+# people or machines are replaced by stable pseudonyms.
+_SAMPLE_FIELDS = (
+    "event.category",
+    "event.type",
+    "process.name",
+    "process.executable",
+    "process.command_line",
+    "process.pe.original_file_name",
+    "process.parent.name",
+    "process.parent.executable",
+    "registry.path",
+    "registry.data.strings",
+    "file.path",
+    "destination.port",
+    "user.name",
+    "host.name",
+)
+_PSEUDONYMISED = ("user.name", "host.name")
+
+
+def pseudonym(value: object) -> str:
+    return "id-" + hashlib.sha256(str(value).encode()).hexdigest()[:8]
+
+
+def redact(event: dict) -> dict:
+    """Keep the allow-listed fields of an event; pseudonymise users and hosts."""
+    out: dict[str, Any] = {}
+    for dotted in _SAMPLE_FIELDS:
+        node: Any = event
+        for part in dotted.split("."):
+            node = node.get(part) if isinstance(node, dict) else None
+        if node is None:
+            continue
+        value = pseudonym(node) if dotted in _PSEUDONYMISED else node
+        target = out
+        parts = dotted.split(".")
+        for part in parts[:-1]:
+            target = target.setdefault(part, {})
+        target[parts[-1]] = value
+    return out
 
 
 def telemetry_pattern(namespace: str) -> str:
@@ -217,6 +261,89 @@ class ElasticPlatform(Platform):
                     )
                 )
         return sorted(sources, key=lambda s: s.source)
+
+    def backtest(
+        self,
+        client: Client,
+        query: str,
+        sources: list[str],
+        days: int = 30,
+        tuning: ResolvedTuning | None = None,
+    ) -> dict[str, Any]:
+        indices = resolve_indices(sources, client.platforms.elastic.namespace)
+        filters: list[dict[str, Any]] = [{"range": {"@timestamp": {"gte": f"now-{days}d"}}}]
+        exclusions = exception_filter(tuning) if tuning else None
+        if exclusions:
+            filters.append(exclusions)
+        with self._read_conn(client) as conn:
+            result = call(
+                conn.es,
+                "POST",
+                f"/{','.join(indices)}/_eql/search",
+                params={"ignore_unavailable": "true"},
+                json={"query": query, "size": 5, "filter": {"bool": {"filter": filters}}},
+            )
+        hits = result["hits"]
+        events = hits.get("events") or [e for s in hits.get("sequences", []) for e in s["events"]]
+        return {
+            "hits": hits["total"]["value"],
+            "days": days,
+            "samples": [redact(e["_source"]) for e in events[:5]],
+        }
+
+    def alert_stats(self, client: Client, detection_id: str, days: int = 30) -> dict[str, Any]:
+        space = client.platforms.elastic.space
+        group_by = (
+            "process.parent.executable",
+            "process.executable",
+            "process.name",
+            "user.name",
+            "host.name",
+            "registry.path",
+        )
+        with self._read_conn(client) as conn:
+            result = call(
+                conn.es,
+                "POST",
+                f"/.alerts-security.alerts-{space}/_search",
+                params={"ignore_unavailable": "true", "allow_no_indices": "true"},
+                json={
+                    "size": 5,
+                    "track_total_hits": True,
+                    "sort": [{"@timestamp": "desc"}],
+                    "query": {
+                        "bool": {
+                            "filter": [
+                                {"term": {"kibana.alert.rule.rule_id": detection_id}},
+                                {"range": {"@timestamp": {"gte": f"now-{days}d"}}},
+                            ]
+                        }
+                    },
+                    "aggs": {
+                        f.replace(".", "_"): {"terms": {"field": f, "size": 8}} for f in group_by
+                    },
+                },
+            )
+        aggregations = result.get("aggregations") or {}
+        groups = {}
+        for name in group_by:
+            buckets = aggregations.get(name.replace(".", "_"), {}).get("buckets", [])
+            if buckets:
+                pseudonymise = name in ("user.name", "host.name")
+                groups[name] = [
+                    {
+                        "value": pseudonym(b["key"]) if pseudonymise else b["key"],
+                        "alerts": b["doc_count"],
+                    }
+                    for b in buckets
+                ]
+        return {
+            "rule": detection_id,
+            "days": days,
+            "alerts": result["hits"]["total"]["value"],
+            "top_values": groups,
+            "samples": [redact(h["_source"]) for h in result["hits"]["hits"]],
+        }
 
     def collect_rules(self, client: Client) -> list[RuleHealth]:
         space = client.platforms.elastic.space
