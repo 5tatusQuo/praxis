@@ -1,0 +1,31 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "name": "ws-lab-11",
+    "os": {
+      "type": "windows"
+    }
+  },
+  "user": {
+    "name": "j.doe"
+  },
+  "process": {
+    "name": "winrs.exe",
+    "executable": "C:\\Windows\\System32\\winrs.exe",
+    "command_line": "winrs.exe -r:srv-lab-02 -u:labadmin cmd /c whoami",
+    "pe": {
+      "original_file_name": "winrs.exe"
+    },
+    "parent": {
+      "name": "cmd.exe"
+    }
+  }
+}

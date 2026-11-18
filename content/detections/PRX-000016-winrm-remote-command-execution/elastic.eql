@@ -1,0 +1,7 @@
+process where host.os.type == "windows" and event.type == "start" and
+  (
+    ((process.name : "winrs.exe" or ?process.pe.original_file_name : "winrs.exe") and
+      process.command_line : ("* -r:*", "* /r:*", "* -remote:*", "* /remote:*")) or
+    (process.parent.name : "winrshost.exe" and
+      process.name : ("cmd.exe", "powershell.exe", "pwsh.exe"))
+  )
