@@ -3,7 +3,7 @@ name: Windows system process name running from an unusual path
 intent: Detects a program named like a core Windows system process starting from outside the
   Windows system folders, a common way to hide malware in plain sight.
 version: 1
-lifecycle: staged
+lifecycle: production
 owner: detection-engineering
 severity: high
 risk_score: 73
