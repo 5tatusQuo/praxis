@@ -757,3 +757,18 @@ def test_promote_can_drop_a_rule_that_did_not_hold_up(world):
     assert repo.detections["PRX-000901"].meta.lifecycle == "deprecated"
     rendered = core.render_client(repo, repo.clients["testco"], "elastic")
     assert "PRX-000901" not in {r.detection_id for r in rendered}, "a dropped rule leaves the SIEM"
+
+
+def test_tuning_drops_an_exclusion_another_one_covers():
+    from praxis.agents.toolbox import without_covered
+
+    parent = {"field": "process.parent.executable", "op": "equals", "value": "C:\\agent.exe"}
+    narrow = {**parent, "also": [{"field": "process.command_line", "op": "equals", "value": "a"}]}
+    wide = {**parent, "also": [{"field": "process.command_line", "op": "in", "value": ["a", "b"]}]}
+    other = {**parent, "also": [{"field": "process.command_line", "op": "equals", "value": "c"}]}
+    assert without_covered([narrow, wide]) == [wide]
+    assert without_covered([wide, narrow, narrow]) == [wide]
+    assert without_covered([narrow, other]) == [narrow, other]
+    # An operator the comparison does not understand is never dropped.
+    odd = {"field": "process.name", "op": "wildcard", "value": "a*"}
+    assert without_covered([odd, narrow]) == [odd, narrow]
