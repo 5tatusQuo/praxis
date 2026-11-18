@@ -3,7 +3,7 @@ name: Remote command execution over Windows Remote Management
 intent: Detects winrs starting a command on another host, or a shell started by the WinRM
   host process, which attackers use to move between Windows machines.
 version: 1
-lifecycle: staged
+lifecycle: production
 owner: detection-engineering
 severity: medium
 risk_score: 47
