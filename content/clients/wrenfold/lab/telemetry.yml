@@ -1,0 +1,15 @@
+# Synthetic telemetry for the lab.
+sources:
+- source: logs-endpoint.events.process
+  hosts: 65
+  events_per_day: 300
+- source: logs-endpoint.events.registry
+  hosts: 65
+  events_per_day: 150
+- source: logs-system.security
+  hosts: 45
+  events_per_day: 200
+- source: logs-endpoint.events.file
+  hosts: 65
+  events_per_day: 200
+  silent_for_days: 4
