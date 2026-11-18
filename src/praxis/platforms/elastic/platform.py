@@ -9,12 +9,12 @@ import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from praxis.content.loader import DetectionBundle, TestCase
+from praxis.content.loader import DetectionBundle
 from praxis.content.models import ELASTIC_INDEX_RE, Client
+from praxis.content.tuning import ResolvedTuning
 from praxis.platforms.base import (
-    CaseResult,
+    ConnectionCheck,
     DeployAction,
-    LabResult,
     Platform,
     RenderedRule,
     SmokeResult,
@@ -24,6 +24,8 @@ from praxis.platforms.elastic.provision import provision
 from praxis.platforms.elastic.render import (
     MANAGED_TAG,
     deployed_hash,
+    exception_filter,
+    exception_list_id,
     render_rule,
     resolve_indices,
 )
@@ -31,6 +33,7 @@ from praxis.settings import get_settings
 
 LAB_NAMESPACE_PREFIX = "praxislab"
 _HARD_CODED_INDEX = re.compile(r"\b_index\b|\bfrom\s+(logs|metrics|traces)-", re.IGNORECASE)
+_SINGLE = {"namespace_type": "single"}
 
 
 def _stamp(events: list[dict], end: datetime) -> list[dict]:
@@ -85,67 +88,98 @@ class ElasticPlatform(Platform):
         return problems
 
     # -- render ------------------------------------------------------------
-    def render(self, bundle: DetectionBundle, client: Client) -> RenderedRule:
-        return render_rule(bundle, client)
+    def render(
+        self, bundle: DetectionBundle, client: Client, tuning: ResolvedTuning
+    ) -> RenderedRule:
+        return render_rule(bundle, client, tuning)
 
     # -- lab ---------------------------------------------------------------
-    def _lab(self) -> ElasticConnection:
-        return ElasticConnection.from_env(get_settings().lab_connection, "lab")
-
-    def _search(self, conn: ElasticConnection, bundle: DetectionBundle, namespace: str) -> bool:
-        impl = bundle.implementations[self.name]
-        indices = resolve_indices(bundle.meta.log_sources[self.name].indices, namespace)
-        result = call(
-            conn.es,
-            "POST",
-            f"/{','.join(indices)}/_eql/search",
-            params={"ignore_unavailable": "true"},
-            json={"query": impl.query, "size": 1},
-        )
-        return result["hits"]["total"]["value"] > 0
-
-    def _run_case(
-        self, conn: ElasticConnection, bundle: DetectionBundle, case: TestCase, kind: str
-    ) -> CaseResult:
-        # Each case gets its own throwaway namespace, so cases never see each
-        # other's events and clean-up is one data-stream delete.
+    def lab_fires(
+        self, bundle: DetectionBundle, events: list[dict], tuning: ResolvedTuning | None
+    ) -> bool:
+        # Each replay gets its own throwaway namespace, so replays never see
+        # each other's events and clean-up is one data-stream delete.
         namespace = f"{LAB_NAMESPACE_PREFIX}{secrets.token_hex(5)}"
         indices = resolve_indices(bundle.meta.log_sources[self.name].indices, namespace)
-        try:
-            _bulk_index(conn, indices[0], _stamp(case.events, datetime.now(UTC)))
-            fired = self._search(conn, bundle, namespace)
-            return CaseResult(name=case.name, kind=kind, fired=fired)
-        except (ApiError, RuntimeError) as err:
-            return CaseResult(name=case.name, kind=kind, fired=False, error=str(err))
-        finally:
-            call(conn.es, "DELETE", f"/_data_stream/*-*-{namespace}", ok=(404,))
+        body: dict[str, Any] = {"query": bundle.implementations[self.name].query, "size": 1}
+        exclusions = exception_filter(tuning) if tuning else None
+        if exclusions:
+            body["filter"] = exclusions
+        with ElasticConnection.from_env(get_settings().lab_connection, "lab") as conn:
+            try:
+                _bulk_index(conn, indices[0], _stamp(events, datetime.now(UTC)))
+                result = call(
+                    conn.es,
+                    "POST",
+                    f"/{','.join(indices)}/_eql/search",
+                    params={"ignore_unavailable": "true"},
+                    json=body,
+                )
+                return result["hits"]["total"]["value"] > 0
+            finally:
+                call(conn.es, "DELETE", f"/_data_stream/*-*-{namespace}", ok=(404,))
 
-    def lab_test(self, bundle: DetectionBundle) -> LabResult:
-        result = LabResult(detection_id=bundle.id, platform=self.name)
-        with self._lab() as conn:
-            for kind, cases in (("positive", bundle.positive), ("negative", bundle.negative)):
-                for case in cases:
-                    result.cases.append(self._run_case(conn, bundle, case, kind))
-        return result
-
-    def replay(self, bundle: DetectionBundle, client: Client, kind: str) -> int:
+    def replay(self, bundle: DetectionBundle, client: Client, events: list[dict]) -> int:
         target = client.platforms.elastic
         index = resolve_indices(bundle.meta.log_sources[self.name].indices, target.namespace)[0]
-        cases = bundle.positive if kind == "positive" else bundle.negative
-        count = 0
         with ElasticConnection.from_env(target.connection, "lab") as conn:
-            for case in cases:
-                _bulk_index(conn, index, _stamp(case.events, datetime.now(UTC)))
-                count += len(case.events)
-        return count
+            _bulk_index(conn, index, _stamp(events, datetime.now(UTC)))
+        return len(events)
 
+    # -- onboarding and Connect mode ----------------------------------------
     def provision(self, client: Client, rotate: bool = False) -> list[str]:
         return provision(client, rotate)
 
+    def check_connection(self, client: Client) -> list[ConnectionCheck]:
+        target = client.platforms.elastic
+        checks = []
+        for role in ("read", "deploy"):
+            try:
+                with ElasticConnection.from_env(target.connection, role, client.id) as conn:
+                    hits = call(
+                        conn.es,
+                        "POST",
+                        f"/*-*-{target.namespace}/_search",
+                        params={"ignore_unavailable": "true", "allow_no_indices": "true"},
+                        json={"size": 0, "track_total_hits": True},
+                    )["hits"]["total"]["value"]
+                    rules = call(
+                        conn.kibana,
+                        "GET",
+                        f"{self._rules_url(client)}/_find",
+                        params={"per_page": 1},
+                    )["total"]
+                    detail = f"{hits} events in namespace {target.namespace}; {rules} rules"
+                    if role == "read":
+                        detail += self._must_not_write(conn, client)
+                    checks.append(ConnectionCheck(role, True, detail))
+            except Exception as err:  # report every failure, whatever its type
+                checks.append(ConnectionCheck(role, False, str(err)[:300]))
+        return checks
+
+    def _must_not_write(self, conn: ElasticConnection, client: Client) -> str:
+        """The read identity must be refused when it tries to create a rule."""
+        probe = {"rule_id": "praxis-read-only-probe", "name": "probe", "description": "probe"}
+        probe |= {"type": "query", "query": "*:*", "risk_score": 1, "severity": "low"}
+        response = conn.kibana.post(self._rules_url(client), json={**probe, "enabled": False})
+        if response.status_code == 403:
+            return "; write correctly refused"
+        if response.is_success:
+            call(
+                conn.kibana, "DELETE", self._rules_url(client), params={"rule_id": probe["rule_id"]}
+            )
+        raise RuntimeError(f"read identity was able to write (HTTP {response.status_code})")
+
     # -- deploy ------------------------------------------------------------
     @staticmethod
-    def _rules_url(client: Client) -> str:
-        return f"/s/{client.platforms.elastic.space}/api/detection_engine/rules"
+    def _space_url(client: Client) -> str:
+        return f"/s/{client.platforms.elastic.space}/api"
+
+    def _rules_url(self, client: Client) -> str:
+        return f"{self._space_url(client)}/detection_engine/rules"
+
+    def _deploy_conn(self, client: Client) -> ElasticConnection:
+        return ElasticConnection.from_env(client.platforms.elastic.connection, "deploy", client.id)
 
     def _managed_rules(self, conn: ElasticConnection, client: Client) -> dict[str, dict[str, Any]]:
         rules: dict[str, dict[str, Any]] = {}
@@ -164,28 +198,48 @@ class ElasticPlatform(Platform):
                 return rules
             page += 1
 
+    def _delete_exception_list(self, conn: ElasticConnection, client: Client, list_id: str) -> None:
+        url = f"{self._space_url(client)}/exception_lists"
+        call(conn.kibana, "DELETE", url, params={"list_id": list_id, **_SINGLE}, ok=(404,))
+
+    def _sync_exception_list(
+        self, conn: ElasticConnection, client: Client, rule: RenderedRule
+    ) -> dict[str, Any]:
+        """Replace the rule's exception list with the rendered one; returns the envelope."""
+        list_id = exception_list_id(client.id, rule.detection_id)
+        self._delete_exception_list(conn, client, list_id)
+        if not rule.extras:
+            return rule.envelope
+        url = f"{self._space_url(client)}/exception_lists"
+        created = call(conn.kibana, "POST", url, json=rule.extras["exception_list"])
+        for item in rule.extras["exception_items"]:
+            call(conn.kibana, "POST", f"{url}/items", json=item)
+        reference = {**rule.envelope["exceptions_list"][0], "id": created["id"]}
+        return {**rule.envelope, "exceptions_list": [reference]}
+
     def deploy(self, rules: list[RenderedRule], client: Client) -> list[DeployAction]:
         actions: list[DeployAction] = []
-        with ElasticConnection.from_env(
-            client.platforms.elastic.connection, "deploy", client.id
-        ) as conn:
+        with self._deploy_conn(client) as conn:
             existing = self._managed_rules(conn, client)
             url = self._rules_url(client)
             for rule in rules:
                 current = existing.pop(rule.detection_id, None)
-                short = rule.content_hash[:16]
-                if current is None:
-                    call(conn.kibana, "POST", url, json=rule.envelope)
-                    action = "created"
-                elif deployed_hash(current) == short and current.get("enabled"):
+                unchanged = (
+                    current is not None
+                    and deployed_hash(current) == rule.content_hash[:16]
+                    and current.get("enabled") == rule.envelope["enabled"]
+                )
+                if unchanged:
                     action = "unchanged"
                 else:
-                    call(conn.kibana, "PUT", url, json=rule.envelope)
-                    action = "updated"
+                    envelope = self._sync_exception_list(conn, client, rule)
+                    call(conn.kibana, "POST" if current is None else "PUT", url, json=envelope)
+                    action = "created" if current is None else "updated"
                 actions.append(DeployAction(rule.detection_id, action, rule.content_hash))
             # Whatever PRAXIS manages in this space but no longer renders is removed.
             for rule_id in existing:
                 call(conn.kibana, "DELETE", url, params={"rule_id": rule_id})
+                self._delete_exception_list(conn, client, exception_list_id(client.id, rule_id))
                 actions.append(DeployAction(rule_id, "deleted"))
         return actions
 
@@ -194,9 +248,7 @@ class ElasticPlatform(Platform):
     ) -> list[SmokeResult]:
         results: dict[str, SmokeResult] = {}
         deadline = time.monotonic() + timeout
-        with ElasticConnection.from_env(
-            client.platforms.elastic.connection, "deploy", client.id
-        ) as conn:
+        with self._deploy_conn(client) as conn:
             pending = {r.detection_id: r for r in rules}
             while pending:
                 for rule_id, rendered in list(pending.items()):
@@ -228,17 +280,27 @@ class ElasticPlatform(Platform):
             raise
         if deployed_hash(rule) != rendered.content_hash[:16]:
             return SmokeResult(rule_id, False, "drift", "deployed hash differs from render")
+        if not rendered.envelope["enabled"]:
+            ok = not rule.get("enabled")
+            return SmokeResult(rule_id, ok, "disabled", "disabled by tuning, as rendered")
         if not rule.get("enabled"):
             return SmokeResult(rule_id, False, "disabled", "rule is not enabled")
+        if rendered.extras:
+            wanted = len(rendered.extras["exception_items"])
+            found = call(
+                conn.kibana,
+                "GET",
+                f"{self._space_url(client)}/exception_lists/items/_find",
+                params={"list_id": exception_list_id(client.id, rule_id), **_SINGLE},
+                ok=(404,),
+            )
+            if (found or {}).get("total") != wanted:
+                return SmokeResult(rule_id, False, "drift", "exception list does not match")
         last = (rule.get("execution_summary") or {}).get("last_execution")
         if (
             not last
             or last["date"] < rule["updated_at"]
-            or last["status"]
-            in (
-                "running",
-                "going to run",
-            )
+            or last["status"] in ("running", "going to run")
         ):
             return None
         return SmokeResult(

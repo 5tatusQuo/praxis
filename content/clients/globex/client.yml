@@ -1,0 +1,11 @@
+id: globex
+name: Globex Capital (fictional)
+sector: finance
+fictional: true
+platforms:
+  elastic:
+    connection: lab
+    space: globex
+    namespace: globex
+packs:
+  - baseline

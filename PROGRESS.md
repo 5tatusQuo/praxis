@@ -5,37 +5,40 @@ is the state of the build.
 
 ## Current phase
 
-**Phase 0 · Foundations** — in progress.
+**Phase 1 · Multi-client core** — in progress. Phase 0 passed on 2026-11-18.
 
-## Phase 0 plan
+## Phase 1 plan
 
-Gate: *a merged PR deploys a tested rule to local ELK.*
+Gate: *one rule, tuned differently for 2 clients, live on Elastic.*
 
-1. Repo scaffolding: Python package, settings, schemas for `detection.yml`,
-   content packs and clients, README template lint, bundled ATT&CK matrix.
-2. Platform interface (`praxis.platforms.Platform`) with Elastic as the first
-   implementation: static checks, render to a Kibana rule, lab test, deploy,
-   smoke check, client provisioning.
-3. First native Elastic detection with docs, positive and negative test events.
-4. Full mode on the server: Elasticsearch + Kibana in Docker Compose, TLS and
-   security on, random passwords generated on the server.
-5. CI (`praxis-ci.yml`): secret scan, workflow lint, code style, unit tests,
-   content validation, render, then lab staging on the self-hosted runner.
-6. CD (`praxis-cd.yml`): on merge to main, deploy each client's rules through
-   the Kibana Detection Engine API from the self-hosted runner and smoke-check.
-7. Gate run: a PR that adds a detection, CI green, merge, CD deploys it, the
-   rule fires on a replayed positive event.
+1. Tuning files (`clients/<id>/tuning/<rule>.yml`) and platform overlays
+   (`overlays/platform/<siem>/<rule>.yml`) with the closed set of operations:
+   `exclude`, `severity`, `risk_score`, `schedule`, `enabled: false`.
+   (`threshold` and `variant` wait for a detection that needs them.)
+2. Overlay resolver: native query, then platform overlay, then client tuning.
+3. Elastic render of tuning: exclusions become a per-client exception list
+   attached to the rule; the other operations change the envelope.
+4. Lab tests per client render: positives must still fire under each client's
+   tuning (over-tuning guard), and each tuning's example events must fire
+   without the tuning and stay quiet with it.
+5. `packs.lock` per client: the exact version and hash of every rendered rule.
+   CI checks it is current; CD refuses to deploy anything the lock does not pin.
+6. Connect mode for Elastic: `praxis connection check <client>` proves the
+   read and deploy identities work against a registered SIEM.
+7. Second fictional client (`globex`), provisioned in its own space and
+   namespace, and one rule tuned differently for each client.
+8. Gate run: merge, CD deploys both, the same event alerts for one client and
+   is suppressed for the other.
 
 ## Done
 
-- Steps 1–4 built and proven by hand against the live stack (Elastic 9.5.5,
-  basic licence): lab test passes 2 positive / 2 negative cases for PRX-000001;
-  a manual `praxis release acme` created the rule in the `acme` Kibana space
-  and its first run succeeded.
+- **Phase 0 (2026-11-18).** Platform core, Elastic platform, first detections,
+  Full-mode stack on the server, CI, CD and a self-hosted runner. See gate
+  evidence below.
 
 ## Next
 
-- Push to GitHub, install the self-hosted runner, wire secrets, run the gate.
+- Phase 1 steps above.
 
 ## Decisions
 
@@ -53,6 +56,10 @@ Gate: *a merged PR deploys a tested rule to local ELK.*
 | 2026-11-18 | Kibana and Elasticsearch listen on localhost only on the server. | Safe default; reach Kibana through an SSH tunnel (`ssh -L 5601:localhost:5601 <server>`). |
 | 2026-11-18 | Fleet Server and Elastic Agent are not deployed yet. | Not needed for the Phase 0 gate; lab telemetry is replayed test events. Revisit in Phase 2 (visibility). |
 | 2026-11-18 | Python: code targets 3.12+ (`requires-python`), run through uv. | PLAN.md says 3.12; newer interpreters also work. |
+| 2026-11-18 | `packs.lock` is generated in the pull request (`praxis lock`), checked by CI, and enforced by CD; CD no longer commits it back. PLAN.md updated. | `main` is protected, so a CD bot cannot push to it, and a lock reviewed in the PR is a stronger control than one written after the fact. |
+| 2026-11-18 | Every `exclude` must carry `examples`: events that fire untuned and stay quiet tuned, replayed in the lab by CI. PLAN.md updated. | Proves a tune does what it claims; together with "positives must still fire" it is the over-tuning guard. |
+| 2026-11-18 | Elastic exclusions render to a Kibana exception list per client and rule; the lab applies the same query filter Kibana builds from it. Matching is case-sensitive, as in Kibana. | Analysts see tuning where they expect it. Case sensitivity is a Kibana limit; write exclusions with the casing seen in the evidence. |
+| 2026-11-18 | Deferred from Phase 1: `threshold` and `variant` operations (no detection needs them yet), promotion detection (moves to the Tuner in Phase 3), CI routing by changed files (the full run takes under a minute). | Keep the phase to what the gate and current content need. |
 
 ## Open problems
 
@@ -60,4 +67,19 @@ Gate: *a merged PR deploys a tested rule to local ELK.*
 
 ## Gate evidence
 
-(none yet)
+### Phase 0 — a merged PR deploys a tested rule to local ELK (passed 2026-11-18)
+
+- PR: https://github.com/5tatusQuo/praxis/pull/1 added PRX-000002 (shadow copy
+  deletion) to the baseline pack.
+- CI on the PR, all green: secret scan and workflow lint, code style, unit
+  tests, content validation, render, and **lab staging on the self-hosted
+  runner** against live Elastic 9.5.5 (4 positive cases fired, 3 negative cases
+  stayed quiet).
+  https://github.com/5tatusQuo/praxis/actions/runs/44207915125
+- Merge to `main` (now a protected branch) triggered CD run
+  https://github.com/5tatusQuo/praxis/actions/runs/44208075104, which reported
+  `PRX-000001 unchanged`, `PRX-000002 created`, and both smoke checks
+  `succeeded` ("Rule execution completed successfully").
+- Beyond the gate: replaying the positive test events into the `acme`
+  namespace made the deployed rules raise real alerts in the `acme` Kibana
+  space: 4 alerts from PRX-000002 and 2 from PRX-000001.

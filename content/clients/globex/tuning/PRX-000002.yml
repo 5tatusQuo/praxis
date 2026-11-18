@@ -1,0 +1,24 @@
+rule: PRX-000002
+reason: >-
+  Globex's NorthBackup agent prunes old shadow copies with vssadmin after each
+  nightly backup on every file server.
+evidence: ["ALERT-2310", "ALERT-2311", "SOC-91"]
+author: human:detection-engineering
+expires: 2027-05-31
+exclude:
+  - field: process.parent.executable
+    op: equals
+    value: 'C:\Program Files\NorthBackup\bkagent.exe'
+examples:
+  - event: {category: [process], type: [start], kind: event}
+    host: {name: fs-ny-03, os: {type: windows}}
+    user: {name: svc-northbackup}
+    process:
+      name: vssadmin.exe
+      pid: 2244
+      executable: 'C:\Windows\System32\vssadmin.exe'
+      command_line: 'vssadmin.exe delete shadows /for=D: /oldest /quiet'
+      pe: {original_file_name: VSSADMIN.EXE}
+      parent:
+        name: bkagent.exe
+        executable: 'C:\Program Files\NorthBackup\bkagent.exe'

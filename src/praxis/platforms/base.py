@@ -10,6 +10,7 @@ from typing import Any, Literal
 
 from praxis.content.loader import DetectionBundle
 from praxis.content.models import Client
+from praxis.content.tuning import ResolvedTuning
 
 
 @dataclass(frozen=True)
@@ -21,34 +22,33 @@ class RenderedRule:
     platform: str
     envelope: dict[str, Any]
     content_hash: str
+    # Companion objects deployed with the rule (Elastic: its exception list).
+    extras: dict[str, Any] = field(default_factory=dict)
+    version: int = 1
+    tuning_digest: str | None = None
 
 
-def content_hash(envelope: dict[str, Any]) -> str:
-    canonical = json.dumps(envelope, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+def content_hash(envelope: dict[str, Any], extras: dict[str, Any] | None = None) -> str:
+    payload: dict[str, Any] = {"envelope": envelope, "extras": extras} if extras else envelope
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(canonical.encode()).hexdigest()
 
 
 @dataclass(frozen=True)
 class CaseResult:
+    """One lab replay. `expected` says whether the rule should have fired."""
+
+    detection_id: str
+    platform: str
     name: str
-    kind: Literal["positive", "negative"]
+    scope: str  # "base" or the client id whose tuning was applied
+    expected: bool
     fired: bool
     error: str | None = None
 
     @property
     def passed(self) -> bool:
-        return self.error is None and self.fired == (self.kind == "positive")
-
-
-@dataclass
-class LabResult:
-    detection_id: str
-    platform: str
-    cases: list[CaseResult] = field(default_factory=list)
-
-    @property
-    def passed(self) -> bool:
-        return bool(self.cases) and all(c.passed for c in self.cases)
+        return self.error is None and self.fired == self.expected
 
 
 @dataclass(frozen=True)
@@ -56,6 +56,13 @@ class DeployAction:
     detection_id: str
     action: Literal["created", "updated", "unchanged", "deleted"]
     content_hash: str | None = None
+
+
+@dataclass(frozen=True)
+class ConnectionCheck:
+    role: str
+    ok: bool
+    detail: str
 
 
 @dataclass(frozen=True)
@@ -79,16 +86,27 @@ class Platform(ABC):
         """Static checks that need no SIEM: style rules and the tuning hook."""
 
     @abstractmethod
-    def render(self, bundle: DetectionBundle, client: Client) -> RenderedRule:
-        """Build the deployable envelope for one client."""
+    def render(
+        self, bundle: DetectionBundle, client: Client, tuning: ResolvedTuning
+    ) -> RenderedRule:
+        """Build the deployable envelope for one client, with its tuning applied."""
 
     @abstractmethod
-    def lab_test(self, bundle: DetectionBundle) -> LabResult:
-        """Replay the detection's test events in the lab SIEM and report what fired."""
+    def lab_fires(
+        self, bundle: DetectionBundle, events: list[dict], tuning: ResolvedTuning | None
+    ) -> bool:
+        """Replay events in a throwaway corner of the lab SIEM; did the rule fire?
+
+        With `tuning`, its exclusions apply exactly as they would once deployed.
+        """
 
     @abstractmethod
-    def replay(self, bundle: DetectionBundle, client: Client, kind: str) -> int:
-        """Write test events into a (fictional) client's telemetry. Returns the event count."""
+    def replay(self, bundle: DetectionBundle, client: Client, events: list[dict]) -> int:
+        """Write events into a (fictional) client's telemetry. Returns the event count."""
+
+    @abstractmethod
+    def check_connection(self, client: Client) -> list[ConnectionCheck]:
+        """Connect mode: prove the read and deploy identities work for this client."""
 
     @abstractmethod
     def provision(self, client: Client, rotate: bool = False) -> list[str]:

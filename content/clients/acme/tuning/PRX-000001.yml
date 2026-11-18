@@ -1,0 +1,24 @@
+rule: PRX-000001
+reason: >-
+  Acme's MedDiag imaging support agent collects a crash dump of its own
+  process through comsvcs.dll on every workstation after a viewer crash.
+evidence: ["ALERT-1042", "SOC-218"]
+author: human:detection-engineering
+expires: 2027-05-31
+exclude:
+  - field: process.parent.executable
+    op: endswith
+    value: '\MedDiag\Support\mdcollect.exe'
+examples:
+  - event: {category: [process], type: [start], kind: event}
+    host: {name: rad-ws-014, os: {type: windows}}
+    user: {name: SYSTEM}
+    process:
+      name: rundll32.exe
+      pid: 9120
+      executable: 'C:\Windows\System32\rundll32.exe'
+      command_line: 'rundll32.exe C:\Windows\System32\comsvcs.dll, MiniDump 3312 C:\ProgramData\MedDiag\dumps\viewer.dmp full'
+      pe: {original_file_name: RUNDLL32.EXE}
+      parent:
+        name: mdcollect.exe
+        executable: 'C:\Program Files\MedDiag\Support\mdcollect.exe'

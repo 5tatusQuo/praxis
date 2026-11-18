@@ -10,6 +10,7 @@ import yaml
 from pydantic import ValidationError
 
 from praxis.content.models import Client, ContentPack, Detection
+from praxis.content.tuning import ResolvedTuning, Tuning, resolve
 
 
 @dataclass(frozen=True)
@@ -78,6 +79,10 @@ class ContentRepo:
         self.detections: dict[str, DetectionBundle] = {}
         self.packs: dict[str, ContentPack] = {}
         self.clients: dict[str, Client] = {}
+        # (client id, detection id) -> that client's tuning file
+        self.client_tuning: dict[tuple[str, str], Tuning] = {}
+        # (platform, detection id) -> tuning shared by every client on that SIEM
+        self.platform_overlays: dict[tuple[str, str], Tuning] = {}
         self.issues: list[Issue] = []
         self._implementation_files = implementation_files
         self._load()
@@ -103,6 +108,10 @@ class ContentRepo:
             if client.id != path.parent.name:
                 self.issues.append(Issue(path, f"client id {client.id!r} must match its folder"))
             self.clients[client.id] = client
+        for path in sorted((self.root / "clients").glob("*/tuning/*.yml")):
+            self._load_tuning(path, self.client_tuning, path.parent.parent.name)
+        for path in sorted((self.root / "overlays" / "platform").glob("*/*.yml")):
+            self._load_tuning(path, self.platform_overlays, path.parent.name)
         self._check_references()
 
     def _load_detection(self, folder: Path) -> None:
@@ -148,6 +157,38 @@ class ContentRepo:
             self.issues.append(Issue(folder, "needs at least one tests/negative/*.json"))
         self.detections[meta.id] = bundle
 
+    def _load_tuning(self, path: Path, target: dict, scope: str) -> None:
+        tuning = _load_yaml(path, Tuning, self.issues)
+        if tuning is None:
+            return
+        if tuning.rule != path.stem:
+            self.issues.append(Issue(path, f"file name must be {tuning.rule}.yml"))
+        if tuning.rule not in self.detections:
+            self.issues.append(Issue(path, f"unknown detection {tuning.rule}"))
+        target[(scope, tuning.rule)] = tuning
+
+    def tuning_for(self, detection_id: str, client: Client, platform: str) -> ResolvedTuning:
+        """Platform overlay first, then the client's own tuning (later wins)."""
+        layers = []
+        overlay = self.platform_overlays.get((platform, detection_id))
+        if overlay:
+            layers.append(("platform", overlay))
+        own = self.client_tuning.get((client.id, detection_id))
+        if own:
+            layers.append(("client", own))
+        return resolve(layers)
+
+    def tuning_examples(self, detection_id: str, client: Client, platform: str) -> list[dict]:
+        """Events the client's tuning layers claim to silence."""
+        events: list[dict] = []
+        for key, source in (
+            ((platform, detection_id), self.platform_overlays),
+            ((client.id, detection_id), self.client_tuning),
+        ):
+            if key in source:
+                events.extend(source[key].examples)
+        return events
+
     def _load_tests(self, folder: Path) -> list[TestCase]:
         cases = []
         for path in sorted(folder.glob("*.json")):
@@ -177,6 +218,13 @@ class ContentRepo:
             for det_id in client.detections:
                 if det_id not in self.detections:
                     self.issues.append(Issue(path, f"unknown detection {det_id}"))
+        for (client_id, det_id), _tuning in self.client_tuning.items():
+            path = self.root / "clients" / client_id / "tuning" / f"{det_id}.yml"
+            client = self.clients.get(client_id)
+            if client is None:
+                self.issues.append(Issue(path, f"tuning for unknown client {client_id!r}"))
+            elif det_id not in {b.id for b in self.detections_for(client)}:
+                self.issues.append(Issue(path, f"{client_id} is not subscribed to {det_id}"))
 
     # -- queries -----------------------------------------------------------
     def detections_for(self, client: Client) -> list[DetectionBundle]:

@@ -6,10 +6,12 @@ import httpx
 import pytest
 
 from praxis import core
+from praxis.content.tuning import ResolvedTuning
 from praxis.platforms import get_platform
 from praxis.platforms.elastic import connection as connection_module
 from praxis.platforms.elastic.connection import ElasticConnection
 from praxis.platforms.elastic.render import deployed_hash
+from tests.conftest import write_yaml
 
 
 def render(repo):
@@ -39,9 +41,10 @@ def test_render_is_stable_and_client_specific(repo, content):
     assert first.content_hash == second.content_hash
     other = repo.clients["testco"].model_copy(deep=True)
     other.platforms.elastic.namespace = "other"
-    assert get_platform("elastic").render(repo.detections["PRX-000900"], other).content_hash != (
-        first.content_hash
+    rendered = get_platform("elastic").render(
+        repo.detections["PRX-000900"], other, ResolvedTuning()
     )
+    assert rendered.content_hash != first.content_hash
 
 
 def test_drafts_are_not_rendered(repo):
@@ -54,12 +57,31 @@ class FakeKibana:
 
     def __init__(self):
         self.rules: dict[str, dict] = {}
+        self.lists: dict[str, list[dict]] = {}
         self.calls: list[tuple[str, str]] = []
 
+    def exception_lists(self, request: httpx.Request) -> httpx.Response:
+        list_id = request.url.params.get("list_id")
+        if request.url.path.endswith("/items/_find"):
+            if list_id not in self.lists:
+                return httpx.Response(404, json={"message": "not found"})
+            return httpx.Response(200, json={"total": len(self.lists[list_id])})
+        if request.method == "DELETE":
+            found = self.lists.pop(list_id, None) is not None
+            return httpx.Response(200 if found else 404, json={})
+        body = json.loads(request.content)
+        if request.url.path.endswith("/items"):
+            self.lists[body["list_id"]].append(body)
+        else:
+            self.lists[body["list_id"]] = []
+        return httpx.Response(200, json={**body, "id": f"so-{body['list_id']}"})
+
     def handler(self, request: httpx.Request) -> httpx.Response:
-        assert request.url.path.startswith("/s/testco/api/detection_engine/rules")
         assert request.headers["authorization"] == "ApiKey deploy-key"
         self.calls.append((request.method, request.url.path))
+        if request.url.path.startswith("/s/testco/api/exception_lists"):
+            return self.exception_lists(request)
+        assert request.url.path.startswith("/s/testco/api/detection_engine/rules")
         if request.url.path.endswith("/_find"):
             data = list(self.rules.values())
             return httpx.Response(200, json={"data": data, "total": len(data)})
@@ -132,3 +154,152 @@ def test_smoke_flags_missing_drifted_and_failed(repo, kibana):
     assert not platform.smoke(rules, client)[0].ok
     kibana.rules["PRX-000900"]["tags"] = ["PRAXIS", "praxis-hash:0000000000000000"]
     assert platform.smoke(rules, client)[0].status == "drift"
+
+
+# -- tuning ---------------------------------------------------------------------
+TUNING = {
+    "rule": "PRX-000900",
+    "reason": "The fixture updater runs evil.exe from a known folder.",
+    "evidence": ["ALERT-1"],
+    "author": "human:tests",
+    "expires": "2027-01-31",
+    "exclude": [
+        {"field": "process.parent.executable", "op": "endswith", "value": "\\Upd\\upd*.exe"}
+    ],
+    "examples": [{"process": {"name": "evil.exe", "parent": {"executable": "C:\\Upd\\upd*.exe"}}}],
+}
+
+
+def tuned_repo(content, tuning=TUNING):
+    write_yaml(content / "clients" / "testco" / "tuning" / "PRX-000900.yml", tuning)
+    return core.load_repo(content)
+
+
+def test_exclusion_renders_an_exception_list(content):
+    repo = tuned_repo(content)
+    assert core.validate(repo) == []
+    (rule,) = render(repo)
+    assert rule.envelope["exceptions_list"] == [
+        {"list_id": "praxis-testco-prx-000900", "type": "detection", "namespace_type": "single"}
+    ]
+    (item,) = rule.extras["exception_items"]
+    # Backslashes and the literal `*` are escaped for Elasticsearch's wildcard query.
+    assert item["entries"] == [
+        {
+            "field": "process.parent.executable",
+            "operator": "included",
+            "type": "wildcard",
+            "value": "*\\\\Upd\\\\upd\\*.exe",
+        }
+    ]
+    assert item["expire_time"] == "2027-01-31T23:59:59.000Z"
+    assert "praxis-tuned" in rule.envelope["tags"]
+    assert rule.tuning_digest
+
+
+def test_tuning_changes_the_hash_only_for_that_client(repo, content):
+    untuned = render(repo)[0]
+    tuned = render(tuned_repo(content))[0]
+    assert tuned.content_hash != untuned.content_hash
+    assert untuned.tuning_digest is None and untuned.extras == {}
+
+
+def test_scalar_overrides_and_disable(content):
+    tuning = {
+        "rule": "PRX-000900",
+        "reason": "Crown-jewel hosts: page the on-call lead.",
+        "author": "human:tests",
+        "severity": "critical",
+        "risk_score": 99,
+        "schedule": {"interval": "1m", "lookback": "2m"},
+    }
+    env = render(tuned_repo(content, tuning))[0].envelope
+    assert (env["severity"], env["risk_score"]) == ("critical", 99)
+    assert (env["interval"], env["from"]) == ("1m", "now-2m")
+    off = {"rule": "PRX-000900", "reason": "Too noisy until the parser is fixed.", "author": "x"}
+    off |= {"enabled": False, "expires": "2027-01-31"}
+    assert render(tuned_repo(content, off))[0].envelope["enabled"] is False
+
+
+def test_platform_overlay_applies_to_every_client_and_client_wins(content):
+    overlay = {**TUNING, "severity": "low", "risk_score": 21}
+    write_yaml(content / "overlays" / "platform" / "elastic" / "PRX-000900.yml", overlay)
+    repo = core.load_repo(content)
+    assert core.validate(repo) == []
+    rule = render(repo)[0]
+    assert rule.envelope["severity"] == "low" and len(rule.extras["exception_items"]) == 1
+    client_tuning = {"rule": "PRX-000900", "reason": "Client wants it louder than the overlay."}
+    client_tuning |= {"author": "human:tests", "severity": "high", "risk_score": 73}
+    rule = render(tuned_repo(content, client_tuning))[0]
+    assert rule.envelope["severity"] == "high", "the client layer wins over the platform overlay"
+    assert len(rule.extras["exception_items"]) == 1, "exclusions from every layer add up"
+
+
+@pytest.mark.parametrize(
+    ("change", "message"),
+    [
+        ({"evidence": []}, "must cite an alert or ticket"),
+        ({"examples": []}, "needs at least one event"),
+        ({"exclude": [{"field": "a", "op": "in", "value": "x"}]}, "takes a list"),
+        ({"exclude": [{"field": "a", "op": "regex", "value": "x"}]}, "exclude.0.op"),
+        ({"rule": "PRX-000901"}, "file name must be"),
+    ],
+)
+def test_bad_tuning_is_rejected(content, change, message):
+    repo = tuned_repo(content, {**TUNING, **change})
+    assert message in "\n".join(str(i) for i in repo.issues)
+
+
+def test_disable_needs_expiry_and_empty_tuning_is_rejected(content):
+    off = {"rule": "PRX-000900", "reason": "Too noisy until the parser is fixed.", "author": "x"}
+    assert "needs an `expires` date" in str(tuned_repo(content, {**off, "enabled": False}).issues)
+    assert "changes nothing" in str(tuned_repo(content, off).issues)
+
+
+def test_deploy_syncs_exception_list(content, kibana):
+    platform = get_platform("elastic")
+    repo = tuned_repo(content)
+    client, rules = repo.clients["testco"], render(repo)
+    assert [a.action for a in platform.deploy(rules, client)] == ["created"]
+    assert len(kibana.lists["praxis-testco-prx-000900"]) == 1
+    reference = kibana.rules["PRX-000900"]["exceptions_list"][0]
+    assert reference["id"] == "so-praxis-testco-prx-000900"
+    assert all(r.ok for r in platform.smoke(rules, client))
+    kibana.lists["praxis-testco-prx-000900"].clear()
+    assert platform.smoke(rules, client)[0].status == "drift", "console edits are caught"
+    # Removing the tuning removes the list.
+    (content / "clients" / "testco" / "tuning" / "PRX-000900.yml").unlink()
+    repo = core.load_repo(content)
+    assert [a.action for a in platform.deploy(render(repo), client)] == ["updated"]
+    assert kibana.lists == {}
+
+
+def test_lab_orchestration_checks_tuning(content, monkeypatch):
+    repo = tuned_repo(content)
+    seen = []
+
+    def lab_fires(self, bundle, events, tuning):
+        seen.append(tuning is not None)
+        # Pretend the exclusion silences only the tuning example.
+        return not (tuning and "parent" in events[0].get("process", {}))
+
+    monkeypatch.setattr(type(get_platform("elastic")), "lab_fires", lab_fires)
+    results = core.lab_test(repo, repo.detections["PRX-000900"])
+    by_name = {(r.scope, r.name): r for r in results}
+    assert by_name[("testco", "case (tuned)")].passed
+    assert by_name[("testco", "tuning example 1 (untuned)")].passed
+    assert by_name[("testco", "tuning example 1 (tuned)")].passed
+    # The fake fires on everything untuned, so the base negative case must fail.
+    assert [r.passed for r in results if r.scope == "base"] == [True, False]
+
+
+def test_lock_roundtrip(content):
+    repo = tuned_repo(content)
+    client = repo.clients["testco"]
+    assert not core.lock_is_current(repo, client)
+    core.write_lock(repo, client)
+    assert core.lock_is_current(core.load_repo(content), client)
+    lock = core.build_lock(repo, client)["platforms"]["elastic"]["PRX-000900"]
+    assert lock["version"] == 1 and len(lock["hash"]) == 64 and lock["tuning"]
+    repo.detections["PRX-000900"].meta.severity = "low"
+    assert not core.lock_is_current(repo, client)
