@@ -1,0 +1,27 @@
+id: PRX-000021
+name: Administrative share mounted with net use
+intent: Detects net.exe connecting to a hidden administrative share on another host, a common
+  way ransomware operators move laterally and stage tools over SMB.
+version: 1
+lifecycle: staged
+owner: detection-engineering
+severity: medium
+risk_score: 47
+attack:
+- technique: T1021.002
+  tactic: TA0008
+data_components:
+- Process Creation
+- Command Execution
+pyramid_tier: ttp
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.process-*
+provenance:
+  source: praxis
+  licence: Apache-2.0
+references: []
+false_positives:
+- Administrators and deployment scripts that map an administrative share to copy software
+  or collect logs.

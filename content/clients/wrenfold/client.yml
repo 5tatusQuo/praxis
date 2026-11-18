@@ -11,3 +11,5 @@ platforms:
     namespace: wrenfold
 packs:
 - baseline
+detections:
+- PRX-000021
