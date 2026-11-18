@@ -330,3 +330,26 @@ def test_exclusion_with_also_renders_one_item_with_several_entries(content):
         "process.parent.executable",
         "process.command_line",
     ]
+
+
+def test_backtest_counts_every_match_not_just_the_samples(repo, monkeypatch):
+    from praxis.platforms.elastic import platform as module
+
+    events = [{"_source": {"process": {"name": f"p{i}"}}} for i in range(32)]
+
+    def handler(request):
+        assert json.loads(request.content)["size"] == module.BACKTEST_LIMIT
+        return httpx.Response(200, json={"hits": {"total": {"value": 32}, "events": events}})
+
+    client = httpx.Client(base_url="http://es.test", transport=httpx.MockTransport(handler))
+    monkeypatch.setattr(
+        connection_module.ElasticConnection,
+        "from_env",
+        staticmethod(
+            lambda name, role, client_id=None: ElasticConnection(name, role, client, client)
+        ),
+    )
+    result = get_platform("elastic").backtest(
+        repo.clients["testco"], "process where true", ["logs-x-*"]
+    )
+    assert result["hits"] == 32 and result["capped"] is False and len(result["samples"]) == 5

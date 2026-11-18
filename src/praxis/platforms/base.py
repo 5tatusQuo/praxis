@@ -137,7 +137,8 @@ class Platform(ABC):
     ) -> dict[str, Any]:
         """Run a native query read-only over a client's recent data.
 
-        Returns {"hits", "days", "samples"}; samples are few and redacted, fit
+        Returns {"hits", "capped", "days", "samples"}; `capped` means there were at
+        least that many matches. Samples are few and redacted, fit
         to show an LLM. Raises on an invalid query.
         """
 

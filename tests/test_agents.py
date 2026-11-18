@@ -423,6 +423,13 @@ def test_tuner_proposes_a_tested_override(world):
     llm = tuner_script(example)
     result, trail = tuner.propose_tuning(world["content"], "testco", "PRX-000900", llm)
     assert result["proposed"] and result["lab_passed"]
+    assert result["impact"] == {"matches_before": 3, "matches_after": 0, "days": 30}
+    body = tuner.report("testco", "PRX-000900", result)
+    assert (
+        "removes 3 of 3 matches" in body
+        and "**Test detection for unit tests** (PRX-000900)" in body
+    )
+    assert "`process.parent.name` equals `sccm.exe`" in body
     impact = next(s for s in llm.seen if s.get("tool") == "propose_override")
     assert '"suppressed": 3' in impact["result"] and '"lab_passed": true' in impact["result"]
     repo = core.load_repo(world["content"])

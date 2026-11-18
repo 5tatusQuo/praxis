@@ -547,7 +547,11 @@ class Toolbox:
             has_positive_tests=True,
         )
         if backtest is not None:
-            result["backtest"] = {"hits": backtest["hits"], "days": backtest["days"]}
+            result["backtest"] = {
+                "hits": backtest["hits"],
+                "days": backtest["days"],
+                **({"capped": True} if backtest.get("capped") else {}),
+            }
         return result
 
     def backtest(self, client: str, query: str, indices: list[str]) -> dict:
