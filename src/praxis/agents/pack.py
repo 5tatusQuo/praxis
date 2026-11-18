@@ -16,7 +16,7 @@ from typing import Any
 
 import yaml
 
-from praxis import core, db
+from praxis import attack, core, db
 from praxis.agents.llm import LLM, AgentError
 from praxis.agents.toolbox import Toolbox
 from praxis.catalog.quality import THRESHOLD
@@ -315,7 +315,7 @@ def _facts(toolbox: Toolbox, client_id: str, detection_id: str) -> dict[str, Any
         techniques=[r.technique for r in bundle.meta.attack],
         title=bundle.meta.name,
     )
-    return {"tests": tests, "quality": profile}
+    return {"tests": tests, "quality": profile, "name": bundle.meta.name}
 
 
 def plan_pack(
@@ -410,6 +410,7 @@ def plan_pack(
         picks.append(
             {
                 "detection": detection_id,
+                "name": facts["name"],
                 "candidate": pick["candidate_id"],
                 "technique": pick["technique"],
                 "weight": pick["weight"],
@@ -521,6 +522,17 @@ def _cell(text: str) -> str:
     return " ".join(text.split()).replace("|", "/")
 
 
+def _technique(technique_id: str) -> str:
+    """T1685 Disable or Modify Tools: an id alone tells a reviewer nothing."""
+    if attack.is_technique(technique_id):
+        return f"{technique_id} {attack.technique_name(technique_id)}"
+    return technique_id
+
+
+def _rule(pick: dict[str, Any]) -> str:
+    return f"**{pick.get('name') or pick['detection']}** ({pick['detection']})"
+
+
 def report(pack: dict[str, Any], snapshot: dict[str, Any]) -> str:
     """The pull-request body: what a human needs to decide, and no more."""
     review = pack["review"]
@@ -532,7 +544,7 @@ def report(pack: dict[str, Any], snapshot: dict[str, Any]) -> str:
         "",
         f"> {_cell(brief['headline'])}",
         "",
-        "| Detection | Closes | Why | Score | Backtest 30d | Lab |",
+        "| Rule | Closes | Why | Score | Backtest 30d | Lab |",
         "| --- | --- | --- | --- | --- | --- |",
     ]
     for pick in pack["picks"]:
@@ -540,21 +552,17 @@ def report(pack: dict[str, Any], snapshot: dict[str, Any]) -> str:
         hits = (quality.get("backtest") or {}).get("hits", "n/a")
         lab = f"{pick['lab']['cases']} pass" if pick["lab"]["passed"] else "FAIL"
         lines.append(
-            f"| {pick['detection']} | {pick['technique']} | {_cell(pick['why'])} | "
+            f"| {_rule(pick)} | {_technique(pick['technique'])} | {_cell(pick['why'])} | "
             f"{quality['score']} | {hits} hits | {lab} |"
         )
-    watch = [
-        f"- **{p['detection']}**: {_cell(p['caveat'])}"
-        for p in pack["picks"]
-        if p["caveat"].strip()
-    ]
+    watch = [f"- {_rule(p)}: {_cell(p['caveat'])}" for p in pack["picks"] if p["caveat"].strip()]
     watch += [
-        f"- **{p['detection']}** scores below the threshold: {_cell(p['justification'])}"
+        f"- {_rule(p)} scores below the threshold: {_cell(p['justification'])}"
         for p in pack["picks"]
         if p["justification"].strip()
     ]
     watch += [
-        f"- **{p['detection']}** score flags: {'; '.join(p['quality']['flags'])}"
+        f"- {_rule(p)} score flags: {'; '.join(p['quality']['flags'])}"
         for p in pack["picks"]
         if p["quality"]["flags"]
     ]
@@ -571,15 +579,17 @@ def report(pack: dict[str, Any], snapshot: dict[str, Any]) -> str:
     lines += [
         "",
         f"**Coverage:** {summary['covered']} techniques covered today. Once promoted, "
-        f"{', '.join(closing) or 'none'} move from detection gap to covered.",
+        f"{', '.join(_technique(t) for t in closing) or 'none'} move from detection gap to covered.",
     ]
+    names = {p["detection"]: _rule(p) for p in pack["picks"]}
     if review:
         lines += [
             "",
             f"**Reviewer agent: {review['verdict'].upper()}.** {_cell(review['summary'])}",
         ]
         lines += [
-            f"- {c['severity']} ({c['detection_id']}): {_cell(c['issue'])} → {_cell(c['action'])}"
+            f"- {c['severity']}, {names.get(c['detection_id'], c['detection_id'])}: "
+            f"{_cell(c['issue'])} → {_cell(c['action'])}"
             for c in review["comments"]
         ]
     if pack["rejected"]:
@@ -604,6 +614,7 @@ def rescore(content_dir: Path, pack_id: str) -> dict[str, Any]:
     box = Toolbox(content_dir, pack["client"])
     for pick in pack["picks"]:
         facts = _facts(box, pack["client"], pick["detection"])
+        pick["name"] = facts["name"]
         pick["quality"] = facts["quality"]
         pick["lab"] = {
             "passed": facts["tests"]["passed"],
@@ -679,6 +690,7 @@ def restyle(content_dir: Path, pack_id: str, llm: LLM) -> dict[str, Any]:
         pick.update(why=new["why"], caveat=new["caveat"], justification=new["justification"])
         pick["changed"] = answer["changed"][index] if index < len(answer["changed"]) else ""
         facts = _facts(box, client_id, pick["detection"])
+        pick["name"] = facts["name"]
         pick["quality"] = facts["quality"]
         pick["lab"] = {
             "passed": facts["tests"]["passed"],

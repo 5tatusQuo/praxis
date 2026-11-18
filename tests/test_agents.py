@@ -313,7 +313,12 @@ def test_pack_flow_end_to_end(world):
     body = packs.report(pack, world["snapshot"])
     assert "PRX-000901" in body and "Reviewer agent: PASS" in body and "T1059.001" in body
     assert "One path tested. → Add a case." in body and "Still open after this pack" in body
-    assert len(body.split()) < 170, "the report stays short"
+    assert "**PowerShell started with an encoded command** (PRX-000901)" in body, (
+        "names, not bare ids"
+    )
+    assert "T1059.001 PowerShell" in body
+    assert chosen["name"] == "PowerShell started with an encoded command"
+    assert len(body.split()) < 200, "the report stays short"
 
 
 def test_a_blocker_fails_the_pack_whatever_the_verdict_says(world):

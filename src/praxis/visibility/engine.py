@@ -132,6 +132,7 @@ def build_snapshot(
         techniques = sorted({ref.technique for ref in bundle.meta.attack}) if bundle else []
         entry = {
             "id": health.detection_id,
+            "name": bundle.meta.name if bundle else "",
             "platform": health.platform,
             "status": rule_status(health, live_tables),
             "last_status": health.last_status,
