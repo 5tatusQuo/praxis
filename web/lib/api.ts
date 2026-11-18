@@ -112,7 +112,13 @@ export async function api<T>(path: string, body?: unknown): Promise<T | null> {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (response.status === 404) return null;
-  if (!response.ok) throw new Error(`praxis-api ${path} returned ${response.status}`);
+  if (!response.ok) {
+    const detail = await response
+      .json()
+      .then((b) => (typeof b?.detail === "string" ? b.detail : null))
+      .catch(() => null);
+    throw new Error(detail ?? `praxis-api ${path} returned ${response.status}`);
+  }
   return (await response.json()) as T;
 }
 

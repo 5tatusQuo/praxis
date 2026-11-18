@@ -38,6 +38,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/audit" className="hover:text-fog">
                 Audit
               </Link>
+              <Link href="/settings" className="hover:text-fog">
+                Settings
+              </Link>
             </nav>
           </div>
         </header>

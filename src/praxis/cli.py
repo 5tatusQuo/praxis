@@ -464,7 +464,7 @@ def pack_plan(
     """Curator, Platform Engineer and Reviewer agents build a candidate pack on a branch."""
     from praxis.agents import gitops
     from praxis.agents import pack as packs
-    from praxis.agents.llm import AgentError, ClaudeLLM
+    from praxis.agents.llm import AgentError, default_llm
 
     repo = _repo()
     _client(repo, client_id)
@@ -478,7 +478,7 @@ def pack_plan(
             content_dir,
             client_id,
             month,
-            ClaudeLLM(),
+            default_llm(),
             budget,
             lambda m: console.print(f"[dim]{m}[/dim]"),
         )
@@ -529,7 +529,7 @@ def tune(
 ) -> None:
     """The Tuner agent studies a noisy rule's alerts and proposes a tested override."""
     from praxis.agents import gitops, tuner
-    from praxis.agents.llm import ClaudeLLM
+    from praxis.agents.llm import default_llm
 
     repo = _repo()
     _client(repo, client_id)
@@ -543,7 +543,7 @@ def tune(
             content_dir,
             client_id,
             detection_id,
-            ClaudeLLM(),
+            default_llm(),
             hint,
             lambda m: console.print(f"[dim]{m}[/dim]"),
         )
@@ -588,7 +588,7 @@ def hunt(
     """The Hunt Planner turns a threat prompt into hypotheses and runs them read-only."""
     from praxis.agents import gitops
     from praxis.agents import hunt as hunts
-    from praxis.agents.llm import ClaudeLLM
+    from praxis.agents.llm import default_llm
 
     repo = _repo()
     content_dir = get_settings().content_dir
@@ -607,7 +607,7 @@ def hunt(
     gitops.start_branch(root, branch)
     try:
         record, trail = hunts.run_hunt(
-            content_dir, prompt, scope, ClaudeLLM(), lambda m: console.print(f"[dim]{m}[/dim]")
+            content_dir, prompt, scope, default_llm(), lambda m: console.print(f"[dim]{m}[/dim]")
         )
     except Exception as error:
         gitops.abandon_branch(root, branch, start)
