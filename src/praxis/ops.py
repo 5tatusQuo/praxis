@@ -54,13 +54,18 @@ def attack_groups(query: str) -> list[dict[str, Any]]:
         by_name = any(wanted in n.lower() for n in names)
         if not by_name and wanted not in description.lower():
             continue
+        at = description.lower().find(wanted)
         found.append(
             {
                 "id": gid,
                 "name": group["name"],
                 "techniques": len(group["techniques"]),
                 "matched": "name" if by_name else "description",
-                "about": description[:220],
+                # The words around the match, so a false friend ("social
+                # engineering" for "engineering") is easy to spot.
+                "context": description[:160]
+                if by_name or at < 0
+                else "..." + description[max(0, at - 70) : at + len(wanted) + 70] + "...",
             }
         )
     return sorted(found, key=lambda g: (g["matched"] != "name", g["id"]))
@@ -500,6 +505,7 @@ def status(content_dir: Path) -> dict[str, Any]:
                     "rules": row["summary"]["rules"],
                 }
                 for row in fleet
+                if row["client_id"] in repo.clients  # an offboarded client keeps only history
             },
             "rule_pack_proposals": [
                 {
@@ -507,6 +513,7 @@ def status(content_dir: Path) -> dict[str, Any]:
                     "status": _pack_state(repo, p["id"]),
                 }
                 for p in packs
+                if p["client_id"] in repo.clients
             ],
         }
         for client_id, entry in out["clients"].items():

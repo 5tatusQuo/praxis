@@ -153,6 +153,13 @@ def merge(path: Path, number: int, wait: int = 900) -> dict[str, Any]:
         raise GitError(f"pull request {number} is {view['state'].lower()}, not open")
     if view["baseRefName"] != MAIN:
         raise GitError(f"pull request {number} targets {view['baseRefName']}, not {MAIN}")
+    # If main moved since the pull request was opened, test it against today's
+    # main first: two pull requests can each be fine and still clash in packs.lock.
+    state = _json(["gh", "pr", "view", str(number), "--json", "mergeStateStatus"], root)
+    if state and state.get("mergeStateStatus") == "BEHIND":
+        _say("main has moved; updating the pull request's branch and re-running its checks")
+        _run(["gh", "pr", "update-branch", str(number)], root, check=False)
+        time.sleep(15)
     _say(f"pull request {number}: waiting for its checks")
     checks: list[dict[str, str]] = []
     while time.monotonic() < deadline:
