@@ -3,7 +3,7 @@ name: Network scanning tool started on a Windows host
 intent: Detects a known network or port scanning tool starting on a Windows host, which ransomware
   crews use to map servers and open services before moving laterally.
 version: 1
-lifecycle: staged
+lifecycle: production
 owner: detection-engineering
 severity: medium
 risk_score: 47
