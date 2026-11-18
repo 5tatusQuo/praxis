@@ -1,0 +1,90 @@
+id: 2026-11-19-akira-and-play-ransomware-precursors-at-a-buildi-2
+prompt: 'Akira and Play ransomware precursors at a building contractor: lateral movement over SMB admin
+  shares and RDP, shadow copy deletion, and archiving of drawings and project data on Windows hosts'
+created: '2026-11-19'
+clients:
+- wrenfold
+summary: Shadow copy deletion needs investigation. The samples do not establish actor involvement. Archive
+  contents and completed RDP sessions remain unverified.
+hypotheses:
+- title: Commands access remote administrative shares
+  technique: T1021.002
+  rationale: Play uses administrative shares for lateral movement. Remote copy commands can expose activity
+    beyond share mounting.
+  query: 'process where host.os.type == "windows" and event.type == "start" and ((process.name : ("cmd.exe",
+    "powershell.exe", "pwsh.exe", "robocopy.exe", "xcopy.exe") and process.command_line : ("*\\\\*\\ADMIN$*",
+    "*\\\\*\\C$*", "*\\\\*\\IPC$*")) or (process.name : ("psexec.exe", "psexec64.exe") and process.command_line
+    : "*\\\\*" ) or (process.name : ("net.exe", "net1.exe") and process.command_line : "*use*" and process.command_line
+    : ("*\\\\*\\ADMIN$*", "*\\\\*\\C$*", "*\\\\*\\IPC$*")))'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No matching commands appeared. This does not exclude direct SMB access. Extend existing
+    coverage rather than duplicate share mounting detection.
+  durable: true
+  results:
+    wrenfold:
+      hits: 0
+      days: 30
+  tested: true
+- title: Users start RDP connections with explicit destinations
+  technique: T1021.001
+  rationale: Akira uses RDP for remote access. Client commands can identify intended destinations but
+    cannot prove successful connections.
+  query: 'process where host.os.type == "windows" and event.type == "start" and process.name : "mstsc.exe"
+    and process.command_line : ("*/v:*", "*.rdp*")'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No matching commands appeared. The security query failed because the logon type field was
+    unavailable. Completed RDP sessions remain untested.
+  durable: false
+  results:
+    wrenfold:
+      hits: 0
+      days: 30
+  tested: true
+- title: Commands delete shadow copies outside the backup agent
+  technique: T1490
+  rationale: The requested recovery inhibition check tests deletion commands outside the observed backup
+    pattern.
+  query: 'process where host.os.type == "windows" and event.type == "start" and ((process.name : "vssadmin.exe"
+    and process.command_line : "*delete*shadows*") or (process.name : "wmic.exe" and process.command_line
+    : "*shadowcopy*delete*") or (process.name : ("powershell.exe", "pwsh.exe") and process.command_line
+    : "*Win32_ShadowCopy*" and process.command_line : ("*Delete*", "*Remove-CimInstance*", "*Remove-WmiObject*"))
+    or (process.name : "diskshadow.exe" and process.command_line : "*/s*")) and not (process.parent.executable
+    : "C:\\Program Files\\SiteBack\\siteback-agent.exe" and process.command_line == "vssadmin.exe delete
+    shadows /for=D: /oldest /quiet")'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: PowerShell, vssadmin, and WMIC deletion commands share a host and account. Verify authorization
+    before tuning the existing detection. Confirm the backup pattern separately.
+  durable: true
+  results:
+    wrenfold:
+      hits: 3
+      days: 30
+  tested: true
+- title: Archive utilities collect drawings and project data
+  technique: T1560.001
+  rationale: Both groups archive collected data. Archive creation commands can expose preparation of project
+    data for theft.
+  query: 'process where host.os.type == "windows" and event.type == "start" and ((process.name : ("7z.exe",
+    "7za.exe", "7zr.exe", "rar.exe", "winrar.exe", "tar.exe") and process.command_line : ("* a *", "*
+    -a *", "* -c*", "* cf *", "* czf *")) or (process.name : ("powershell.exe", "pwsh.exe") and process.command_line
+    : "*Compress-Archive*"))'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: Neither project-specific nor broader archive commands appeared. Missing file events prevent
+    verification of archive creation and contents. Renamed utilities remain outside this query.
+  durable: false
+  results:
+    wrenfold:
+      hits: 0
+      days: 30
+  tested: true
+agents:
+  model: gpt-6.1-sol
+usage:
+  llm_calls: 5
+  input_tokens: 28862
+  output_tokens: 2813
+  tool_calls: 14
