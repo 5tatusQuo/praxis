@@ -37,6 +37,22 @@ def _find_config(start: Path) -> Path | None:
     return None
 
 
+def load_env_files() -> None:
+    """Load KEY=VALUE files named in PRAXIS_ENV_FILE (os.pathsep-separated).
+
+    This is how a self-hosted runner hands SIEM connections to `praxis` without
+    the secrets ever being stored in the repo or in the CI service. Variables
+    that are already set win.
+    """
+    for name in filter(None, os.environ.get("PRAXIS_ENV_FILE", "").split(os.pathsep)):
+        for line in Path(name).read_text().splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            os.environ.setdefault(key.strip(), value.strip())
+
+
 def load_settings(start: Path | None = None) -> Settings:
     config_path = _find_config((start or Path.cwd()).resolve())
     file_values: dict = {}

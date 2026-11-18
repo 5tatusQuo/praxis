@@ -95,3 +95,18 @@ def test_elastic_index_pattern_shape(content):
     path = content / "detections" / "PRX-000900-test-detection" / "detection.yml"
     write_yaml(path, {**DETECTION, "log_sources": {"elastic": {"indices": ["winlogbeat-*"]}}})
     assert "data-stream pattern" in messages(core.validate(core.load_repo(content)))
+
+
+def test_env_files_fill_missing_variables(tmp_path, monkeypatch):
+    import os
+
+    from praxis.settings import load_env_files
+
+    env_file = tmp_path / "lab.env"
+    env_file.write_text("# comment\nPRAXIS_TEST_A=from-file\nPRAXIS_TEST_B=b=1\n")
+    monkeypatch.setenv("PRAXIS_ENV_FILE", str(env_file))
+    monkeypatch.setenv("PRAXIS_TEST_A", "already-set")
+    monkeypatch.delenv("PRAXIS_TEST_B", raising=False)
+    load_env_files()
+    assert os.environ["PRAXIS_TEST_A"] == "already-set"
+    assert os.environ.pop("PRAXIS_TEST_B") == "b=1"

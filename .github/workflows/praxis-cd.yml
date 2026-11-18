@@ -40,15 +40,14 @@ jobs:
       fail-fast: false
       matrix:
         client: ${{ fromJSON(needs.clients.outputs.clients) }}
-    # One environment per client holds that client's deploy key; environments
-    # only accept the main branch, so pull-request code can never read it.
+    # One environment per client: deployment history now, required reviewers
+    # for production clients later.
     environment: client-${{ matrix.client }}
     runs-on: [self-hosted, praxis]
     env:
-      PRAXIS_ELASTIC_LAB_ES_URL: ${{ vars.PRAXIS_ELASTIC_LAB_ES_URL }}
-      PRAXIS_ELASTIC_LAB_KIBANA_URL: ${{ vars.PRAXIS_ELASTIC_LAB_KIBANA_URL }}
-      PRAXIS_ELASTIC_LAB_CA_CERT: ${{ vars.PRAXIS_ELASTIC_LAB_CA_CERT }}
-      PRAXIS_ELASTIC_LAB_DEPLOY_API_KEY: ${{ secrets.PRAXIS_ELASTIC_LAB_DEPLOY_API_KEY }}
+      # Each client's deploy key lives in its own file on the runner. Deploy
+      # credentials are never stored in GitHub.
+      PRAXIS_ENV_FILE: /etc/praxis/deploy/${{ matrix.client }}.env
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3

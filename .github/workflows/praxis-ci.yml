@@ -63,10 +63,8 @@ jobs:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, praxis]
     env:
-      PRAXIS_ELASTIC_LAB_ES_URL: ${{ vars.PRAXIS_ELASTIC_LAB_ES_URL }}
-      PRAXIS_ELASTIC_LAB_KIBANA_URL: ${{ vars.PRAXIS_ELASTIC_LAB_KIBANA_URL }}
-      PRAXIS_ELASTIC_LAB_CA_CERT: ${{ vars.PRAXIS_ELASTIC_LAB_CA_CERT }}
-      PRAXIS_ELASTIC_LAB_LAB_API_KEY: ${{ secrets.PRAXIS_ELASTIC_LAB_LAB_API_KEY }}
+      # The lab connection and key live in a file on the runner, not in GitHub.
+      PRAXIS_ENV_FILE: /etc/praxis/lab.env
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3

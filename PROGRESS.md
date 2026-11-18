@@ -48,7 +48,7 @@ Gate: *a merged PR deploys a tested rule to local ELK.*
 | 2026-11-18 | Envelopes are built as Python dicts, not Jinja templates. | The Kibana envelope is JSON; building it as data is safer than templating text. Revisit for Splunk `.conf` in Phase 5. |
 | 2026-11-18 | Content stays in `content/` in this repo for now; its location comes from `praxis.toml` / `PRAXIS_CONTENT_DIR`. | CLAUDE.md rule; lets it move to `praxis-content` later with a settings change only. |
 | 2026-11-18 | Licence: Apache-2.0. | PLAN.md's suggested default for adoption. |
-| 2026-11-18 | Deploy keys live in GitHub environment secrets (one environment per client, main branch only); the lab key is a repo secret. All SIEM traffic still comes from the self-hosted runner. | PLAN.md says deploy creds exist only on the runner, but a file on the runner would be readable by pull-request jobs on the same machine. Environment secrets are only handed to jobs on main. |
+| 2026-11-18 | SIEM keys live in files on the self-hosted runner (`/etc/praxis/lab.env`, `/etc/praxis/deploy/<client>.env`), loaded through `PRAXIS_ENV_FILE`. Nothing secret is stored in GitHub. | Matches PLAN.md (deploy creds exist only on the runner) and keeps SIEM credentials off third-party services. Known limit: lab and deploy jobs share one runner user, so a collaborator's pull-request job could read the deploy files; see Open problems. |
 | 2026-11-18 | Self-hosted runner jobs are skipped for pull requests from forks, and fork workflows need approval. | The repo is public; fork code must never run on the server. |
 | 2026-11-18 | Kibana and Elasticsearch listen on localhost only on the server. | Safe default; reach Kibana through an SSH tunnel (`ssh -L 5601:localhost:5601 <server>`). |
 | 2026-11-18 | Fleet Server and Elastic Agent are not deployed yet. | Not needed for the Phase 0 gate; lab telemetry is replayed test events. Revisit in Phase 2 (visibility). |
@@ -56,7 +56,7 @@ Gate: *a merged PR deploys a tested rule to local ELK.*
 
 ## Open problems
 
-- None blocking.
+- Runner isolation: lab (pull request) and deploy (main) jobs run as the same user on one runner. Only repo collaborators can start jobs there, but a stricter split (separate runner users or ephemeral runners) is worth doing before any real client is connected.
 
 ## Gate evidence
 

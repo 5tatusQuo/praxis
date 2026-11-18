@@ -13,7 +13,7 @@ from rich.table import Table
 
 from praxis import core
 from praxis.platforms import get_platform
-from praxis.settings import get_settings
+from praxis.settings import get_settings, load_env_files
 
 app = typer.Typer(no_args_is_help=True, help="PRAXIS: detection engineering platform.")
 lab_app = typer.Typer(no_args_is_help=True, help="Lab SIEM: replay test events.")
@@ -22,6 +22,11 @@ app.add_typer(lab_app, name="lab")
 app.add_typer(admin_app, name="admin")
 console = Console()
 err = Console(stderr=True)
+
+
+@app.callback()
+def _main() -> None:
+    load_env_files()
 
 
 def _repo(strict: bool = True):
