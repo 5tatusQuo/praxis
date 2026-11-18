@@ -5,7 +5,7 @@ is the state of the build.
 
 ## Current phase
 
-**Phase 2 · Visibility and gaps** — in progress. Phases 0 and 1 passed on 2026-11-18.
+**Phase 3 · AI agents** — next. Phases 0, 1 and 2 passed on 2026-11-18.
 
 ## Phase 2 plan
 
@@ -111,3 +111,25 @@ Gate: *coverage snapshot matches a manual audit of one client.*
   `globex` 1 alert, parent `mdcollect.exe`, severity `critical`;
   `acme` 4 alerts, parents `cmd.exe` and `powershell.exe` only, severity
   `high`. The tuned event was suppressed for `acme` while its rule kept firing.
+
+### Phase 2 — coverage snapshot matches a manual audit of one client (passed 2026-11-18)
+
+- PR https://github.com/5tatusQuo/praxis/pull/4; CD run
+  https://github.com/5tatusQuo/praxis/actions/runs/44213526191 deployed
+  PRX-000003 to both clients and stored snapshots 3 (acme) and 4 (globex).
+- Audit of `acme`: `docs/audits/2026-11-18-phase-2-acme.md`. An independent
+  script (`docs/audits/audit-client.sh`: raw `curl` to Elasticsearch and
+  Kibana, rules applied in `jq`, no code shared with the engine) reproduced
+  the snapshot exactly: 6 of 6 component scores, 3 of 3 rule statuses, and
+  the class of 706 of 706 techniques (5 covered, 2 blind rule, 527 detection
+  gap, 172 visibility gap).
+- The lab scenario came out as designed: registry source silent, so
+  PRX-000003 is a blind rule for `acme` and healthy for `globex`.
+- Nightly workflow run by hand,
+  https://github.com/5tatusQuo/praxis/actions/runs/44213800359: telemetry
+  top-up, snapshots 5 and 6 stored, drift check "the SIEM matches packs.lock"
+  for both clients, expiry check clean.
+- Dashboard checked in a headless browser against the live API: Fleet and
+  client overview render the snapshot (heatmap, gaps, silent-source warning).
+- Limit: the audit was scripted by the same author as the engine. The raw
+  facts table in the audit document is small enough to check by eye.
