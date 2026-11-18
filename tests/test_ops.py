@@ -29,6 +29,7 @@ def test_sector_add_checks_group_ids(base):
     assert core.validate(core.load_repo(base)) == []
     with pytest.raises(ops.OpsError, match="already has a threat profile"):
         ops.sector_add(base, "construction", "Again.", ["G1024"])
+    assert "context" in ops.attack_groups("akira")[0]
     (akira,) = ops.attack_groups("akira")
     assert (akira["id"], akira["name"], akira["matched"]) == ("G1024", "Akira", "name")
     by_sector = ops.attack_groups("construction")

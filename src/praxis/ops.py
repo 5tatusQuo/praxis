@@ -457,7 +457,7 @@ def status(content_dir: Path) -> dict[str, Any]:
             "next_detection_id": next_detection_id(content_dir),
             "content_packs": {p.id: p.detections for p in repo.packs.values()},
             "sectors": sorted(repo.threat_profiles),
-            "rule_packs": {p.id: p.status for p in repo.rule_packs.values()},
+            "rule_packs": {p.id: _pack_state(repo, p.id) for p in repo.rule_packs.values()},
             "hunts": sorted(repo.hunts),
         },
         "clients": {
