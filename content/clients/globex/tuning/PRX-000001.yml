@@ -1,0 +1,11 @@
+rule: PRX-000001
+reason: >-
+  Globex treats any LSASS dump as a tier-0 incident: trading-floor hosts hold
+  privileged sessions, so this alert pages the on-call lead and runs every minute.
+evidence: ["SOC-77"]
+author: human:detection-engineering
+severity: critical
+risk_score: 99
+schedule:
+  interval: 1m
+  lookback: 2m

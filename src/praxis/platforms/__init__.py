@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from praxis.platforms.base import (
     CaseResult,
+    ConnectionCheck,
     DeployAction,
-    LabResult,
     Platform,
     RenderedRule,
     SmokeResult,
@@ -40,8 +40,8 @@ def implementation_files() -> dict[str, tuple[str, str]]:
 
 __all__ = [
     "CaseResult",
+    "ConnectionCheck",
     "DeployAction",
-    "LabResult",
     "Platform",
     "RenderedRule",
     "SmokeResult",

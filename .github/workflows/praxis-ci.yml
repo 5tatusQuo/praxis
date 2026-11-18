@@ -49,6 +49,8 @@ jobs:
           else
             uv run praxis validate
           fi
+      - name: packs.lock pins exactly what would deploy
+        run: uv run praxis lock --check
       - name: Render every client
         run: uv run praxis render --out rendered
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

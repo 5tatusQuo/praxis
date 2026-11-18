@@ -19,15 +19,27 @@ content/                       the detections PRAXIS deploys (clients are fictio
   detections/PRX-000001-*/     detection.yml, README.md, elastic.eql, tests/
   content-packs/               standing groups of detections clients subscribe to
   clients/<id>/client.yml      a client's SIEM, sector and subscribed packs
+  clients/<id>/tuning/         that client's tuning, one file per detection
+  clients/<id>/packs.lock      exact rule versions and hashes the client runs
 src/praxis/                    the platform: schemas, renderers, lab tests, deploy, CLI
 deploy/                        Docker Compose for the stack and server setup
 .github/workflows/             CI on every pull request, CD on merge
 ```
 
 A pull request is validated (schemas, docs template, ATT&CK ids), rendered for
-every client, and its test events are replayed in a lab Elastic: positives must
-fire and negatives must stay quiet. Merging deploys the rendered rules to each
-client's Kibana space and checks that every rule's first run succeeded.
+every client with that client's tuning, and its test events are replayed in a
+lab Elastic: positives must fire and negatives must stay quiet. Merging deploys
+the rendered rules to each client's Kibana space and checks that every rule's
+first run succeeded.
+
+**Tuning without forks.** A client never gets its own copy of a detection. It
+gets a small tuning file (`clients/<id>/tuning/<rule>.yml`) with a closed set
+of operations: exclude, severity, schedule, disable. Exclusions render to an
+exception list on that client's rule only. Each one must cite evidence and
+carry an example event, and the lab proves two things on every pull request:
+the example is silenced, and every positive test still fires.
+`clients/<id>/packs.lock` pins the exact hash of every rule a client runs; CD
+deploys nothing the lock does not pin.
 
 ## Quick start
 
@@ -37,6 +49,7 @@ You need [uv](https://docs.astral.sh/uv/) and, for the stack, Docker.
 uv sync
 uv run praxis validate            # schemas, README template, ATT&CK ids, tuning hooks
 uv run praxis render              # platform envelopes for every client
+uv run praxis lock                # refresh packs.lock after changing content
 uv run pytest
 ```
 

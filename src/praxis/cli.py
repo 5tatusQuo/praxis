@@ -95,15 +95,22 @@ def render(
     """Render the platform envelope for every client x platform x detection."""
     repo = _repo()
     targets = [_client(repo, client_id)] if client_id else list(repo.clients.values())
-    table = Table("client", "platform", "detection", "hash")
+    table = Table("client", "platform", "detection", "tuning", "hash")
     for client in targets:
         for platform_name in client.platforms.enabled():
             for rule in core.render_client(repo, client, platform_name):
-                table.add_row(client.id, platform_name, rule.detection_id, rule.content_hash[:16])
+                table.add_row(
+                    client.id,
+                    platform_name,
+                    rule.detection_id,
+                    "tuned" if rule.tuning_digest else "",
+                    rule.content_hash[:16],
+                )
                 if out:
                     path = out / client.id / platform_name / f"{rule.detection_id}.json"
                     path.parent.mkdir(parents=True, exist_ok=True)
-                    path.write_text(json.dumps(rule.envelope, indent=2) + "\n")
+                    rendered = {"rule": rule.envelope, **rule.extras}
+                    path.write_text(json.dumps(rendered, indent=2) + "\n")
     console.print(table)
 
 
@@ -111,28 +118,27 @@ def render(
 def lab_test(
     detection_ids: Annotated[list[str] | None, typer.Argument()] = None,
 ) -> None:
-    """Replay each detection's test events in the lab SIEM; positives must fire."""
+    """Replay test events in the lab SIEM, raw and under every client's tuning."""
     repo = _repo()
     wanted = detection_ids or sorted(repo.detections)
     failed = False
-    table = Table("detection", "platform", "case", "expected", "fired", "result")
+    table = Table("detection", "platform", "scope", "case", "expected", "fired", "result")
     for det_id in wanted:
         bundle = repo.detections.get(det_id)
         if bundle is None:
             err.print(f"[red]unknown detection {det_id}[/red]")
             raise typer.Exit(2)
-        for platform_name in bundle.implementations:
-            result = get_platform(platform_name).lab_test(bundle)
-            failed |= not result.passed
-            for case in result.cases:
-                table.add_row(
-                    det_id,
-                    platform_name,
-                    case.name,
-                    "fire" if case.kind == "positive" else "stay quiet",
-                    "error" if case.error else ("yes" if case.fired else "no"),
-                    "[green]pass[/green]" if case.passed else f"[red]FAIL[/red] {case.error or ''}",
-                )
+        for case in core.lab_test(repo, bundle):
+            failed |= not case.passed
+            table.add_row(
+                det_id,
+                case.platform,
+                case.scope,
+                case.name,
+                "fire" if case.expected else "stay quiet",
+                "error" if case.error else ("yes" if case.fired else "no"),
+                "[green]pass[/green]" if case.passed else f"[red]FAIL[/red] {case.error or ''}",
+            )
     console.print(table)
     if failed:
         raise typer.Exit(1)
@@ -142,16 +148,68 @@ def lab_test(
 def lab_replay(
     detection_id: str,
     client_id: Annotated[str, typer.Option("--client")],
-    kind: Annotated[str, typer.Option(help="positive or negative")] = "positive",
+    kind: Annotated[
+        str, typer.Option(help="positive, negative, or examples (the client's tuning examples)")
+    ] = "positive",
+    from_client: Annotated[
+        str | None,
+        typer.Option(help="With --kind examples: replay another client's tuning examples."),
+    ] = None,
 ) -> None:
     """Write a detection's test events into a fictional client's telemetry."""
     repo = _repo()
     client = _client(repo, client_id)
     bundle = repo.detections[detection_id]
     for platform_name in client.platforms.enabled():
-        if platform_name in bundle.implementations:
-            count = get_platform(platform_name).replay(bundle, client, kind)
-            console.print(f"{platform_name}: wrote {count} {kind} events for {client.id}")
+        if platform_name not in bundle.implementations:
+            continue
+        if kind == "examples":
+            source = _client(repo, from_client) if from_client else client
+            events = repo.tuning_examples(detection_id, source, platform_name)
+        else:
+            cases = bundle.positive if kind == "positive" else bundle.negative
+            events = [event for case in cases for event in case.events]
+        count = get_platform(platform_name).replay(bundle, client, events)
+        console.print(f"{platform_name}: wrote {count} {kind} events for {client.id}")
+
+
+@app.command()
+def lock(
+    check: Annotated[bool, typer.Option(help="Fail if any packs.lock is out of date.")] = False,
+) -> None:
+    """Write each client's packs.lock: the exact rule versions and hashes it runs."""
+    repo = _repo()
+    stale = []
+    for client in repo.clients.values():
+        if check:
+            if not core.lock_is_current(repo, client):
+                stale.append(client.id)
+        else:
+            console.print(f"wrote {core.write_lock(repo, client)}")
+    if stale:
+        err.print(
+            f"[red]packs.lock is out of date for: {', '.join(stale)}[/red]; run `praxis lock`"
+        )
+        raise typer.Exit(1)
+    if check:
+        console.print("[green]ok[/green] every packs.lock matches the render")
+
+
+@app.command("connection")
+def connection_check(client_id: str) -> None:
+    """Connect mode: check a client's read and deploy identities against its SIEMs."""
+    repo = _repo()
+    client = _client(repo, client_id)
+    failed = False
+    table = Table("platform", "identity", "result", "detail")
+    for platform_name in client.platforms.enabled():
+        for check in get_platform(platform_name).check_connection(client):
+            failed |= not check.ok
+            result = "[green]ok[/green]" if check.ok else "[red]FAIL[/red]"
+            table.add_row(platform_name, check.role, result, check.detail)
+    console.print(table)
+    if failed:
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -165,6 +223,9 @@ def release(
         err.print("[red]content does not validate; run `praxis validate`[/red]")
         raise typer.Exit(1)
     client = _client(repo, client_id)
+    if not core.lock_is_current(repo, client):
+        err.print(f"[red]{client.id}/packs.lock does not pin this render; run `praxis lock`[/red]")
+        raise typer.Exit(1)
     failed = False
     for platform_name in client.platforms.enabled():
         platform = get_platform(platform_name)
