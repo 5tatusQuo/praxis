@@ -1,0 +1,4 @@
+self-hosted-runner:
+  # Label of the runner on the deployment server (deploy/server/install-runner.sh).
+  labels:
+    - praxis
