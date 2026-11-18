@@ -1,0 +1,3 @@
+process where host.os.type == "windows" and event.type == "start" and
+  (process.name : "pcalua.exe" or ?process.pe.original_file_name : "pcalua.exe") and
+  process.command_line : ("* -a*", "*\t-a*")

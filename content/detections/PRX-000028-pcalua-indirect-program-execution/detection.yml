@@ -1,0 +1,33 @@
+id: PRX-000028
+name: Program compatibility assistant used for execution
+intent: Detects the program compatibility assistant starting with an execution option, which
+  attackers can use to bypass application controls.
+version: 1
+lifecycle: staged
+owner: ai:platform-engineer-elastic
+severity: medium
+risk_score: 47
+attack:
+- technique: T1059
+  tactic: TA0002
+data_components:
+- Process Creation
+pyramid_tier: ttp
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.process-*
+    - logs-windows.sysmon_operational-*
+provenance:
+  source: sigmahq
+  upstream_id: 0955e4e1-c281-4fb9-9ee1-5ee7b4b754d2
+  upstream_commit: 088855f00b65a19e345b09c1619272b44f92fea4
+  upstream_author: Nasreddine Bencherchali (Nextron Systems), E.M. Anhaus (originally from
+    Atomic Blue Detections, Endgame), oscd.community
+  licence: DRL-1.1
+references:
+- https://lolbas-project.github.io/lolbas/Binaries/Pcalua/
+- https://pentestlab.blog/2020/07/06/indirect-command-execution/
+false_positives:
+- Administrators or installation scripts that use the compatibility assistant to start approved
+  programs.

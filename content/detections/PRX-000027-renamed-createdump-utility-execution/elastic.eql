@@ -1,0 +1,4 @@
+process where host.os.type == "windows" and event.type == "start" and
+  ?process.pe.original_file_name : ("FX_VER_INTERNALNAME_STR", "createdump.exe") and
+  ?process.executable != null and
+  not ?process.executable : "*\\createdump.exe"

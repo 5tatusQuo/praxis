@@ -1,0 +1,24 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "task.exe",
+    "executable": "C:\\Temp\\task.exe",
+    "command_line": "C:\\Temp\\task.exe -u -f C:\\Temp\\memory.dmp 712",
+    "pe": {
+      "original_file_name": "FX_VER_INTERNALNAME_STR"
+    }
+  }
+}

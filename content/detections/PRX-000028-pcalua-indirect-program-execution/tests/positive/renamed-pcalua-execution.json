@@ -1,0 +1,23 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "helper.exe",
+    "pe": {
+      "original_file_name": "PCALUA.EXE"
+    },
+    "command_line": "helper.exe -a cmd.exe -c /c whoami"
+  }
+}

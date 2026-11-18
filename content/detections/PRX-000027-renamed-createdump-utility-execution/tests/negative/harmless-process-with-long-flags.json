@@ -1,0 +1,21 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "report.exe",
+    "executable": "C:\\Tools\\report.exe",
+    "command_line": "report.exe --full --name report.dmp"
+  }
+}

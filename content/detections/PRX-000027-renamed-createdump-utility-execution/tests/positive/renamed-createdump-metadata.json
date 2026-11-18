@@ -1,0 +1,24 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "helper.exe",
+    "executable": "C:\\Temp\\helper.exe",
+    "command_line": "helper.exe --full --name C:\\Temp\\dump.bin 712",
+    "pe": {
+      "original_file_name": "CreateDump.exe"
+    }
+  }
+}
