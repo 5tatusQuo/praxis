@@ -1,0 +1,13 @@
+id: stonebridge
+name: Stonebridge Engineering (fictional)
+sector: construction
+fictional: true
+assets:
+  endpoints: 60
+platforms:
+  elastic:
+    connection: lab
+    space: stonebridge
+    namespace: stonebridge
+packs:
+- baseline
