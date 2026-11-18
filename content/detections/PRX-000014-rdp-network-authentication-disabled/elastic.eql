@@ -1,0 +1,10 @@
+registry where host.os.type == "windows" and
+  event.type : ("creation", "change") and
+  ?registry.path : (
+    "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp\\UserAuthentication",
+    "HKLM\\SYSTEM\\ControlSet???\\Control\\Terminal Server\\WinStations\\RDP-Tcp\\UserAuthentication",
+    "\\REGISTRY\\MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp\\UserAuthentication",
+    "\\REGISTRY\\MACHINE\\SYSTEM\\ControlSet???\\Control\\Terminal Server\\WinStations\\RDP-Tcp\\UserAuthentication",
+    "MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp\\UserAuthentication",
+    "MACHINE\\SYSTEM\\ControlSet???\\Control\\Terminal Server\\WinStations\\RDP-Tcp\\UserAuthentication"
+  ) and ?registry.data.strings : ("0", "0x00000000")

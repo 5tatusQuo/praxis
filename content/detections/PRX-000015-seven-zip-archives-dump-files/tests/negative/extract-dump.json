@@ -1,0 +1,26 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "7z.exe",
+    "args": [
+      "7z.exe",
+      "x",
+      "out.7z",
+      "app.dmp"
+    ],
+    "command_line": "7z.exe x out.7z app.dmp"
+  }
+}

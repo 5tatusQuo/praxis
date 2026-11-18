@@ -1,0 +1,25 @@
+{
+  "@timestamp": "2026-01-01T00:01:02Z",
+  "event": {
+    "category": [
+      "registry"
+    ],
+    "type": [
+      "deletion"
+    ],
+    "action": "deletion"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "registry": {
+    "path": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp\\UserAuthentication",
+    "data": {
+      "strings": [
+        "0"
+      ]
+    }
+  }
+}

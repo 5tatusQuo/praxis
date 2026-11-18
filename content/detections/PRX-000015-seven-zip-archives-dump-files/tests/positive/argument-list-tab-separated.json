@@ -1,0 +1,26 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "7zr.exe",
+    "args": [
+      "7zr.exe",
+      "a",
+      "out.7z",
+      "C:\\Temp\\app.dump"
+    ],
+    "command_line": "7zr.exe\ta\tout.7z\tC:\\Temp\\app.dump"
+  }
+}

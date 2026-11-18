@@ -1,0 +1,34 @@
+id: PRX-000014
+name: RDP network authentication disabled
+intent: Detects registry writes that disable authentication before an RDP session, which can
+  expose the sign-in screen to attackers.
+version: 1
+lifecycle: staged
+owner: ai:platform-engineer-elastic
+severity: medium
+risk_score: 47
+attack:
+- technique: T1021.001
+  tactic: TA0008
+- technique: T1112
+  tactic: TA0112
+data_components:
+- Windows Registry Key Modification
+pyramid_tier: ttp
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.registry-*
+    - logs-m365_defender.event-*
+    - logs-windows.sysmon_operational-*
+provenance:
+  source: elastic
+  upstream_id: db65f5ba-d1ef-4944-b9e8-7e51060c2b42
+  upstream_commit: c678d34edbaa6a98db56ab575334b6ad233422a0
+  upstream_author: Elastic
+  licence: Elastic-2.0
+references:
+- https://github.com/elastic/detection-rules/blob/c678d34edbaa6a98db56ab575334b6ad233422a0/rules/windows/defense_evasion_disable_nla.toml
+- https://www.microsoft.com/en-us/security/blog/2023/08/24/flax-typhoon-using-legitimate-software-to-quietly-access-taiwanese-organizations/
+false_positives:
+- Approved compatibility changes can disable authentication before an RDP session.

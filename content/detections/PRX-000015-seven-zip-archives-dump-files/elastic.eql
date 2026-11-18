@@ -1,0 +1,6 @@
+process where host.os.type == "windows" and event.type == "start" and
+  (process.name : ("7z.exe", "7za.exe", "7zr.exe") or
+   ?process.pe.original_file_name : ("7z.exe", "7za.exe", "7zr.exe") or
+   ?process.pe.description : "*7-Zip*") and
+  (process.command_line : ("* a *", "* u *") or ?process.args : ("a", "u")) and
+  process.command_line : ("*.dmp", "*.dmp *", "*.dmp\"*", "*.dump", "*.dump *", "*.dump\"*", "*.hdmp", "*.hdmp *", "*.hdmp\"*")
