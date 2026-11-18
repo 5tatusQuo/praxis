@@ -1,0 +1,24 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "CREATEDUMP.EXE",
+    "executable": "C:\\Program Files\\dotnet\\CREATEDUMP.EXE",
+    "command_line": "createdump.exe -u -f C:\\Temp\\memory.dmp 712",
+    "pe": {
+      "original_file_name": "FX_VER_INTERNALNAME_STR"
+    }
+  }
+}

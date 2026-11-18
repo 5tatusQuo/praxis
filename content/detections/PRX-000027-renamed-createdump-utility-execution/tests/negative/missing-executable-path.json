@@ -1,0 +1,22 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "helper.exe",
+    "pe": {
+      "original_file_name": "FX_VER_INTERNALNAME_STR"
+    }
+  }
+}

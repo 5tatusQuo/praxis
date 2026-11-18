@@ -1,0 +1,24 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "python.exe",
+    "executable": "C:\\Python\\python.exe",
+    "command_line": "python.exe report.py -u user -f report.dmp",
+    "pe": {
+      "original_file_name": "python.exe"
+    }
+  }
+}

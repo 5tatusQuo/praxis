@@ -1,0 +1,23 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "end"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "helper.exe",
+    "executable": "C:\\Temp\\helper.exe",
+    "pe": {
+      "original_file_name": "FX_VER_INTERNALNAME_STR"
+    }
+  }
+}

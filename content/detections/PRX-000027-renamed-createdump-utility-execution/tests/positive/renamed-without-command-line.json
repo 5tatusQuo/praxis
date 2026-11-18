@@ -1,0 +1,23 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "HELPER.EXE",
+    "executable": "C:\\Temp\\HELPER.EXE",
+    "pe": {
+      "original_file_name": "fx_ver_internalname_str"
+    }
+  }
+}

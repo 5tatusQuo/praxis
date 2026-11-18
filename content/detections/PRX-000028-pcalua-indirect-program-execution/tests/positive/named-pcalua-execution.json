@@ -1,0 +1,20 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "pcalua.exe",
+    "command_line": "pcalua.exe -a C:\\Users\\Public\\payload.exe"
+  }
+}

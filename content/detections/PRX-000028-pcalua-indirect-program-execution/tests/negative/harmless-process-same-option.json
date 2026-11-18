@@ -1,0 +1,20 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "echo.exe",
+    "command_line": "echo.exe -a cmd.exe"
+  }
+}
