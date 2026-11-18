@@ -1,0 +1,24 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "end"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "WerFault.exe",
+    "args": [
+      "WerFault.exe",
+      "-pr"
+    ],
+    "command_line": "WerFault.exe -pr"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "@timestamp": "2026-11-01T11:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "rundll32.exe",
+    "command_line": "rundll32.exe shell32.dll,Control_RunDLL appwiz.cpl"
+  }
+}

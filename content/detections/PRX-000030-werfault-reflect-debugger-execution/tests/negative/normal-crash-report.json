@@ -1,0 +1,31 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "WerFault.exe",
+    "pe": {
+      "original_file_name": "WerFault.exe"
+    },
+    "args": [
+      "WerFault.exe",
+      "-u",
+      "-p",
+      "1234",
+      "-s",
+      "56"
+    ],
+    "command_line": "WerFault.exe -u -p 1234 -s 56"
+  }
+}

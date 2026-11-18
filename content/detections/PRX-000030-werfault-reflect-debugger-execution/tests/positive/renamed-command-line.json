@@ -1,0 +1,23 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "report.exe",
+    "pe": {
+      "original_file_name": "WERFAULT.EXE"
+    },
+    "command_line": "report.exe -PR 1234"
+  }
+}
