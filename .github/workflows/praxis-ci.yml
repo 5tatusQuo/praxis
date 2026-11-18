@@ -24,6 +24,16 @@ jobs:
         run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git /repo --redact --no-banner
       - name: Workflow lint (actionlint)
         run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -color
+      - name: Helm chart lint
+        run: >
+          docker run --rm -v "$PWD/deploy/helm:/charts" alpine/helm:3.19.0 lint /charts/praxis
+          --set secrets.create=true --set secrets.apiToken=x --set postgres.password=y
+      - name: Terraform format and validate (AWS module)
+        run: |
+          tf() { docker run --rm -v "$PWD/deploy/terraform/aws:/tf" -w /tf hashicorp/terraform:1.14 "$@"; }
+          tf fmt -check -diff
+          tf init -backend=false -input=false > /dev/null
+          tf validate
 
   validate:
     name: Validate, test and render

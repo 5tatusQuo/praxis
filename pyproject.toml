@@ -39,7 +39,10 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
-ignore = ["B008"]  # Typer uses function calls in defaults
+ignore = [
+    "B008",  # Typer uses function calls in defaults
+    "E501",  # the formatter wraps what it can; long strings may stay long
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

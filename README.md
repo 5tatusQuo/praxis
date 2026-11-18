@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/brand/praxis-mark.svg" alt="PRAXIS" width="360"></p>
+
 # PRAXIS
 
 *Putting theory into practice: turning detection logic into production rules.*
@@ -111,6 +113,15 @@ deploy/with-server.sh uv run praxis tune PRX-000002 --client globex
 The dashboard listens on port 3000 of the server, on localhost only. Reach it
 through an SSH tunnel: `ssh -L 3000:localhost:3000 <server>`, then open
 http://localhost:3000.
+
+## Documentation
+
+- [PLAN.md](PLAN.md): architecture and roadmap.
+- [PROGRESS.md](PROGRESS.md): what is built, the evidence for each gate, and what is still open.
+- [docs/deploying.md](docs/deploying.md): one server with Docker Compose, Kubernetes with Helm, AWS with Terraform.
+- [docs/agents.md](docs/agents.md): what each agent does, what code decides for them, and how to run them.
+- [docs/visibility-scoring.md](docs/visibility-scoring.md): how visibility is scored and gaps are classified.
+- [docs/brand](docs/brand/README.md): the mark, palette and type.
 
 ## Credits
 

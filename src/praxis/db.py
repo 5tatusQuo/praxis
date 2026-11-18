@@ -227,3 +227,26 @@ def audit_log(
         (client_id, client_id, min(limit, 1000)),
     ).fetchall()
     return [{**row, "at": row["at"].isoformat()} for row in rows]
+
+
+# -- hunts -----------------------------------------------------------------------
+def save_hunt(conn: psycopg.Connection, hunt: dict, pr_url: str | None) -> None:
+    conn.execute(
+        "INSERT INTO hunts (id, prompt, clients, pr_url, body) VALUES (%s, %s, %s, %s, %s) "
+        "ON CONFLICT (id) DO UPDATE SET pr_url = EXCLUDED.pr_url, body = EXCLUDED.body",
+        (hunt["id"], hunt["prompt"], hunt["clients"], pr_url, json.dumps(hunt)),
+    )
+    conn.commit()
+
+
+def list_hunts(conn: psycopg.Connection) -> list[dict[str, Any]]:
+    rows = conn.execute(
+        "SELECT id, prompt, clients, pr_url, created_at, "
+        "jsonb_array_length(body->'hypotheses') AS hypotheses FROM hunts ORDER BY created_at DESC"
+    ).fetchall()
+    return [{**row, "created_at": row["created_at"].isoformat()} for row in rows]
+
+
+def get_hunt(conn: psycopg.Connection, hunt_id: str) -> dict | None:
+    row = conn.execute("SELECT body, pr_url FROM hunts WHERE id = %s", (hunt_id,)).fetchone()
+    return {**row["body"], "pr_url": row["pr_url"]} if row else None

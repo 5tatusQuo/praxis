@@ -32,6 +32,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/packs" className="hover:text-fog">
                 Rule packs
               </Link>
+              <Link href="/hunts" className="hover:text-fog">
+                Hunts
+              </Link>
               <Link href="/audit" className="hover:text-fog">
                 Audit
               </Link>

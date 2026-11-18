@@ -426,3 +426,74 @@ def test_mcp_server_exposes_the_same_tools(world):
     names = set(box.tools())
     assert {"get_coverage", "search_catalog", "score_rule", "run_tests", "backtest"} <= names
     assert "deploy" not in " ".join(names), "no tool can deploy"
+
+
+# -- hunts ---------------------------------------------------------------------------
+def test_hunt_records_what_code_measured(world):
+    from praxis.agents import hunt as hunts
+
+    query = 'process where process.name : "powershell.exe"'
+    indices = ["logs-endpoint.events.process-*"]
+    llm = ScriptedLLM(
+        {
+            "hunt-planner": [
+                ("tool", "attack_group", {"name": "FIN7"}),
+                (
+                    "tool",
+                    "run_hunt_query",
+                    {"client": "testco", "query": query, "indices": indices},
+                ),
+                (
+                    "answer",
+                    {
+                        "summary": "One lead.",
+                        "hypotheses": [
+                            {
+                                "title": "PowerShell used for staging",
+                                "technique": "T1059.001",
+                                "rationale": "FIN7 uses it.",
+                                "query": query,
+                                "indices": indices,
+                                "assessment": "Three hits, all from one admin host.",
+                                "durable": True,
+                            },
+                            {
+                                "title": "Never run",
+                                "technique": "T1490",
+                                "rationale": "x",
+                                "query": "process where true",
+                                "indices": indices,
+                                "assessment": "Claimed 99 hits.",
+                                "durable": False,
+                            },
+                        ],
+                    },
+                ),
+            ]
+        }
+    )
+    hunt, trail = hunts.run_hunt(world["content"], "FIN7 against retail", ["testco"], llm)
+    first, second = hunt["hypotheses"]
+    assert first["results"] == {"testco": {"hits": 3, "days": 30}} and first["tested"]
+    assert second["results"] == {} and not second["tested"], "a query that never ran has no result"
+    repo = core.load_repo(world["content"])
+    assert core.validate(repo) == [] and hunt["id"] in repo.hunts
+    group = next(s for s in llm.seen if s.get("tool") == "attack_group")
+    assert "G0046" in group["result"]
+    body = hunts.report(hunt)
+    assert "testco: 3" in body and "not tested" in body and "1 hypothesis(es) look durable" in body
+
+
+def test_hunt_scope_and_client_selection(world):
+    from praxis.agents import hunt as hunts
+
+    repo = core.load_repo(world["content"])
+    assert hunts.select_clients(repo, None, "retail") == ["testco"]
+    with pytest.raises(AgentError, match="unknown clients"):
+        hunts.select_clients(repo, ["nope"], None)
+    box = Toolbox(world["content"], None, scope={"testco"})
+    text, failed = box.call(
+        "run_hunt_query",
+        {"client": "other", "query": "process where true", "indices": ["logs-x-*"]},
+    )
+    assert failed and "scoped to clients" in text

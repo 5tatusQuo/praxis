@@ -214,3 +214,16 @@ class RulePack(Strict):
         if len(self.picks) > self.budget:
             raise ValueError(f"{len(self.picks)} picks exceed the budget of {self.budget}")
         return self
+
+
+class Hunt(Strict):
+    """A threat-driven hunt: hypotheses, the queries that ran and what they found."""
+
+    id: str
+    prompt: str
+    created: date
+    clients: list[Slug] = Field(min_length=1)
+    summary: str
+    hypotheses: list[dict]
+    agents: dict = {}
+    usage: dict = {}

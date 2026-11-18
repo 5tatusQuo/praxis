@@ -79,6 +79,10 @@ class Toolbox:
     audit: Audit = lambda action, detail: None
     # Detections written in this session; only these may be overwritten.
     created: set[str] = field(default_factory=set)
+    # For a hunt across several clients: the only clients the session may touch.
+    scope: set[str] | None = None
+    # (client, query) -> result of every hunt query that ran, as measured by code.
+    hunt_results: dict[tuple[str, str], dict[str, Any]] = field(default_factory=dict)
 
     # -- plumbing ------------------------------------------------------------
     def _repo(self):
@@ -88,6 +92,8 @@ class Toolbox:
         wanted = client_id or self.client_id
         if self.client_id and wanted != self.client_id:
             raise ToolError(f"this session is scoped to client {self.client_id!r}")
+        if self.scope is not None and wanted not in self.scope:
+            raise ToolError(f"this session is scoped to clients {sorted(self.scope)}")
         client = repo.clients.get(wanted or "")
         if client is None:
             raise ToolError(f"unknown client {wanted!r}; known: {sorted(repo.clients)}")
@@ -324,6 +330,21 @@ class Toolbox:
                 self.propose_override,
                 writes=True,
             ),
+            Tool(
+                "attack_group",
+                "Look up a threat group in MITRE ATT&CK by name or id (e.g. 'Scattered Spider' "
+                "or G1015): its id, name and the techniques it is reported to use.",
+                _object({"name": _STRING}, ["name"]),
+                self.attack_group,
+            ),
+            Tool(
+                "run_hunt_query",
+                "Run a native query read-only over one client's last 30 days, for hunting. "
+                "Returns the hit count and up to 5 redacted sample events. The result is "
+                "recorded against the hunt.",
+                _object({**client, **query, **indices}, ["client", "query", "indices"]),
+                self.run_hunt_query,
+            ),
         ]
         return {tool.name: tool for tool in defined}
 
@@ -467,6 +488,40 @@ class Toolbox:
     def alert_stats(self, client: str, detection_id: str) -> dict:
         target = self._client(self._repo(), client)
         return get_platform(target.platforms.enabled()[0]).alert_stats(target, detection_id)
+
+    def attack_group(self, name: str) -> dict:
+        groups = attack.bundle()["groups"]
+        wanted = name.strip().lower()
+        matches = [
+            (gid, g)
+            for gid, g in groups.items()
+            if wanted == gid.lower() or wanted in g["name"].lower()
+        ]
+        if not matches:
+            raise ToolError(f"no ATT&CK group matches {name!r}")
+        if len(matches) > 5:
+            return {"matches": [{"id": gid, "name": g["name"]} for gid, g in matches[:20]]}
+        return {
+            "matches": [
+                {
+                    "id": gid,
+                    "name": g["name"],
+                    "techniques": [
+                        {"id": t, "name": attack.technique_name(t)} for t in g["techniques"]
+                    ],
+                }
+                for gid, g in matches
+            ]
+        }
+
+    def run_hunt_query(self, client: str, query: str, indices: list[str]) -> dict:
+        target = self._client(self._repo(), client)
+        result = get_platform(target.platforms.enabled()[0]).backtest(target, query, indices)
+        self.hunt_results[(target.id, query.strip())] = {
+            "hits": result["hits"],
+            "days": result["days"],
+        }
+        return result
 
     # -- write tools -----------------------------------------------------------
     def _next_id(self, repo) -> str:

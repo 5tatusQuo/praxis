@@ -13,3 +13,6 @@ build/
 node_modules/
 .next/
 deploy/certs/
+.terraform/
+.terraform.lock.hcl
+*.tfstate*

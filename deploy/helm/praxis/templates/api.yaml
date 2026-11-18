@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-api
+  labels: {{- include "praxis.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector:
+    matchLabels: { app.kubernetes.io/component: api, app.kubernetes.io/instance: {{ .Release.Name }} }
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: api
+        {{- include "praxis.labels" . | nindent 8 }}
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 10001 }
+      containers:
+        - name: api
+          image: {{ include "praxis.image" (dict "root" . "name" "api") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports: [{ containerPort: 8000, name: http }]
+          env:
+            - name: PRAXIS_DATABASE_URL
+              valueFrom: { secretKeyRef: { name: {{ .Values.secrets.name }}, key: database-url } }
+            - name: PRAXIS_API_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ .Values.secrets.name }}, key: api-token } }
+            - name: PRAXIS_CONTENT_DIR
+              value: /content
+            {{- range $name, $value := .Values.api.env }}
+            - name: {{ $name }}
+              value: {{ $value | quote }}
+            {{- end }}
+          {{- if .Values.api.connectionSecret }}
+          envFrom:
+            - secretRef: { name: {{ .Values.api.connectionSecret }} }
+          {{- end }}
+          readinessProbe:
+            httpGet: { path: /api/health, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/health, port: http }
+            periodSeconds: 20
+          resources: {{- toYaml .Values.api.resources | nindent 12 }}
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }
+          volumeMounts:
+            - { name: content, mountPath: /content, readOnly: true }
+      volumes:
+        - name: content
+          {{- if .Values.api.contentClaim }}
+          persistentVolumeClaim: { claimName: {{ .Values.api.contentClaim }}, readOnly: true }
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-api
+  labels: {{- include "praxis.labels" . | nindent 4 }}
+spec:
+  selector: { app.kubernetes.io/component: api, app.kubernetes.io/instance: {{ .Release.Name }} }
+  ports: [{ port: 8000, targetPort: http, name: http }]
