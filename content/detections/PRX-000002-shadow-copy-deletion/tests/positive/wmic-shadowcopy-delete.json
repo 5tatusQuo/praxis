@@ -1,12 +1,32 @@
 {
-  "event": {"category": ["process"], "type": ["start"], "kind": "event"},
-  "host": {"name": "srv-lab-01", "os": {"type": "windows"}},
-  "user": {"name": "j.doe"},
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "name": "srv-lab-01",
+    "os": {
+      "type": "windows"
+    }
+  },
+  "user": {
+    "name": "j.doe"
+  },
   "process": {
     "name": "WMIC.exe",
     "pid": 4100,
     "command_line": "wmic shadowcopy delete /nointeractive",
-    "pe": {"original_file_name": "wmic.exe"},
-    "parent": {"name": "cmd.exe"}
+    "pe": {
+      "original_file_name": "wmic.exe"
+    },
+    "parent": {
+      "name": "cmd.exe"
+    },
+    "executable": "C:\\Windows\\System32\\wbem\\WMIC.exe"
   }
 }

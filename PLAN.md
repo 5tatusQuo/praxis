@@ -144,7 +144,7 @@ Overrides use a closed set of operations, so they are reviewable and machine-che
 
 | Operation | Example | Scope rule |
 | --- | --- | --- |
-| `exclude` | Parent process is the client's SCCM agent | Rendered via the tuning hook; must cite an alert or ticket |
+| `exclude` | Parent process is the client's SCCM agent | Rendered via the tuning hook; must cite an alert or ticket. Separate exclusions are alternatives; conditions under `also` narrow one exclusion |
 | `threshold` | 20 failures in 5 min instead of 10 | Numeric fields only |
 | `severity` / `risk_score` | High to medium | Logged in coverage weighting |
 | `schedule` | Interval 5m to 15m, lookback 20m | Lookback ≥ interval enforced |

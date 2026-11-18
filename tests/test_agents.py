@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+from datetime import date, timedelta
 
 import pytest
 import yaml
@@ -136,7 +137,12 @@ def world(content, tmp_path, monkeypatch):
     monkeypatch.setattr(
         platform,
         "alert_stats",
-        lambda self, client, detection_id, days=30: {"alerts": 40, "top_values": {}, "samples": []},
+        lambda self, client, detection_id, days=30: {
+            "alerts": 40,
+            "top_values": {},
+            "alert_ids": ["alert:abc123"],
+            "samples": [],
+        },
     )
     return {"content": content, "candidate": candidate.id, "snapshot": snapshot, "state": state}
 
@@ -389,8 +395,8 @@ def tuner_script(example: dict) -> ScriptedLLM:
         "client": "testco",
         "detection_id": "PRX-000900",
         "reason": "The software deployment agent launches evil.exe during patching.",
-        "evidence": ["ALERT-7"],
-        "expires": "2027-06-30",
+        "evidence": ["alert:abc123", "SOC-7"],
+        "expires": (date.today() + timedelta(days=180)).isoformat(),
         "exclude": [{"field": "process.parent.name", "op": "equals", "value": "sccm.exe"}],
         "examples": [example],
     }
@@ -657,3 +663,59 @@ def test_restyle_keeps_picks_and_reviews_again(world):
     assert "rationale" not in chosen and "engineer_notes" not in chosen
     assert restyled["brief"] == BRIEF and restyled["review"]["comments"] == []
     assert core.validate(core.load_repo(world["content"])) == []
+
+
+def test_tuning_tool_refuses_unsafe_proposals(world):
+    box = Toolbox(world["content"], "testco")
+    box.call("alert_stats", {"client": "testco", "detection_id": "PRX-000900"})
+    good = {
+        "client": "testco",
+        "detection_id": "PRX-000900",
+        "reason": "The software deployment agent launches evil.exe during patching.",
+        "evidence": ["alert:abc123"],
+        "expires": (date.today() + timedelta(days=90)).isoformat(),
+        "exclude": [{"field": "process.parent.name", "op": "equals", "value": "sccm.exe"}],
+        "examples": [{"process": {"name": "evil.exe", "parent": {"name": "sccm.exe"}}}],
+    }
+
+    def refused(**change):
+        text, failed = box.call("propose_override", {**good, **change})
+        assert failed, text
+        return text
+
+    assert "after today" in refused(expires="2020-01-01")
+    assert "at most a year" in refused(expires=(date.today() + timedelta(days=800)).isoformat())
+    assert "alert id returned by alert_stats" in refused(evidence=["it looked benign"])
+    pseudonym = [{"field": "process.parent.name", "op": "equals", "value": "sccm.exe",
+                  "also": [{"field": "user.name", "op": "equals", "value": "id-b18f61b1"}]}]  # fmt: skip
+    assert "pseudonyms" in refused(exclude=pseudonym)
+    text, failed = box.call("propose_override", good)
+    assert not failed and '"lab_passed": true' in text
+
+
+def test_also_narrows_an_exclusion():
+    from praxis.content.tuning import Exclusion, ResolvedTuning
+    from praxis.platforms.elastic.render import exception_filter
+
+    narrow = Exclusion.model_validate(
+        {
+            "field": "process.parent.executable",
+            "op": "equals",
+            "value": "C:\\Backup\\agent.exe",
+            "also": [{"field": "process.command_line", "op": "contains", "value": "/oldest"}],
+        }
+    )
+    assert [c.field for c in narrow.conditions()] == [
+        "process.parent.executable",
+        "process.command_line",
+    ]
+    other = Exclusion(field="process.name", op="equals", value="x.exe")
+    query = exception_filter(ResolvedTuning(exclude=(narrow, other), layers=("client",)))
+    first, second = query["bool"]["must_not"][0]["bool"]["should"]
+    assert len(first["bool"]["filter"]) == 2, "conditions of one exclusion must all match"
+    assert "match_phrase" in second, "a second exclusion is an alternative"
+    plain = ResolvedTuning(exclude=(other,), layers=("client",))
+    assert (
+        "also" not in str(plain.digest)
+        and plain.digest == ResolvedTuning(exclude=(other,), layers=("x",)).digest
+    )

@@ -310,3 +310,23 @@ def test_lock_roundtrip(content):
     assert lock["version"] == 1 and len(lock["hash"]) == 64 and lock["tuning"]
     repo.detections["PRX-000900"].meta.severity = "low"
     assert not core.lock_is_current(repo, client)
+
+
+def test_exclusion_with_also_renders_one_item_with_several_entries(content):
+    tuning = {
+        **TUNING,
+        "exclude": [
+            {
+                "field": "process.parent.executable",
+                "op": "endswith",
+                "value": "\\Upd\\upd.exe",
+                "also": [{"field": "process.command_line", "op": "contains", "value": "--quiet"}],
+            }
+        ],
+    }
+    (rule,) = render(tuned_repo(content, tuning))
+    (item,) = rule.extras["exception_items"]
+    assert [e["field"] for e in item["entries"]] == [
+        "process.parent.executable",
+        "process.command_line",
+    ]
