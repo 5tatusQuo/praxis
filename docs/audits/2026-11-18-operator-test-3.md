@@ -8,8 +8,11 @@ task after the fixes from test 2 (PR #46). The approvals a user would give
 this client with full deletion) were written into the task, so the agent did
 not need to stop.
 
-**Result: all eleven steps completed by the agent itself.**
-Its report ends `WORKAROUNDS: 0` and `STEPS NOT RUN BY ME: 0`.
+**Result: all eleven steps completed by the agent itself, but not a pass.**
+Its report ends `WORKAROUNDS: 0` and `STEPS NOT RUN BY ME: 0`. It also ran
+read-only `git diff` and `git show` three times to read pull requests, which
+are not documented PRAXIS commands. The sector was `architecture`, not
+building and engineering. Tests 4 and 5 followed.
 
 ## What happened
 

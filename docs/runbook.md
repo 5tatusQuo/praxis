@@ -311,7 +311,7 @@ counts code measured. Hypotheses it marks durable are candidates for step 6 or 7
 | What | Command |
 | --- | --- |
 | Where does everything stand? | `./px status` |
-| Open pull requests | `./px change status` |
+| Open pull requests | `./px change status`; with a number, that pull request's checks |
 | Read one pull request | `./px change show <number>`, with `--diff` for its exact lines |
 | Close one without merging | `./px change close <number> --reason "<why>"` |
 | Get back to an up-to-date `main` | `./px change home` |
