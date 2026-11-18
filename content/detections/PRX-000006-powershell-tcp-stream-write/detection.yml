@@ -3,7 +3,7 @@ name: Potential PowerShell reverse shell via TCP stream
 intent: Detects PowerShell command lines constructing a TCP client and accessing and writing
   a stream, a pattern used to establish reverse shells.
 version: 1
-lifecycle: staged
+lifecycle: production
 owner: ai:platform-engineer-elastic
 severity: high
 risk_score: 73

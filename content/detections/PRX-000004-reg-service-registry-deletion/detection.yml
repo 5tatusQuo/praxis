@@ -3,7 +3,7 @@ name: Service registry deletion via reg.exe
 intent: Detects reg.exe deleting service registry keys or values, which can disable security
   services and impair defenses.
 version: 1
-lifecycle: staged
+lifecycle: production
 owner: ai:platform-engineer-elastic
 severity: high
 risk_score: 73
