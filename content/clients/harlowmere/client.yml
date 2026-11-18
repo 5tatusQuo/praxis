@@ -1,0 +1,13 @@
+id: harlowmere
+name: Harlowmere Dunstrick Building & Engineering (fictional)
+sector: building
+fictional: true
+assets:
+  endpoints: 55
+platforms:
+  elastic:
+    connection: lab
+    space: harlowmere
+    namespace: harlowmere
+packs:
+- baseline
