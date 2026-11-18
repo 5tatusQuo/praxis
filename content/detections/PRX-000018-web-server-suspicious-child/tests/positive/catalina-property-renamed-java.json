@@ -1,0 +1,29 @@
+{
+  "@timestamp": "2026-11-01T10:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "who.exe",
+    "pe": {
+      "original_file_name": "hostname.exe"
+    },
+    "parent": {
+      "name": "runtime.exe",
+      "pe": {
+        "original_file_name": "java.exe"
+      },
+      "command_line": "runtime.exe -Dcatalina.home=C:\\apps\\server"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "@timestamp": "2026-01-01T00:00:08Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "MSTSC.EXE",
+    "args": [
+      "mstsc.exe",
+      "/SHADOW:2",
+      "/control"
+    ]
+  }
+}

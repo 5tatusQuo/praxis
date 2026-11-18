@@ -1,0 +1,22 @@
+{
+  "@timestamp": "2026-01-01T00:00:10Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "RdpSaUacHelper.exe",
+    "parent": {
+      "name": "svchost.exe"
+    }
+  }
+}

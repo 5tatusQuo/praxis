@@ -1,0 +1,24 @@
+{
+  "@timestamp": "2026-01-01T00:00:02Z",
+  "event": {
+    "category": [
+      "registry"
+    ],
+    "type": [
+      "change"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "registry": {
+    "path": "HKLM\\Software\\Policies\\Microsoft\\Windows NT\\Terminal Services\\Shadow",
+    "data": {
+      "strings": [
+        "3"
+      ]
+    }
+  }
+}

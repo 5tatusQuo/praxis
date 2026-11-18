@@ -1,0 +1,22 @@
+{
+  "@timestamp": "2026-11-01T10:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "end"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "cmd.exe",
+    "parent": {
+      "name": "w3wp.exe"
+    }
+  }
+}

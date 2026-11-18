@@ -1,0 +1,24 @@
+{
+  "@timestamp": "2026-11-01T10:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "cmd.exe",
+    "parent": {
+      "name": "java.exe",
+      "executable": "C:\\Java\\bin\\java.exe",
+      "command_line": "java.exe -jar build.jar"
+    }
+  }
+}

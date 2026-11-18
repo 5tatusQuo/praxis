@@ -1,0 +1,23 @@
+{
+  "@timestamp": "2026-11-01T10:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "net.exe",
+    "parent": {
+      "name": "java.exe",
+      "executable": "C:\\apps\\apache-tomcat-10\\bin\\java.exe"
+    }
+  }
+}

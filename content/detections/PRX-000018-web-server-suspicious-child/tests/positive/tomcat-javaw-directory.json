@@ -1,0 +1,23 @@
+{
+  "@timestamp": "2026-11-01T10:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "certutil.exe",
+    "parent": {
+      "name": "javaw.exe",
+      "executable": "C:\\tomcat\\jre\\bin\\javaw.exe"
+    }
+  }
+}

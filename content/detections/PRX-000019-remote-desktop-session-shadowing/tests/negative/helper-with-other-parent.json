@@ -1,0 +1,22 @@
+{
+  "@timestamp": "2026-01-01T00:01:04Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "RdpSaProxy.exe",
+    "parent": {
+      "name": "explorer.exe"
+    }
+  }
+}
