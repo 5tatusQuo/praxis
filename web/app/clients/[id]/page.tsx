@@ -134,7 +134,8 @@ export default async function ClientOverview({ params }: { params: Promise<{ id:
             ))}
             {blind.map((r) => (
               <li key={r.id}>
-                <span className="font-mono text-xs">{r.id}</span> is deployed but blind
+                {r.name ? `${r.name} ` : ""}
+                <span className="font-mono text-xs">({r.id})</span> is deployed but blind
                 {r.last_status !== "succeeded" ? ` (last run: ${r.last_status ?? "never ran"})` : " (its log source is silent)"}
                 . It gives no coverage for {r.techniques.join(", ")}.
               </li>
@@ -215,6 +216,7 @@ export default async function ClientOverview({ params }: { params: Promise<{ id:
                     <Link href={`/clients/${id}/rules/${r.id}`} className="text-brass hover:underline">
                       {r.id}
                     </Link>
+                    {r.name ? <div className="font-sans text-sm text-fog">{r.name}</div> : null}
                   </td>
                   <td
                     className={`py-1.5 pr-3 ${
