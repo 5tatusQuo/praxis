@@ -1,0 +1,15 @@
+sector: buildworks
+description: Ransomware and extortion crews that have hit building contractors and engineering
+  firms, plus espionage groups that target construction and engineering for drawings and project
+  data.
+groups:
+  - G1024  # Akira
+  - G1040  # Play
+  - G1032  # INC Ransom
+  - G1051  # Medusa Group
+  - G0098  # BlackTech
+  - G0117  # Fox Kitten
+techniques:
+  T1490: 0.3
+references:
+  - https://attack.mitre.org/groups/
