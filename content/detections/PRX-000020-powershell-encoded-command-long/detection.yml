@@ -3,7 +3,7 @@ name: PowerShell started with a long encoded command
 intent: Detects PowerShell starting with a long Base64 encoded command, which attackers use
   to hide download cradles and ransomware staging from command-line review.
 version: 1
-lifecycle: staged
+lifecycle: production
 owner: detection-engineering
 severity: medium
 risk_score: 47
