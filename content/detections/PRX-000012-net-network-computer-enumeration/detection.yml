@@ -1,0 +1,34 @@
+id: PRX-000012
+name: Network computer enumeration with net
+intent: Detects computer enumeration through net view, which can help an attacker identify
+  remote systems before lateral movement.
+version: 1
+lifecycle: staged
+owner: ai:platform-engineer-elastic
+severity: low
+risk_score: 21
+attack:
+- technique: T1018
+  tactic: TA0007
+data_components:
+- Process Creation
+- Command Execution
+pyramid_tier: ttp
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.process-*
+    - logs-windows.sysmon_operational-*
+provenance:
+  source: sigmahq
+  upstream_id: 62510e69-616b-4078-b371-847da438cc03
+  upstream_commit: 088855f00b65a19e345b09c1619272b44f92fea4
+  upstream_author: Endgame, JHasenbusch (ported for oscd.community)
+  licence: DRL-1.1
+references:
+- https://attack.mitre.org/techniques/T1018/
+- https://eqllib.readthedocs.io/en/latest/analytics/b8a94d2f-dc75-4630-9d73-1edc6bd26fff.html
+- https://github.com/redcanaryco/atomic-red-team/blob/f339e7da7d05f6057fdfcdd3742bfcf365fee2a9/atomics/T1018/T1018.md
+false_positives:
+- Administrators can enumerate computers during troubleshooting. Confirm the account, parent
+  process, and task before an exception.

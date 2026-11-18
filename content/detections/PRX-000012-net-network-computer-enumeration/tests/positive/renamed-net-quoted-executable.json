@@ -1,0 +1,24 @@
+{
+  "@timestamp": "2026-01-01T00:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "inventory.exe",
+    "pe": {
+      "original_file_name": "NET.EXE"
+    },
+    "command_line": "\"C:\\Program Files\\Tools\\inventory.exe\" \"VIEW\" /domain"
+  }
+}
