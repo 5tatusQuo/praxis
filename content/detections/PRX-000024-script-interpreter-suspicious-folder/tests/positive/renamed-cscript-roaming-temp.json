@@ -1,0 +1,23 @@
+{
+  "@timestamp": "2026-11-01T10:00:03Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "runner.exe",
+    "pe": {
+      "original_file_name": "cscript.exe"
+    },
+    "command_line": "runner.exe C:\\Users\\alice\\AppData\\Roaming\\Temp\\update.vbs"
+  }
+}

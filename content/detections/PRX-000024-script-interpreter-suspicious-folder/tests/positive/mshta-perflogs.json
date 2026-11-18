@@ -1,0 +1,20 @@
+{
+  "@timestamp": "2026-11-01T10:00:02Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "mshta.exe",
+    "command_line": "mshta.exe D:\\PerfLogs\\update.hta"
+  }
+}

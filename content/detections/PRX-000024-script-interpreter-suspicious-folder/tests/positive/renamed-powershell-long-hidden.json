@@ -1,0 +1,23 @@
+{
+  "@timestamp": "2026-11-01T10:00:09Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "runner.exe",
+    "pe": {
+      "original_file_name": "PowerShell.EXE"
+    },
+    "command_line": "runner.exe -WindowStyle Hidden -File %LocalAppData%\\Temp\\update.ps1"
+  }
+}

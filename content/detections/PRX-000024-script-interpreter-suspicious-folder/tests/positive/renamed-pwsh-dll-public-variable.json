@@ -1,0 +1,23 @@
+{
+  "@timestamp": "2026-11-01T10:00:10Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "runner.exe",
+    "pe": {
+      "original_file_name": "pwsh.dll"
+    },
+    "command_line": "runner.exe -File %PUBLIC%\\update.ps1 -ep bypass"
+  }
+}

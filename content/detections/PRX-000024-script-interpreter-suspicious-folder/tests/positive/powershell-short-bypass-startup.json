@@ -1,0 +1,20 @@
+{
+  "@timestamp": "2026-11-01T10:00:06Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "powershell.exe",
+    "command_line": "powershell.exe -ep bypass -File \"C:\\Users\\alice\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\update.ps1\""
+  }
+}

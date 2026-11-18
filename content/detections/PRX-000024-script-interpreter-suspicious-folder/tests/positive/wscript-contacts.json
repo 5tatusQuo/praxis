@@ -1,0 +1,20 @@
+{
+  "@timestamp": "2026-11-01T10:00:13Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "wscript.exe",
+    "command_line": "wscript.exe C:\\Users\\alice\\Contacts\\update.vbs"
+  }
+}

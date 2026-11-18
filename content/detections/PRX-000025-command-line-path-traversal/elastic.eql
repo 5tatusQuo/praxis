@@ -1,0 +1,10 @@
+process where host.os.type == "windows" and event.type == "start" and
+  ((?process.executable : "*\\Windows\\*" and
+    ?process.command_line : ("*\\..\\Windows\\*", "*\\..\\System32\\*", "*\\..\\..\\*")) or
+   ?process.command_line : "*.exe\\..\\*") and
+  not (?process.executable != null and
+       ?process.executable : "*\\Google\\Drive\\googledrivesync.exe" and
+       ?process.command_line : "*\\Google\\Drive\\googledrivesync.exe\\..\\*") and
+  not (?process.executable != null and
+       ?process.executable : "*\\Citrix\\Virtual Smart Card\\Citrix.Authentication.VirtualSmartcard.Launcher.exe" and
+       ?process.command_line : "*\\Citrix\\Virtual Smart Card\\Citrix.Authentication.VirtualSmartcard.Launcher.exe\\..\\*")

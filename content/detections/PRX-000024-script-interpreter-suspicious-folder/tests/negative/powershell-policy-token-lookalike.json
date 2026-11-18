@@ -1,0 +1,20 @@
+{
+  "@timestamp": "2026-11-01T11:00:07Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "powershell.exe",
+    "command_line": "powershell.exe -File C:\\Users\\Public\\report.ps1 -ep bypassed"
+  }
+}
