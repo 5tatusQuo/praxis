@@ -5,7 +5,36 @@ is the state of the build.
 
 ## Current phase
 
-**Phase 4 · Hunts and launch** — v1.0 being released. Phases 0 to 3 passed on 2026-11-18.
+**Between Phase 4 and Phase 5.** All gates for Phases 0 to 4 passed on
+2026-11-18 and v1.0.0 is released. Phase 5 does not start until the PLAN.md
+items listed under "Not built yet" below are done.
+
+## Not built yet (PLAN.md items inside Phases 0–4)
+
+The gates passed without these. They are owed before Phase 5 starts.
+Suggested order, most important first:
+
+1. **Dashboard login and tenancy**: Keycloak (OIDC), roles, per-client access,
+   row-level security in Postgres. Today a bearer token and localhost-only ports.
+2. **Agent runs on the server**: a worker with a queue, "request a pack / hunt /
+   tuning" from the dashboard, a GitHub App or token to open pull requests,
+   and the per-run container sandbox. Today agents run from a workstation.
+3. **Pull-request report from CI**: a bot comment with the coverage diff per
+   client, backtest table and Navigator layer; CI routing by changed files;
+   the `quality-waiver` label for low scores.
+4. **Drift handling**: nightly drift is detected and fails the job; it does not
+   yet open a pull request or revert a console edit.
+5. **Remaining agents**: CTI Analyst (report to detection opportunities), the
+   schema-note drafter for unknown tables, existing-rule triage for adoption.
+6. **Tuning operations**: `threshold` and `variant`; ES|QL implementations.
+7. **Client reporting**: the month-end report; alert closure reasons from a
+   ticketing system.
+8. **CLI and UI parity**: `praxis client add`, `praxis chat`, in-browser agent
+   chat in the Tuning studio, Monaco, the Rule library and detection grid views.
+9. **Hardening**: pre-commit installed by default, SOPS for secrets, cosign
+   image signing, signed commits on content, runner isolation.
+10. **Full mode extras**: Fleet Server and Elastic Agent, optional lab
+    endpoints with Atomic Red Team, MinIO, optional Gitea.
 
 ## Phase 3 plan
 
@@ -256,3 +285,18 @@ are completely done. You approved tagging v1.0 and promoting the first pack.
   enabled, named `[shadow] …`, severity low, tagged `praxis-shadow`, last run
   succeeded.
 - Not yet done for this pack: the 14-day shadow period and the promotion PR.
+
+### Phase 4 — v1.0 public release on GitHub (passed 2026-11-18)
+
+- Owner's go-ahead given on 2026-11-18 to tag v1.0 and to promote the first pack.
+- Hunt Planner and Tuner proven with the real model; their proposals (#17,
+  #22) merged by the owner. First pack promoted (#25).
+- Release PR https://github.com/5tatusQuo/praxis/pull/26 set the version to
+  1.0.0. Tag `v1.0.0` pushed; release workflow run
+  https://github.com/5tatusQuo/praxis/actions/runs/44255330662 succeeded on
+  its first run: both images built and published, release created.
+- Release: https://github.com/5tatusQuo/praxis/releases/tag/v1.0.0
+- Images pulled anonymously from the deployment server to confirm they are
+  public: `ghcr.io/5tatusquo/praxis-api:v1.0.0`, `ghcr.io/5tatusquo/praxis-web:v1.0.0`.
+- What v1.0 is not: it has run only with fictional clients on synthetic lab
+  telemetry, on one server, with Elastic. See "Not built yet" above.
