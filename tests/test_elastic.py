@@ -58,6 +58,7 @@ class FakeKibana:
     def __init__(self):
         self.rules: dict[str, dict] = {}
         self.lists: dict[str, list[dict]] = {}
+        self.toggles: list[bool] = []
         self.calls: list[tuple[str, str]] = []
 
     def exception_lists(self, request: httpx.Request) -> httpx.Response:
@@ -93,6 +94,10 @@ class FakeKibana:
         if request.method == "DELETE":
             return httpx.Response(200, json=self.rules.pop(rule_id))
         body = json.loads(request.content)
+        if request.method == "PATCH":
+            self.rules[body["rule_id"]].update(body)
+            self.toggles.append(body["enabled"])
+            return httpx.Response(200, json=self.rules[body["rule_id"]])
         self.rules[body["rule_id"]] = {
             **body,
             "updated_at": "2026-01-01T00:00:00.000Z",
@@ -131,8 +136,10 @@ def test_deploy_creates_then_is_idempotent_then_updates(repo, kibana):
     assert [a.action for a in platform.deploy(rules, client)] == ["unchanged"]
     repo.detections["PRX-000900"].meta.severity = "high"
     changed = render(repo)
+    assert kibana.toggles == []
     assert [a.action for a in platform.deploy(changed, client)] == ["updated"]
     assert kibana.rules["PRX-000900"]["severity"] == "high"
+    assert kibana.toggles == [False, True], "an updated rule is re-enabled so it runs now"
     assert all(r.ok for r in platform.smoke(changed, client))
 
 

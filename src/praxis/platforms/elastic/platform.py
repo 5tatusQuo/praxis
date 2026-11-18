@@ -235,6 +235,13 @@ class ElasticPlatform(Platform):
                     envelope = self._sync_exception_list(conn, client, rule)
                     call(conn.kibana, "POST" if current is None else "PUT", url, json=envelope)
                     action = "created" if current is None else "updated"
+                    if current is not None and current.get("enabled") and envelope["enabled"]:
+                        # An update keeps the old schedule, so the next run could be a
+                        # full interval away. Re-enabling runs the rule now, which lets
+                        # the smoke check judge the new version straight away.
+                        for enabled in (False, True):
+                            patch = {"rule_id": rule.detection_id, "enabled": enabled}
+                            call(conn.kibana, "PATCH", url, json=patch)
                 actions.append(DeployAction(rule.detection_id, action, rule.content_hash))
             # Whatever PRAXIS manages in this space but no longer renders is removed.
             for rule_id in existing:

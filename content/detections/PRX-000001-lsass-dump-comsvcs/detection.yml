@@ -3,7 +3,7 @@ name: LSASS memory dump via comsvcs.dll MiniDump
 intent: >-
   Detects rundll32 calling the MiniDump export of comsvcs.dll, a built-in way
   to dump LSASS process memory and steal credentials without bringing a tool.
-version: 1
+version: 2
 lifecycle: production
 owner: detection-engineering
 severity: high
@@ -32,3 +32,4 @@ references:
   - https://attack.mitre.org/techniques/T1003/001/
 false_positives:
   - Rare. Some crash-collection or support tooling dumps its own process this way; it does not target LSASS.
+  - Vendor support agents that collect a dump of their own process after a crash. Tune these per client by parent executable.

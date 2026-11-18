@@ -3,9 +3,9 @@ client: acme
 platforms:
   elastic:
     PRX-000001:
-      hash: a3eed5e99b4170dfa392210c8d18b8af9ced5a50d62f728dfd6fd3bb6972bec3
+      hash: 75cf90024b79e5e1db3b63e839f0088fa5e7ae397529f5469686fd57037cd1fb
       tuning: 784cdaf97e009e96bb504acef698c1cb7ed00897b15f51c46de6f6e84fede8fe
-      version: 1
+      version: 2
     PRX-000002:
       hash: b500a67965478527058653736acbb4077a99783eca31d7f7113166888f45340b
       tuning: null

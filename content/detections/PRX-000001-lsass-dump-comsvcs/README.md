@@ -40,4 +40,7 @@ process events or Sysmon event ID 1.
 
 ## Tuning history
 
-None yet.
+- 2026-11: `acme` excludes its imaging support agent, which dumps its own
+  process through comsvcs after a viewer crash (client tuning, expires 2027-05).
+- 2026-11: `globex` raises severity to critical and runs the rule every minute.
+- v2: documented vendor support agents as a known false positive.
