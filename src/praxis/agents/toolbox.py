@@ -91,6 +91,8 @@ class Toolbox:
     scope: set[str] | None = None
     # (client, query) -> result of every hunt query that ran, as measured by code.
     hunt_results: dict[tuple[str, str], dict[str, Any]] = field(default_factory=dict)
+    # Hunt queries the SIEM refused, kept so the record shows what could not be tested.
+    hunt_failures: list[dict[str, Any]] = field(default_factory=list)
 
     # -- plumbing ------------------------------------------------------------
     def _repo(self):
@@ -664,7 +666,18 @@ class Toolbox:
 
     def run_hunt_query(self, client: str, query: str, indices: list[str]) -> dict:
         target = self._client(self._repo(), client)
-        result = get_platform(target.platforms.enabled()[0]).backtest(target, query, indices)
+        try:
+            result = get_platform(target.platforms.enabled()[0]).backtest(target, query, indices)
+        except Exception as error:
+            self.hunt_failures.append(
+                {
+                    "client": target.id,
+                    "indices": indices,
+                    "query": query.strip(),
+                    "error": str(error)[:300],
+                }
+            )
+            raise
         self.hunt_results[(target.id, query.strip())] = {
             "hits": result["hits"],
             "days": result["days"],

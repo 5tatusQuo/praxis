@@ -57,7 +57,10 @@ Name the sector after the client's industry, in one lower-case word. ATT&CK
 lists threat actors as groups; ransomware families and tools are not groups.
 ATT&CK does not index groups by the sector they target, so a sector search is
 a text search of group descriptions: check each match's context, and add
-groups you know from your own intelligence.
+groups you know from your own intelligence. Few groups are described by a
+sector word, so also search related words (`manufacturing`, `infrastructure`)
+and the names of ransomware crews. `./px sector remove <sector>` deletes a
+profile that no client uses.
 
 `client add` writes the manifest, a lab telemetry profile that covers every
 log source the client's rules read, and its `packs.lock`. The client gets the
@@ -313,6 +316,8 @@ existing files show the format.
 `--sector construction` covers every client in a sector instead. The Hunt
 Planner writes hypotheses, runs each query read-only, and records the hit
 counts code measured. Hypotheses it marks durable are candidates for step 6 or 7.
+A query the SIEM refused is listed under `failed_queries` in the record and
+under "Queries that failed" in the pull request: it tested nothing.
 
 ## 10. Day to day
 
@@ -343,6 +348,8 @@ It names any open pull request that is still for this client, with the command
 to close it. It leaves the shared library alone and lists what it kept: the sector's threat
 profile, the records of the client's rule packs and hunts (history), and any
 detection that no client runs now, with the commands to reassign or retire it.
+If you do not want to keep the sector profile or a pack record, remove them
+before you submit: `./px sector remove <sector>` and `./px pack remove <pack id>`.
 The client's coverage history stays in the database but no longer shows on
 the dashboard or in `./px status`.
 
@@ -397,8 +404,9 @@ These are limits of the product today, not steps you are doing wrong:
   the SIEM itself and prints the result, but once the client is out of the
   content PRAXIS no longer knows its space or keys, so there is no later
   re-check. Keep the offboarding output as the record.
-- **No command removes a sector profile or a rule-pack record.** They are
-  shared history and harmless without a client.
+- **No command removes a hunt record.** Hunt records are shared history and
+  can cover several clients. `./px sector remove` and `./px pack remove`
+  delete a sector profile or the pack record of an offboarded client.
 - **Elastic and EQL only.** Splunk, Sentinel and ES|QL rules come later.
   Exclusions match case-sensitively, which is how Kibana exception lists work.
 

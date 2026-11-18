@@ -1257,8 +1257,9 @@ def client_offboard(
     lines = [
         f"removed {len(result['removed_files'])} content files for {client_id}",
         "Kept on purpose, in the shared library:",
-        f"  sector profile: {kept['sector_profile']}",
-        f"  rule pack records (history): {', '.join(kept['rule_pack_records']) or 'none'}",
+        f"  sector profile: {kept['sector_profile']} (./px sector remove deletes it)",
+        f"  rule pack records (history): {', '.join(kept['rule_pack_records']) or 'none'}"
+        " (./px pack remove deletes one)",
         f"  hunt records (history): {', '.join(kept['hunt_records']) or 'none'}",
         "  detections no client runs now: "
         + (", ".join(kept["detections_no_client_runs_now"]) or "none"),
@@ -1321,6 +1322,28 @@ def sector_add(
         )
     )
     console.print(f"wrote {path}")
+
+
+@sector_app.command("remove")
+def sector_remove(sector: str) -> None:
+    """Delete a sector's threat profile. Refused while a client is in that sector."""
+    from praxis import ops
+
+    path = _op(lambda: ops.sector_remove(get_settings().content_dir, sector))
+    console.print(
+        f'removed {path}\nNext: ./px change submit "Remove sector {sector}"', markup=False
+    )
+
+
+@pack_app.command("remove")
+def pack_remove(pack_id: str) -> None:
+    """Delete the record of a rule pack whose client was offboarded."""
+    from praxis import ops
+
+    path = _op(lambda: ops.pack_remove(get_settings().content_dir, pack_id))
+    console.print(
+        f'removed {path}\nNext: ./px change submit "Remove pack record {pack_id}"', markup=False
+    )
 
 
 @attack_app.command("groups")

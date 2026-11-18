@@ -52,9 +52,9 @@ def attack_groups(query: str) -> list[dict[str, Any]]:
         names = [gid, group["name"], *group.get("aliases", [])]
         description = group.get("description", "")
         by_name = any(wanted in n.lower() for n in names)
-        if not by_name and wanted not in description.lower():
+        at = _find_word(description.lower(), wanted)
+        if not by_name and at < 0:
             continue
-        at = description.lower().find(wanted)
         found.append(
             {
                 "id": gid,
@@ -69,6 +69,51 @@ def attack_groups(query: str) -> list[dict[str, Any]]:
             }
         )
     return sorted(found, key=lambda g: (g["matched"] != "name", g["id"]))
+
+
+# Phrases that hold a sector word but say nothing about who a group targets.
+FALSE_FRIENDS = {"engineering": ("social ", "reverse ")}
+
+
+def _find_word(text: str, wanted: str) -> int:
+    """Where `wanted` first occurs in `text`, skipping false friends. -1 if nowhere."""
+    at = text.find(wanted)
+    while at >= 0:
+        before = text[max(0, at - 10) : at]
+        if not any(before.endswith(prefix) for prefix in FALSE_FRIENDS.get(wanted, ())):
+            return at
+        at = text.find(wanted, at + 1)
+    return -1
+
+
+def sector_remove(content_dir: Path, sector: str) -> Path:
+    """Delete a sector's threat profile. Refused while a client is in that sector."""
+    path = content_dir / "threat-profiles" / f"{sector}.yml"
+    if not path.is_file():
+        raise OpsError(f"sector {sector!r} has no threat profile; see `./px sector list`")
+    users = sorted(c.id for c in core.load_repo(content_dir).clients.values() if c.sector == sector)
+    if users:
+        raise OpsError(
+            f"sector {sector!r} is used by {', '.join(users)}; offboard those clients first"
+        )
+    path.unlink()
+    return path
+
+
+def pack_remove(content_dir: Path, pack_id: str) -> Path:
+    """Delete a rule pack's record. Refused while its client exists: it is that client's history."""
+    repo = core.load_repo(content_dir)
+    pack = repo.rule_packs.get(pack_id)
+    if pack is None:
+        raise OpsError(f"there is no rule pack record {pack_id!r}; see `./px status`")
+    if pack.client in repo.clients:
+        raise OpsError(
+            f"{pack_id} belongs to client {pack.client}, which still exists; a record is only "
+            "removed after its client is offboarded"
+        )
+    path = content_dir / "rule-packs" / f"{pack_id}.yml"
+    path.unlink()
+    return path
 
 
 def attack_technique(technique_id: str) -> dict[str, Any]:

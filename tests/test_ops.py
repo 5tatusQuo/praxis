@@ -34,6 +34,22 @@ def test_sector_add_checks_group_ids(base):
     assert (akira["id"], akira["name"], akira["matched"]) == ("G1024", "Akira", "name")
     by_sector = ops.attack_groups("construction")
     assert by_sector and all(g["matched"] == "description" for g in by_sector)
+    # "social engineering" says nothing about who a group targets.
+    assert ops._find_word("uses social engineering against engineering firms", "engineering") == 32
+    assert ops._find_word("uses social engineering", "engineering") == -1
+
+
+def test_sector_remove_refuses_a_sector_in_use(base):
+    ops.sector_add(base, "construction", "Ransomware crews.", ["G1024"])
+    ops.client_add(base, "ironbridge", "Ironbridge Construction", "construction", 40)
+    with pytest.raises(ops.OpsError, match="used by ironbridge"):
+        ops.sector_remove(base, "construction")
+    ops.client_remove(base, "ironbridge")
+    assert not ops.sector_remove(base, "construction").exists()
+    with pytest.raises(ops.OpsError, match="no threat profile"):
+        ops.sector_remove(base, "construction")
+    with pytest.raises(ops.OpsError, match="no rule pack record"):
+        ops.pack_remove(base, "ironbridge-2026.12.0")
 
 
 def test_client_add_writes_everything_and_says_what_is_next(base):
