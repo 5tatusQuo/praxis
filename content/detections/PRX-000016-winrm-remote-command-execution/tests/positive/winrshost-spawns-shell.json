@@ -1,0 +1,31 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "name": "srv-lab-02",
+    "os": {
+      "type": "windows"
+    }
+  },
+  "user": {
+    "name": "labadmin"
+  },
+  "process": {
+    "name": "cmd.exe",
+    "executable": "C:\\Windows\\System32\\cmd.exe",
+    "command_line": "cmd.exe /c whoami",
+    "pe": {
+      "original_file_name": "Cmd.Exe"
+    },
+    "parent": {
+      "name": "winrshost.exe"
+    }
+  }
+}
