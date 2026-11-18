@@ -1,0 +1,15 @@
+process where host.os.type == "windows" and event.type == "start" and
+  (
+    (
+      (process.name : ("rar.exe", "winrar.exe") or
+       ?process.pe.original_file_name : ("Command line RAR", "WinRAR.exe")) and
+      process.command_line : ("* a *") and
+      process.command_line : ("* -hp*", "* -p*")
+    ) or
+    (
+      (process.name : ("7z.exe", "7za.exe", "7zr.exe") or
+       ?process.pe.original_file_name : ("7z.exe", "7za.exe", "7zr.exe")) and
+      process.command_line : ("* a *") and
+      process.command_line : ("* -p*")
+    )
+  )

@@ -11,3 +11,5 @@ platforms:
     namespace: vantmoor
 packs:
 - baseline
+detections:
+- PRX-000011
