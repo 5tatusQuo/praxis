@@ -3,7 +3,7 @@ name: Administrative share mounted with net use
 intent: Detects net.exe connecting to a hidden administrative share on another host, a common
   way ransomware operators move laterally and stage tools over SMB.
 version: 1
-lifecycle: staged
+lifecycle: production
 owner: detection-engineering
 severity: medium
 risk_score: 47
