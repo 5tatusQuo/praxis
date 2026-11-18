@@ -1,0 +1,5 @@
+process where host.os.type == "windows" and event.type == "start" and
+  (
+    process.name : ("psexec.exe", "psexec64.exe", "psexesvc.exe") or
+    ?process.pe.original_file_name : ("psexec.c", "psexesvc.exe")
+  )
