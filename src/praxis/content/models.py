@@ -208,6 +208,7 @@ class RulePack(Strict):
     review: dict | None = None
     agents: dict = {}
     usage: dict = {}
+    promoted: date | None = None
 
     @model_validator(mode="after")
     def within_budget(self) -> RulePack:
