@@ -58,7 +58,7 @@ technique. The rules are written down in
 shows the result for every client.
 
 **AI that proposes, never deploys.** A Curator agent reads a client's coverage
-snapshot and picks rules from a catalog of upstream detections (SigmaHQ,
+snapshot and picks rules from a catalog of upstream detections (SigmaHQ and Elastic,
 pinned and scored). A Platform Engineer agent turns each pick into a native
 detection with docs and tests, and an independent Reviewer agent challenges
 the result. Code enforces the rules of the game (budget, no duplicates, no
@@ -101,8 +101,9 @@ uv run praxis coverage acme       # collect (read-only) and classify every techn
 uv run praxis drift acme          # does the SIEM still match packs.lock?
 ```
 
-Agents need an Anthropic API key in `ANTHROPIC_API_KEY` and run from your
-workstation against the server through SSH tunnels:
+Agents need a Claude credential: log in once with `ant auth login` (OAuth) or
+set `ANTHROPIC_API_KEY`. They run from your workstation against the server
+through SSH tunnels:
 
 ```bash
 deploy/with-server.sh uv run praxis catalog sync                  # rebuild the candidate catalog

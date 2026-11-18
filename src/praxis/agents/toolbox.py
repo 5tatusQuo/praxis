@@ -607,7 +607,10 @@ class Toolbox:
                 )
         if candidate and candidate["redistribute"]:
             (folder / "reference").mkdir()
-            (folder / "reference" / "sigma.yml").write_text(candidate["raw"])
+            name = {"sigmahq": "sigma.yml", "elastic": "elastic.toml"}.get(
+                candidate["source"], "upstream.txt"
+            )
+            (folder / "reference" / name).write_text(candidate["raw"])
         self.created.add(detection_id)
         issues = [str(i) for i in core.validate(self._repo()) if folder.name in str(i.path)]
         return {"detection_id": detection_id, "folder": folder.name, "validation_errors": issues}

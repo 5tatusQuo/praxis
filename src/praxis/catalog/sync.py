@@ -10,7 +10,7 @@ import yaml
 from pydantic import Field, StringConstraints
 
 from praxis import attack
-from praxis.catalog import quality, sigma
+from praxis.catalog import elastic_rules, quality, sigma
 from praxis.catalog.fingerprint import eql_triples
 from praxis.catalog.model import Candidate
 from praxis.content.loader import ContentRepo
@@ -19,7 +19,7 @@ from praxis.content.models import Strict
 
 class Source(Strict):
     name: str
-    kind: str = Field(description="Parser to use. Supported: sigma")
+    kind: str = Field(description="Parser to use. Supported: sigma, elastic")
     repo: str
     commit: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{40}$")] = Field(
         description="Pinned upstream commit; bump it deliberately, in a pull request."
@@ -84,10 +84,11 @@ def build(repo: ContentRepo, cache: Path) -> list[Candidate]:
     crowded = technique_counts(repo)
     candidates = []
     for source in load_sources(repo):
-        if source.kind != "sigma":
+        parser = {"sigma": sigma, "elastic": elastic_rules}.get(source.kind)
+        if parser is None:
             raise ValueError(f"unknown source kind {source.kind!r}")
         root = fetch(source, cache)
-        loaded = sigma.load(root, source.paths, source.commit, source.licence, source.redistribute)
+        loaded = parser.load(root, source.paths, source.commit, source.licence, source.redistribute)
         for candidate, tags in loaded:
             candidate.techniques = [t for t in candidate.techniques if attack.is_technique(t)]
             candidate.quality = quality.profile(

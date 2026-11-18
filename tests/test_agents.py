@@ -497,3 +497,59 @@ def test_hunt_scope_and_client_selection(world):
         {"client": "other", "query": "process where true", "indices": ["logs-x-*"]},
     )
     assert failed and "scoped to clients" in text
+
+
+ELASTIC_RULE = """
+[metadata]
+creation_date = "2020/02/18"
+maturity = "production"
+
+[rule]
+author = ["Elastic"]
+description = "Identifies volume shadow copy deletion via vssadmin."
+false_positives = ["Backup software"]
+index = ["winlogbeat-*", "logs-endpoint.events.process-*", "logs-windows.sysmon_operational-*"]
+language = "eql"
+license = "Elastic License v2"
+name = "Volume Shadow Copy Deleted via VssAdmin"
+risk_score = 73
+rule_id = "b5ea4bfe-a1b2-421f-9d47-22a75a6f2921"
+severity = "high"
+tags = ["Domain: Endpoint", "Tactic: Impact"]
+type = "eql"
+query = '''
+process where host.os.type == "windows" and event.type == "start" and
+  process.name : "vssadmin.exe" and process.args : ("delete", "resize") and process.args : "shadows*"
+'''
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1490"
+name = "Inhibit System Recovery"
+[rule.threat.tactic]
+id = "TA0040"
+"""
+
+
+def test_elastic_rule_ingest(tmp_path):
+    from praxis.catalog import elastic_rules
+
+    path = tmp_path / "rules" / "windows" / "impact_vssadmin.toml"
+    path.parent.mkdir(parents=True)
+    path.write_text(ELASTIC_RULE)
+    ((candidate, tags),) = list(
+        elastic_rules.load(tmp_path, ["rules/windows"], "e" * 40, "Elastic-2.0", True)
+    )
+    assert candidate.id == "elastic:b5ea4bfe-a1b2-421f-9d47-22a75a6f2921"
+    assert candidate.techniques == ["T1490"] and candidate.status == "production"
+    assert candidate.log_sources["elastic"] == [
+        "logs-endpoint.events.process-*",
+        "logs-windows.sysmon_operational-*",
+    ], "only data-stream patterns PRAXIS can resolve per client are kept"
+    assert candidate.drafts["elastic"].startswith("process where")
+    assert "Process Creation" in candidate.data_components and "Tactic: Impact" in tags
+    path.write_text(ELASTIC_RULE.replace('type = "eql"', 'type = "query"'))
+    assert (
+        list(elastic_rules.load(tmp_path, ["rules/windows"], "e" * 40, "Elastic-2.0", True)) == []
+    )

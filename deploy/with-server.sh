@@ -21,16 +21,17 @@ SOCKET="$WORK/ssh.sock"
 cleanup() { ssh -S "$SOCKET" -O exit "$PRAXIS_SERVER" 2>/dev/null || true; rm -rf "$WORK"; }
 trap cleanup EXIT
 
-ssh -M -S "$SOCKET" -f -N -o ExitOnForwardFailure=yes \
+# -n on every ssh call: the wrapped command owns stdin (`praxis mcp` speaks on it).
+ssh -n -M -S "$SOCKET" -f -N -o ExitOnForwardFailure=yes \
   -L 19200:localhost:9200 -L 15601:localhost:5601 -L 15432:localhost:5432 "$PRAXIS_SERVER"
-ssh -S "$SOCKET" "$PRAXIS_SERVER" 'cat /etc/praxis/ca.crt' > "$WORK/ca.crt"
+ssh -n -S "$SOCKET" "$PRAXIS_SERVER" 'cat /etc/praxis/ca.crt' > "$WORK/ca.crt"
 
 export PRAXIS_ELASTIC_LAB_ES_URL=https://localhost:19200
 export PRAXIS_ELASTIC_LAB_KIBANA_URL=http://localhost:15601
 export PRAXIS_ELASTIC_LAB_CA_CERT="$WORK/ca.crt"
 while IFS='=' read -r name value; do
   [ -n "$name" ] && export "$name=$value"
-done < <(ssh -S "$SOCKET" "$PRAXIS_SERVER" \
+done < <(ssh -n -S "$SOCKET" "$PRAXIS_SERVER" \
   "cat /opt/praxis/api.env; printf 'PRAXIS_DATABASE_URL=postgresql://praxis:%s@localhost:15432/praxis\n' \"\$(grep '^POSTGRES_PASSWORD=' /opt/praxis/app/deploy/.env | cut -d= -f2)\"")
 
 cd "$ROOT"
