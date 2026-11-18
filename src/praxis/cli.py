@@ -520,6 +520,18 @@ def pack_plan(
     console.print(f"{pack['id']}: {len(pack['picks'])} picks, reviewer verdict {verdict}")
 
 
+@pack_app.command("rescore")
+def pack_rescore(pack_id: str) -> None:
+    """Measure a proposed pack again (tests, scores, backtests) and print its report."""
+    from praxis import db
+    from praxis.agents import pack as packs
+
+    pack = packs.rescore(get_settings().content_dir, pack_id)
+    with db.connect() as conn:
+        snapshot = db.latest_snapshot(conn, pack["client"])
+    print(packs.report(pack, snapshot))
+
+
 @app.command()
 def tune(
     detection_id: str,

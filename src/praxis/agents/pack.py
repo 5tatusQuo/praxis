@@ -545,3 +545,22 @@ def report(pack: dict[str, Any], snapshot: dict[str, Any]) -> str:
         f"full pack record is `rule-packs/{pack['id']}.yml`.",
     ]
     return "\n".join(lines) + "\n"
+
+
+def rescore(content_dir: Path, pack_id: str) -> dict[str, Any]:
+    """Measure a pack's detections again (tests, score, backtest) and update its record.
+
+    For when the scorer or a detection changed after the pack was proposed. No model is involved.
+    """
+    path = content_dir / "rule-packs" / f"{pack_id}.yml"
+    pack = yaml.safe_load(path.read_text())
+    box = Toolbox(content_dir, pack["client"])
+    for pick in pack["picks"]:
+        facts = _facts(box, pack["client"], pick["detection"])
+        pick["quality"] = facts["quality"]
+        pick["lab"] = {
+            "passed": facts["tests"]["passed"],
+            "cases": len(facts["tests"].get("cases", [])),
+        }
+    path.write_text(yaml.safe_dump(pack, sort_keys=False, width=100))
+    return pack
