@@ -1,0 +1,102 @@
+id: 2026-11-18-akira-and-play-ransomware-precursors-on-windows-
+prompt: 'Akira and Play ransomware precursors on Windows endpoints of an engineering firm: defence evasion,
+  credential dumping, shadow copy tampering and lateral movement'
+created: '2026-11-18'
+clients:
+- stonebridge
+summary: The hunt found shadow storage changes under a backup process. The other tested behaviours produced
+  no matches. Missing authentication and file telemetry prevent confirmation of remote access and dump
+  creation.
+hypotheses:
+- title: A dump utility targets LSASS memory
+  technique: T1003.001
+  rationale: Play uses credential dumping. This query tests an explicit LSASS target outside the existing
+    comsvcs detection.
+  query: 'process where host.os.type == "windows" and event.type == "start" and (process.name : ("procdump.exe",
+    "procdump64.exe") or ?process.pe.original_file_name : "procdump*") and process.command_line : "* -ma
+    *" and process.command_line : "*lsass*"'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No matches appeared. The query does not detect numeric process targets. File telemetry is
+    missing, so dump creation remains untested.
+  durable: true
+  results:
+    stonebridge:
+      hits: 0
+      days: 30
+  tested: true
+- title: A command deletes a service registry key
+  technique: T1685
+  rationale: Both groups disable security tools. Service key deletion can remove protection without the
+    PowerShell commands that the existing detection monitors.
+  query: 'process where host.os.type == "windows" and event.type == "start" and (process.name : "reg.exe"
+    or ?process.pe.original_file_name : "reg.exe") and process.command_line : "* delete *" and process.command_line
+    : "*\\SYSTEM\\CurrentControlSet\\services\\*"'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No matches appeared. Reuse the existing library detection rather than create a duplicate.
+  durable: true
+  results:
+    stonebridge:
+      hits: 0
+      days: 30
+  tested: true
+- title: A command clears Windows event logs
+  technique: T1685.005
+  rationale: Play clears Windows event logs. Explicit clearing commands can expose attempts to remove
+    evidence before encryption.
+  query: 'process where host.os.type == "windows" and event.type == "start" and ((process.name : "wevtutil.exe"
+    and process.command_line : ("* cl *", "* clear-log *")) or (process.name : ("powershell.exe", "pwsh.exe",
+    "powershell_ise.exe") and process.command_line : ("*Clear-EventLog*", "*Clear-WinEvent*", "*ClearEventLog*",
+    "*EventLogSession*ClearLog*")))'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No matches appeared. The query tests clearing commands, not successful log removal.
+  durable: true
+  results:
+    stonebridge:
+      hits: 0
+      days: 30
+  tested: true
+- title: A command deletes or resizes shadow copies
+  technique: T1490
+  rationale: The requested recovery tampering check supplements the reported actor techniques. The group
+    lookups do not establish this technique for either actor.
+  query: 'process where host.os.type == "windows" and event.type == "start" and ((process.name : ("powershell.exe",
+    "pwsh.exe", "wmic.exe", "vssadmin.exe", "diskshadow.exe") and process.command_line : "*shadow*" and
+    process.command_line : "*delete*") or (process.name : "vssadmin.exe" and process.command_line : "*resize*"
+    and process.command_line : "*shadowstorage*"))'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: Samples show a backup process resizing shadow storage. Confirm the approved schedule. Review
+    the remaining events before any exception. Retain the existing detection.
+  durable: false
+  results:
+    stonebridge:
+      hits: 29
+      days: 30
+  tested: true
+- title: A command starts execution on a remote endpoint
+  technique: T1021.002
+  rationale: Play uses Windows administrative shares. Remote PsExec commands and remote service commands
+    can expose lateral movement.
+  query: 'process where host.os.type == "windows" and event.type == "start" and ((process.name : ("psexec.exe",
+    "psexec64.exe") and process.command_line : "*\\\\*") or (process.name : "sc.exe" and process.command_line
+    : "*\\\\*" and process.command_line : ("* create *", "* start *")))'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No matches appeared. Authentication telemetry is missing, so remote sessions remain untested.
+    Confirm administrative use before promotion.
+  durable: true
+  results:
+    stonebridge:
+      hits: 0
+      days: 30
+  tested: true
+agents:
+  model: gpt-6.1-sol
+usage:
+  llm_calls: 7
+  input_tokens: 91575
+  output_tokens: 2387
+  tool_calls: 21
