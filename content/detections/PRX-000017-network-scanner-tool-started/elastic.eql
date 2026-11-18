@@ -1,0 +1,8 @@
+process where host.os.type == "windows" and event.type == "start" and
+  (
+    process.name : ("advanced_ip_scanner.exe", "advanced_port_scanner.exe",
+                    "netscan.exe", "nmap.exe", "masscan.exe", "angry ip scanner.exe",
+                    "ipscan.exe") or
+    ?process.pe.original_file_name : ("advanced_ip_scanner.exe", "advanced_port_scanner.exe",
+                                      "netscan.exe", "nmap.exe", "masscan.exe")
+  )
