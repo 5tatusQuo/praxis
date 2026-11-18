@@ -113,8 +113,11 @@ some hosts, or a source that went quiet:
 
 If `change merge` ends with "merged" but the deploy still running (the
 runner was busy), run the same command again: it waits for that deploy and
-shows its result. `change merge` takes seven to fifteen minutes, also for a change that deploys nothing: the checks replay every detection's
-test events in the lab, and the deploy waits for each rule's first run. It prints progress while it waits for the
+shows its result. `change merge` takes three to fifteen minutes. The checks replay the test events of the
+detections a change affects in the lab (none for a record-only change, all of them when
+PRAXIS's own code changes), and the deploy waits for each rule's first run. A pull
+request's checks show as pending in `change show` until they finish; `change merge`
+waits for them and does not merge if one fails. It prints progress while it waits for the
 checks, merges, and waits for the deploy; only the clients a change affects
 are redeployed. It reports each rule as `created` and its first run as
 `succeeded`. A rule the client sends no telemetry for reports `no telemetry`:
@@ -130,7 +133,8 @@ it is deployed, and coverage will show it as a blind rule.
 You get a visibility score per data component, each rule's status, and the top
 detection gaps ranked by threat weight. A rule on a sub-technique also covers
 its parent technique, so "covered" can be higher than the number of techniques
-listed against the rules. `docs/visibility-scoring.md` explains
+listed against the rules. A technique's visibility is the best score among its data components,
+so it can be 4 while one of its sources is partial. `docs/visibility-scoring.md` explains
 every number. Snapshot times are in UTC; the dates on pack and hunt records
 are the local date. The same view is on the dashboard: `deploy/dashboard.sh` opens it.
 
@@ -317,7 +321,9 @@ existing files show the format.
 Planner writes hypotheses, runs each query read-only, and records the hit
 counts code measured. Hypotheses it marks durable are candidates for step 6 or 7.
 A query the SIEM refused is listed under `failed_queries` in the record and
-under "Queries that failed" in the pull request: it tested nothing.
+under "Queries that failed" in the pull request: it tested nothing. A query
+that hits the counting limit (1000) is marked "too broad" and its hypothesis
+is not counted as tested.
 
 ## 10. Day to day
 
@@ -349,7 +355,8 @@ to close it. It leaves the shared library alone and lists what it kept: the sect
 profile, the records of the client's rule packs and hunts (history), and any
 detection that no client runs now, with the commands to reassign or retire it.
 If you do not want to keep the sector profile or a pack record, remove them
-before you submit: `./px sector remove <sector>` and `./px pack remove <pack id>`.
+before you submit: `./px sector remove <sector>`, `./px pack remove <pack id>` and
+`./px hunt-remove <hunt id>` (a hunt record goes only when every client it covers is gone).
 The client's coverage history stays in the database but no longer shows on
 the dashboard or in `./px status`.
 
@@ -391,6 +398,32 @@ dashboard; it works through `./px`.
 - Events you replay carry their own host names, so a source can show a few
   more hosts than the client has endpoints.
 
+## Every other command
+
+The steps above use most commands. These are the rest. A test in CI fails if
+a `./px` command is not named in this guide or in `CLAUDE.md`.
+
+| Command | What it does | Who runs it |
+| --- | --- | --- |
+| `./px version` | PRAXIS version and ATT&CK release | You |
+| `./px client list` | Every client with its sector, packs and detections | You |
+| `./px clients` | Client ids, for a CI matrix | CI |
+| `./px connection <client>` | Same check as `./px client check` | You, CI |
+| `./px validate` | Checks schemas, references, ATT&CK ids and tuning files | You, CI |
+| `./px render` | Writes the rules each client would get | CI |
+| `./px release <client>` | Deploys a client's rules and checks their first run. Merging does this for you | CD |
+| `./px detection stage <id>` | Puts a detection back in shadow | You |
+| `./px catalog search` | Searches the upstream rule catalog by meaning or technique | You |
+| `./px catalog sync` | Rebuilds the catalog from the pinned upstream sources | Nightly job |
+| `./px pack rescore <pack>` | Measures a proposed pack again and prints its report | You |
+| `./px pack restyle <pack>` | Rewrites a proposed pack's text to the current template and reviews it again | You |
+| `./px pack sync` | Copies each pack's state from Git to the dashboard's database | CD |
+| `./px tuning-promotions` | Exclusions repeated across clients that belong in a shared layer | You |
+| `./px schema` | Exports JSON Schemas for the content files | You |
+| `./px mcp` | Serves the MCP tools; Claude Code starts it from `.mcp.json` | Claude Code |
+| `./px db-migrate` | Applies database migrations | Server setup |
+| `./px admin provision`, `./px admin deprovision` | Server side of `client provision` and `client offboard`. Use those instead | PRAXIS itself |
+
 ## What PRAXIS does not do yet
 
 These are limits of the product today, not steps you are doing wrong:
@@ -404,9 +437,6 @@ These are limits of the product today, not steps you are doing wrong:
   the SIEM itself and prints the result, but once the client is out of the
   content PRAXIS no longer knows its space or keys, so there is no later
   re-check. Keep the offboarding output as the record.
-- **No command removes a hunt record.** Hunt records are shared history and
-  can cover several clients. `./px sector remove` and `./px pack remove`
-  delete a sector profile or the pack record of an offboarded client.
 - **Elastic and EQL only.** Splunk, Sentinel and ES|QL rules come later.
   Exclusions match case-sensitively, which is how Kibana exception lists work.
 

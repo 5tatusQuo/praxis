@@ -40,6 +40,9 @@ class ToolError(Exception):
     """A problem the agent can fix; returned to it as an error result."""
 
 
+HUNT_TOO_BROAD = 1000  # the backtest stops counting here
+
+
 @dataclass(frozen=True)
 class Tool:
     name: str
@@ -126,7 +129,8 @@ class Toolbox:
             Tool(
                 "get_coverage",
                 "Latest coverage snapshot for a client: summary, visibility per data component, "
-                "deployed rules, and the top detection gaps ranked by threat weight. This is the "
+                "deployed rules, and the top detection gaps ranked by threat weight. In the summary, "
+                "`blind_rule` counts techniques; under `rules`, `blind` counts rules. This is the "
                 "only view of the client's environment you get.",
                 _object(
                     {**client, "gaps": {"type": "integer", "minimum": 1, "maximum": 60}}, ["client"]
@@ -151,7 +155,8 @@ class Toolbox:
                 "search_catalog",
                 "Search the candidate catalog of upstream rules by ATT&CK technique and/or "
                 "free text. Returns id, title, quality score (0-100), Pyramid of Pain tier and "
-                "flags. Only candidates with a first-draft query for this client's SIEM.",
+                "flags. Only candidates with a first-draft query for the Elastic SIEM. `crowded` "
+                "counts library detections already on the candidate's technique.",
                 _object(
                     {
                         "technique": {"type": "string", "description": "e.g. T1059 or T1059.001"},
@@ -678,10 +683,11 @@ class Toolbox:
                 }
             )
             raise
-        self.hunt_results[(target.id, query.strip())] = {
-            "hits": result["hits"],
-            "days": result["days"],
-        }
+        measured = {"hits": result["hits"], "days": result["days"]}
+        if result["hits"] >= HUNT_TOO_BROAD:
+            # At the counting limit the query matches too much to test a hypothesis.
+            measured["too_broad"] = True
+        self.hunt_results[(target.id, query.strip())] = measured
         return result
 
     # -- write tools -----------------------------------------------------------

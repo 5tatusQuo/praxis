@@ -156,11 +156,26 @@ def render(
 @lab_app.command("test")
 def lab_test(
     detection_ids: Annotated[list[str] | None, typer.Argument()] = None,
+    changed_since: Annotated[
+        str | None,
+        typer.Option(help="Only the detections changed since this Git commit (used by CI)."),
+    ] = None,
     as_json: Annotated[bool, typer.Option("--json")] = False,
 ) -> None:
     """Replay test events in the lab SIEM, raw and under every client's tuning."""
     repo = _repo()
     wanted = detection_ids or sorted(repo.detections)
+    if changed_since and not detection_ids:
+        from praxis import ops
+
+        changed = ops.changed_detections(get_settings().content_dir, changed_since)
+        if changed is None:
+            err.print("replaying every detection: the change reaches beyond the content folder")
+        else:
+            wanted = [d for d in changed if d in repo.detections]
+            err.print(
+                f"replaying the detections this change affects: {', '.join(wanted) or 'none'}"
+            )
     failed = False
     rows = []
     table = Table("detection", "platform", "scope", "case", "expected", "fired", "result")
@@ -350,7 +365,7 @@ def _print_snapshot(snapshot: dict) -> None:
         "technique", "name", "weight", "visibility", "in the library", title="top detection gaps"
     )
     for t in top_gaps(snapshot, "detection_gap", 10):
-        have = sorted(shelf.get(t["id"], []))
+        have = sorted(set(shelf.get(t["id"], [])))
         gaps.add_row(
             t["id"], t["name"], f"{t['weight']:.2f}", str(t["visibility"]), ", ".join(have) or "-"
         )
@@ -1260,7 +1275,8 @@ def client_offboard(
         f"  sector profile: {kept['sector_profile']} (./px sector remove deletes it)",
         f"  rule pack records (history): {', '.join(kept['rule_pack_records']) or 'none'}"
         " (./px pack remove deletes one)",
-        f"  hunt records (history): {', '.join(kept['hunt_records']) or 'none'}",
+        f"  hunt records (history): {', '.join(kept['hunt_records']) or 'none'}"
+        " (./px hunt-remove deletes one)",
         "  detections no client runs now: "
         + (", ".join(kept["detections_no_client_runs_now"]) or "none"),
     ]
@@ -1331,7 +1347,22 @@ def sector_remove(sector: str) -> None:
 
     path = _op(lambda: ops.sector_remove(get_settings().content_dir, sector))
     console.print(
-        f'removed {path}\nNext: ./px change submit "Remove sector {sector}"', markup=False
+        f'removed {path}\nNext: ./px change submit "Remove sector {sector}" '
+        "(one submit ships every change you have made)",
+        markup=False,
+    )
+
+
+@app.command("hunt-remove")
+def hunt_remove(hunt_id: str) -> None:
+    """Delete the record of a hunt whose clients were all offboarded."""
+    from praxis import ops
+
+    path = _op(lambda: ops.hunt_remove(get_settings().content_dir, hunt_id))
+    console.print(
+        f'removed {path}\nNext: ./px change submit "Remove hunt record {hunt_id}" '
+        "(one submit ships every change you have made)",
+        markup=False,
     )
 
 
@@ -1342,7 +1373,9 @@ def pack_remove(pack_id: str) -> None:
 
     path = _op(lambda: ops.pack_remove(get_settings().content_dir, pack_id))
     console.print(
-        f'removed {path}\nNext: ./px change submit "Remove pack record {pack_id}"', markup=False
+        f'removed {path}\nNext: ./px change submit "Remove pack record {pack_id}" '
+        "(one submit ships every change you have made)",
+        markup=False,
     )
 
 
@@ -1357,12 +1390,14 @@ def attack_groups(query: str, as_json: Annotated[bool, typer.Option("--json")] =
 
     found = ops.attack_groups(query)
     if not found and not as_json:
-        err.print(
+        # Not an error: an empty answer to a search. Exit code 0.
+        console.print(
             f"no ATT&CK group matches {query!r}. Groups are threat actors (for example Akira, "
             "Play, APT41); ransomware families and tools are listed as software, not groups. "
-            "Browse https://attack.mitre.org/groups/ for names."
+            "Browse https://attack.mitre.org/groups/ for names.",
+            markup=False,
         )
-        raise typer.Exit(1)
+        return
     _out(found, as_json)
 
 

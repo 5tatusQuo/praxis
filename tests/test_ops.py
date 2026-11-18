@@ -37,6 +37,8 @@ def test_sector_add_checks_group_ids(base):
     # "social engineering" says nothing about who a group targets.
     assert ops._find_word("uses social engineering against engineering firms", "engineering") == 32
     assert ops._find_word("uses social engineering", "engineering") == -1
+    assert ops._find_word("its playbook is displayed", "play") == -1
+    assert ops._find_word("targets hospitals and clinics", "hospital") == 8
 
 
 def test_sector_remove_refuses_a_sector_in_use(base):
@@ -50,6 +52,13 @@ def test_sector_remove_refuses_a_sector_in_use(base):
         ops.sector_remove(base, "construction")
     with pytest.raises(ops.OpsError, match="no rule pack record"):
         ops.pack_remove(base, "ironbridge-2026.12.0")
+    with pytest.raises(ops.OpsError, match="no hunt record"):
+        ops.hunt_remove(base, "2026-01-01-nothing")
+
+
+def test_changed_detections_falls_back_to_all(base):
+    # Not a Git commit: the answer is "all of them", never "none".
+    assert ops.changed_detections(base, "no-such-ref") is None
 
 
 def test_client_add_writes_everything_and_says_what_is_next(base):
