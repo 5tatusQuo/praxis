@@ -11,3 +11,5 @@ platforms:
     namespace: pellwick
 packs:
 - baseline
+detections:
+- PRX-000017

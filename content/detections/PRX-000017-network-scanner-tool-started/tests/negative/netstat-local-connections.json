@@ -1,0 +1,31 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "name": "ws-lab-07",
+    "os": {
+      "type": "windows"
+    }
+  },
+  "user": {
+    "name": "j.doe"
+  },
+  "process": {
+    "name": "NETSTAT.EXE",
+    "executable": "C:\\Windows\\System32\\NETSTAT.EXE",
+    "command_line": "netstat -ano",
+    "pe": {
+      "original_file_name": "netstat.exe"
+    },
+    "parent": {
+      "name": "cmd.exe"
+    }
+  }
+}
