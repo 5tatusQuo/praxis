@@ -532,6 +532,19 @@ def pack_rescore(pack_id: str) -> None:
     print(packs.report(pack, snapshot))
 
 
+@pack_app.command("restyle")
+def pack_restyle(pack_id: str) -> None:
+    """Rewrite a proposed pack's text to the current template and review it again."""
+    from praxis import db
+    from praxis.agents import pack as packs
+    from praxis.agents.llm import default_llm
+
+    pack = packs.restyle(get_settings().content_dir, pack_id, default_llm())
+    with db.connect() as conn:
+        snapshot = db.latest_snapshot(conn, pack["client"])
+    print(packs.report(pack, snapshot))
+
+
 @app.command()
 def tune(
     detection_id: str,

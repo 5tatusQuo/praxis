@@ -67,7 +67,31 @@ export default async function PackReview({ params }: { params: Promise<{ id: str
       </div>
 
       <Panel title="Gap brief" note="Written by the Curator from the coverage snapshot.">
-        <p className="whitespace-pre-line text-sm leading-relaxed">{pack.brief}</p>
+        {typeof pack.brief === "string" ? (
+          <p className="whitespace-pre-line text-sm leading-relaxed">{pack.brief}</p>
+        ) : (
+          <div className="space-y-3 text-sm">
+            <p className="text-base text-fog">{pack.brief.headline}</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <div className="text-xs uppercase tracking-wide text-teal">This pack adds</div>
+                <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                  {pack.brief.adds.map((x) => (
+                    <li key={x}>{x}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-wide text-brass">Still open</div>
+                <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                  {pack.brief.leaves_open.map((x) => (
+                    <li key={x}>{x}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
       </Panel>
 
       {pack.picks.map((pick) => (
@@ -80,20 +104,24 @@ export default async function PackReview({ params }: { params: Promise<{ id: str
             <div className="space-y-3 text-sm lg:col-span-2">
               <div>
                 <div className="text-xs uppercase tracking-wide text-mute">Why this rule</div>
-                <p className="whitespace-pre-line leading-relaxed">{pick.rationale}</p>
+                <p className="leading-relaxed">{pick.why ?? pick.rationale}</p>
               </div>
-              {pick.justification ? (
+              {pick.caveat ? (
                 <div>
-                  <div className="text-xs uppercase tracking-wide text-brass">
-                    Justification for a low score
-                  </div>
-                  <p className="whitespace-pre-line leading-relaxed">{pick.justification}</p>
+                  <div className="text-xs uppercase tracking-wide text-brass">Before you merge</div>
+                  <p className="leading-relaxed">{pick.caveat}</p>
                 </div>
               ) : null}
-              {pick.engineer_notes ? (
+              {pick.justification ? (
                 <div>
-                  <div className="text-xs uppercase tracking-wide text-mute">Engineer notes</div>
-                  <p className="whitespace-pre-line leading-relaxed text-mute">{pick.engineer_notes}</p>
+                  <div className="text-xs uppercase tracking-wide text-brass">Scores below the threshold because</div>
+                  <p className="leading-relaxed">{pick.justification}</p>
+                </div>
+              ) : null}
+              {(pick.changed ?? pick.engineer_notes) ? (
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-mute">Changed from the upstream draft</div>
+                  <p className="leading-relaxed text-mute">{pick.changed ?? pick.engineer_notes}</p>
                 </div>
               ) : null}
               {(review?.comments ?? [])
@@ -103,7 +131,8 @@ export default async function PackReview({ params }: { params: Promise<{ id: str
                     <span className={`text-xs uppercase ${SEVERITY_COLOUR[c.severity] ?? ""}`}>
                       Reviewer {c.severity}
                     </span>
-                    <p className="leading-relaxed">{c.comment}</p>
+                    <p className="leading-relaxed">{c.issue ?? c.comment}</p>
+                    {c.action ? <p className="leading-relaxed text-mute">Do: {c.action}</p> : null}
                   </div>
                 ))}
             </div>
@@ -167,7 +196,8 @@ export default async function PackReview({ params }: { params: Promise<{ id: str
                 .map((c, i) => (
                   <li key={i}>
                     <span className={`text-xs uppercase ${SEVERITY_COLOUR[c.severity] ?? ""}`}>{c.severity}</span>{" "}
-                    {c.comment}
+                    {c.issue ?? c.comment}
+                    {c.action ? ` Do: ${c.action}` : ""}
                   </li>
                 ))}
             </ul>

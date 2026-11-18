@@ -27,6 +27,33 @@ an `ai/` branch as a pull request that CI tests and a person reviews.
 - **No deploy path.** No tool loads a deploy key. CD after a human merge is the
   only way into a SIEM.
 
+## How agents write
+
+Agent text follows the writing rules of ASD-STE100 Simplified Technical
+English, and a template with hard limits. Code rejects an answer that breaks a
+limit, and the agent must send it again.
+
+- **Sentences:** at most 25 words to describe and 20 words for an instruction,
+  one instruction per sentence. Active voice, simple tenses, the same word for
+  the same thing, noun clusters of three words at most.
+- **No repeats:** an agent does not restate what the page already shows next
+  to its text (scores, weights, hit counts, test counts, names).
+- **Templates:**
+
+| Text | Limit |
+| --- | --- |
+| Pack brief | A headline of 25 words, up to 3 things added and 3 gaps left open, 12 words each |
+| Pick | Why: 25 words. Caveat: 20 words, or empty |
+| Engineer | What changed from the upstream draft: 25 words |
+| Reviewer | Summary: 30 words. Up to 6 comments, each an issue (25 words) and an action (15 words) |
+| Tuner | Findings: 40 words. Scope advice: 20 words |
+| Hunt | Summary: 40 words. Per hypothesis: rationale 25 words, assessment 30 words |
+| Detection README | Summary 50 words, how it works 110, blind spots 90, triage 110 |
+
+The sentence and word limits are checked by code. Voice, tense and word choice
+are instructions to the model and are not checked. PRAXIS does not apply the
+STE dictionary of approved words, so this is not certified STE.
+
 ## What a model gets to see
 
 A coverage snapshot, aggregated alert counts, and at most five sample events

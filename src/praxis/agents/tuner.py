@@ -44,8 +44,8 @@ TUNER_ANSWER: dict[str, Any] = {
     "type": "object",
     "properties": {
         "proposed": {"type": "boolean"},
-        "findings": {"type": "string"},
-        "scope_advice": {"type": "string"},
+        "findings": {"type": "string", "maxWords": 40, "maxSentenceWords": 25},
+        "scope_advice": {"type": "string", "maxWords": 20, "maxSentenceWords": 25},
     },
     "required": ["proposed", "findings", "scope_advice"],
     "additionalProperties": False,

@@ -15,7 +15,7 @@ from typing import Any
 import mcp_types as types
 from mcp.server.lowlevel import Server
 
-from praxis.agents.llm import run_tool
+from praxis.agents.llm import model_schema, run_tool
 from praxis.agents.toolbox import Toolbox
 from praxis.settings import get_settings
 
@@ -24,7 +24,9 @@ def build_server(toolbox: Toolbox) -> Server:
     async def list_tools(ctx: Any, params: Any) -> types.ListToolsResult:
         return types.ListToolsResult(
             tools=[
-                types.Tool(name=t.name, description=t.description, input_schema=t.schema)
+                types.Tool(
+                    name=t.name, description=t.description, input_schema=model_schema(t.schema)
+                )
                 for t in toolbox.tools().values()
             ]
         )

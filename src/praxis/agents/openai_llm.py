@@ -19,7 +19,7 @@ from typing import Any
 
 import httpx
 
-from praxis.agents.llm import AgentError, _check, run_tool
+from praxis.agents.llm import AgentError, _check, model_schema, run_tool
 from praxis.agents.toolbox import Toolbox
 
 BASE_URL = "https://api.openai.com/v1"
@@ -66,7 +66,12 @@ def chatgpt_connected() -> bool:
 
 
 def _function(name: str, description: str, parameters: dict[str, Any]) -> dict[str, Any]:
-    return {"type": "function", "name": name, "description": description, "parameters": parameters}
+    return {
+        "type": "function",
+        "name": name,
+        "description": description,
+        "parameters": model_schema(parameters),
+    }
 
 
 @dataclass
