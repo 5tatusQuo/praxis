@@ -5,27 +5,44 @@ is the state of the build.
 
 ## Current phase
 
-**Phase 3 · AI agents** — next. Phases 0, 1 and 2 passed on 2026-11-18.
+**Phase 3 · AI agents** — built and tested without a model; **waiting on two things from you**
+(see "Blocked on you" below). Phases 0, 1 and 2 passed on 2026-11-18.
 
-## Phase 2 plan
+## Phase 3 plan
 
-Gate: *coverage snapshot matches a manual audit of one client.*
+Gate: *first AI-curated pack merged after human review.*
 
-1. Data map: curated schema notes per log source (`datamap-catalog/`) mapping
-   it to ATT&CK data components and the fields each needs.
-2. Synthetic telemetry for the fictional clients (`clients/<id>/lab/telemetry.yml`),
-   built to exercise every gap class.
-3. Read-only collectors on the platform interface: telemetry inventory and
-   rule health, using each client's read identity.
-4. Gap engine (pure code): visibility score 0–4 per data component, rule
-   status, threat weights from sector profiles, one class per technique.
-   Rules written down in `docs/visibility-scoring.md`.
-5. Coverage snapshots in Postgres, ATT&CK Navigator layer export, snapshot diff.
-6. Core services in Compose: Postgres, `praxis-api` (FastAPI), `praxis-web`
-   (Next.js dashboard v1: Fleet and client overview).
-7. Nightly workflow: top up lab telemetry, snapshot, drift check against
-   `packs.lock`, expiry check. CD stores a fresh snapshot after each deploy.
-8. Gate run: audit `acme` by hand from raw SIEM queries and compare with the snapshot.
+1. Candidate catalog: pinned upstream sources (`content/sources.yml`), Sigma
+   ingest, pySigma first-draft queries, logic fingerprints, Postgres full-text search.
+2. Deterministic quality scorer: specificity, Pyramid of Pain tier, durability,
+   upstream maturity, overlap with the library, backtest volume.
+3. Read-only backtests and alert statistics on the platform interface, with
+   redaction (allow-listed fields, pseudonymised users and hosts).
+4. One tool registry (`praxis.agents.toolbox`) used by the in-process agents
+   and served over MCP (`praxis mcp`).
+5. Agents on Claude (Anthropic SDK): Curator, Platform Engineer (Elastic),
+   Reviewer, Tuner. Guardrails enforced in code: budget, diversity, duplicates,
+   indicator-tier rules, licence, "must close a current gap".
+6. `praxis pack plan` and `praxis tune`: work on an `ai/` branch, open a pull
+   request with a report; proposals and the audit trail stored in Postgres.
+7. Shadow mode: `staged` detections deploy at the lowest severity with a
+   `praxis-shadow` tag until a promotion PR.
+8. Dashboard: Rule packs, Pack review, Tuning studio (live impact preview), Audit.
+9. Gate run: the Curator proposes a pack for `acme`, CI passes, you review and merge.
+
+## Blocked on you
+
+1. **An Anthropic API key.** No credential is configured on this machine
+   (`ANTHROPIC_API_KEY` is unset and the `ant` CLI is not installed). The agents
+   have only run against a scripted stand-in so far; the first real model call
+   has not happened, so expect small fixes on first contact.
+2. **Your review.** The gate is "merged after human review": once the pack PR
+   exists, a person has to read and merge it. I will not merge an AI-curated
+   pack myself.
+
+To run the gate once the key is set (`export ANTHROPIC_API_KEY=...`):
+
+    deploy/with-server.sh uv run praxis pack plan acme --month 2026-12 --budget 3
 
 ## Done
 
@@ -33,11 +50,22 @@ Gate: *coverage snapshot matches a manual audit of one client.*
   Full-mode stack on the server, CI, CD and a self-hosted runner.
 - **Phase 1 (2026-11-18).** Tuning files and platform overlays, exception-list
   rendering, per-client lab checks, `packs.lock`, connection checks, second
-  fictional client. See gate evidence below.
+  fictional client.
+- **Phase 2 (2026-11-18).** Data map, lab telemetry, read-only collectors, gap
+  engine, snapshots, Navigator layers, API, dashboard v1, nightly workflow.
+- **Phase 3, everything that needs no model (2026-11-18).** Steps 1 to 8 above.
+  Proven live: 1,683 SigmaHQ rules ingested at a pinned commit (1,649 with a
+  first-draft Elastic query) and stored in the server's Postgres; the MCP
+  server answers `tools/list` and `tools/call` over stdio; the Tuning studio
+  preview measured a real exclusion for `globex` (1 of 1 match suppressed over
+  30 days, both positive tests still fire, example silenced). Proven in unit
+  tests with a scripted model: the whole Curator → guardrails → Engineer →
+  Reviewer flow, every guardrail, and the Tuner.
 
 ## Next
 
-- Phase 2 steps above.
+- Phase 3 gate run (needs the key and your review).
+- Phase 4: Hunt Planner and hunt packs, brand and docs, Helm and Terraform, v1.0 release.
 
 ## Decisions
 
@@ -65,9 +93,21 @@ Gate: *coverage snapshot matches a manual audit of one client.*
 | 2026-11-18 | Core services for now: Postgres, API, dashboard. Not yet deployed: MinIO, Redis worker, Keycloak, Gitea. Navigator layers are generated on request from the snapshot. | Nothing needs object storage, a queue or SSO yet. The API uses a bearer token and every port listens on localhost only. Each is added when a feature needs it. |
 | 2026-11-18 | The dashboard heatmap is plain SVG/CSS hex cells, without ECharts or Monaco yet. | No chart library is needed for a grid of cells; add libraries when the Tuning studio needs them. |
 | 2026-11-18 | Lab telemetry is generated from the sample event in each schema note and marked `labels.praxis_lab: seed`. | One source of truth for what a log source looks like; the marker lets top-ups continue from the last generated event. |
+| 2026-11-18 | Agents run on the Claude Messages API with a loop PRAXIS hosts (default model `claude-opus-5-5`, set by `PRAXIS_LLM_MODEL`), not Claude Managed Agents. | The tools must reach SIEMs that only listen on the server's network, and PLAN.md has agents run in your own sandbox. Managed Agents would move the loop and tool execution to Anthropic's side. |
+| 2026-11-18 | Requests opt in to server-side refusal fallbacks (`fallbacks: "default"`). | If a safety classifier declines a security-flavoured request, the API retries it on another model instead of failing the whole pack run. Remove it in `agents/llm.py` if you do not want that. |
+| 2026-11-18 | Guardrails, scores, backtests and lab results in a pack are computed by code after the agents answer. A Reviewer `blocker` fails the pack whatever verdict it wrote. | "Deterministic first, AI second": a model cannot talk its way past the budget or report its own test results. |
+| 2026-11-18 | Agents run from a workstation through `deploy/with-server.sh` (SSH tunnels, lab and read keys passed in the environment only) and open the PR with your own GitHub login. | A PR opened by the Actions bot does not trigger CI, and the server has no GitHub credentials. No deploy key is ever fetched. The container sandbox per agent run in PLAN.md is not built yet; see Open problems. |
+| 2026-11-18 | Catalog search is Postgres full-text plus technique filters. No vector index yet. | Embeddings need a second provider or a local model; full-text and ATT&CK ids are enough to find candidates. pgvector is in the image for when it is wanted. |
+| 2026-11-18 | Only SigmaHQ is ingested (DRL 1.1, redistribution with attribution; author, id and commit kept in provenance and `reference/sigma.yml`). Elastic `detection-rules` and Splunk ESCU are not ingested yet. | Their licences need your decision before their rule text goes into a public repo. `sources.yml` has a `redistribute` switch per source for exactly this. |
+| 2026-11-18 | Tuning studio v1 is a deterministic preview (alerts, rendered rule, override editor, live impact). The Tuner agent is driven from the CLI (`praxis tune`), and proposing from the browser is not wired. Monaco is not used yet. | The preview is the part that needs no secret in the browser path. Opening PRs from the web needs a GitHub App or token on the server, which is your call. |
+| 2026-11-18 | The API container gets lab and read keys only (`/opt/praxis/api.env`); deploy keys stay with the runner. CD mirrors `content/` to `/var/lib/praxis/content` for the API. | Keeps "no service but CD can deploy" true while the studio can backtest and replay. |
+| 2026-11-18 | `external_llm: false` in `client.yml` stops every agent for that client. | PLAN.md's per-client switch for data minimisation. |
 
 ## Open problems
 
+- Agent sandbox: PLAN.md calls for each agent run in a container with no network except the MCP server and the LLM endpoint. Today agents run as a normal process on the operator's workstation. Their tools are allow-listed per role and none can deploy, but the process itself is not confined.
+- Fingerprint overlap is approximate (it ignores boolean structure) and did not flag the SigmaHQ rules closest to PRX-000001 and PRX-000002 as duplicates. The Curator also sees the library by technique, and the Reviewer checks overlap, but the automatic check should be tightened.
+- The pySigma first drafts use `.caseless` sub-fields and `any where`, which PRAXIS rewrites; drafts are starting points and the Engineer agent is expected to rewrite them.
 - Runner isolation: lab (pull request) and deploy (main) jobs run as the same user on one runner. Only repo collaborators can start jobs there, but a stricter split (separate runner users or ephemeral runners) is worth doing before any real client is connected.
 
 ## Gate evidence

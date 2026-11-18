@@ -25,7 +25,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 PRAXIS
               </span>
             </Link>
-            <span className="ml-auto text-xs text-mute">Fleet coverage</span>
+            <nav className="ml-auto flex gap-5 text-sm text-mute">
+              <Link href="/" className="hover:text-fog">
+                Fleet
+              </Link>
+              <Link href="/packs" className="hover:text-fog">
+                Rule packs
+              </Link>
+              <Link href="/audit" className="hover:text-fog">
+                Audit
+              </Link>
+            </nav>
           </div>
         </header>
         <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">{children}</main>

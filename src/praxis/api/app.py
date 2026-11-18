@@ -1,4 +1,8 @@
-"""FastAPI application. Read-only in this phase: coverage snapshots for the dashboard.
+"""FastAPI application: coverage, rule packs, audit and tuning previews for the dashboard.
+
+Nothing here changes a SIEM or the content repo. The one POST endpoint
+(tuning preview) only measures: it replays events in the lab and runs
+read-only backtests.
 
 Auth: if PRAXIS_API_TOKEN is set, every /api route except /api/health needs
 `Authorization: Bearer <token>`. OIDC login replaces this in a later phase.
@@ -13,6 +17,7 @@ from typing import Annotated
 
 import psycopg
 from fastapi import Depends, FastAPI, Header, HTTPException, Response
+from pydantic import BaseModel
 
 from praxis import __version__, db
 from praxis.visibility.engine import diff_snapshots, top_gaps
@@ -98,3 +103,133 @@ def navigator(client_id: str, conn: Conn, response: Response) -> dict:
         f'attachment; filename="praxis-{client_id}-coverage-layer.json"'
     )
     return coverage_layer(_snapshot(conn, client_id))
+
+
+# -- rule packs and audit ----------------------------------------------------------
+@app.get("/api/packs", dependencies=secured)
+def packs(conn: Conn, client_id: str | None = None) -> list[dict]:
+    """Rule packs proposed by the Curator, newest first."""
+    return db.list_packs(conn, client_id)
+
+
+@app.get("/api/packs/{pack_id}", dependencies=secured)
+def pack(pack_id: str, conn: Conn) -> dict:
+    found = db.get_pack(conn, pack_id)
+    if found is None:
+        raise HTTPException(status_code=404, detail=f"no rule pack {pack_id}")
+    return found
+
+
+@app.get("/api/audit", dependencies=secured)
+def audit(conn: Conn, client_id: str | None = None, limit: int = 200) -> list[dict]:
+    """Agent prompts, tool calls and guardrail decisions, newest first."""
+    return db.audit_log(conn, client_id, limit)
+
+
+# -- tuning studio -------------------------------------------------------------------
+def _studio_repo():
+    from praxis import core
+
+    try:
+        return core.load_repo()
+    except Exception as error:
+        raise HTTPException(status_code=503, detail=f"content is not available: {error}") from error
+
+
+def _studio_target(client_id: str, detection_id: str):
+    from praxis.platforms import get_platform
+
+    repo = _studio_repo()
+    client = repo.clients.get(client_id)
+    bundle = repo.detections.get(detection_id)
+    if client is None or bundle is None or bundle not in repo.detections_for(client):
+        raise HTTPException(status_code=404, detail=f"{client_id} does not run {detection_id}")
+    name = client.platforms.enabled()[0]
+    return repo, client, bundle, name, get_platform(name)
+
+
+@app.get("/api/clients/{client_id}/rules/{detection_id}", dependencies=secured)
+def rule_detail(client_id: str, detection_id: str) -> dict:
+    """What the Tuning studio shows: the rendered rule, its tuning, and its alerts."""
+    repo, client, bundle, name, platform = _studio_target(client_id, detection_id)
+    tuning = repo.client_tuning.get((client_id, detection_id))
+    rendered = platform.render(bundle, client, repo.tuning_for(detection_id, client, name))
+    try:
+        alerts = platform.alert_stats(client, detection_id)
+    except Exception as error:  # the page still shows the rule if the SIEM is unreachable
+        alerts = {"error": str(error)[:300]}
+    return {
+        "client": client_id,
+        "detection": detection_id,
+        "name": bundle.meta.name,
+        "query": bundle.implementations[name].query,
+        "language": bundle.implementations[name].language,
+        "readme": bundle.readme,
+        "envelope": rendered.envelope,
+        "extras": rendered.extras,
+        "tuning": tuning.model_dump(mode="json") if tuning else None,
+        "alerts": alerts,
+    }
+
+
+class TuningPreview(BaseModel):
+    exclude: list[dict]
+    examples: list[dict] = []
+
+
+@app.post("/api/clients/{client_id}/rules/{detection_id}/preview", dependencies=secured)
+def tuning_preview(client_id: str, detection_id: str, body: TuningPreview) -> dict:
+    """Live impact of a proposed exclusion. Measures only; writes nothing."""
+    from pydantic import ValidationError
+
+    from praxis.content.tuning import Exclusion, ResolvedTuning
+
+    repo, client, bundle, name, platform = _studio_target(client_id, detection_id)
+    try:
+        proposed = tuple(Exclusion.model_validate(e) for e in body.exclude)
+    except ValidationError as error:
+        raise HTTPException(status_code=422, detail=error.errors(include_url=False)) from error
+    current = repo.tuning_for(detection_id, client, name)
+    combined = ResolvedTuning(exclude=(*current.exclude, *proposed), layers=("preview",))
+    sources = bundle.meta.log_sources[name].indices
+    query = bundle.implementations[name].query
+    before = platform.backtest(client, query, sources, tuning=current)["hits"]
+    after = platform.backtest(client, query, sources, tuning=combined)["hits"]
+    positives = [
+        {"name": case.name, "fires": platform.lab_fires(bundle, case.events, combined)}
+        for case in bundle.positive
+    ]
+    examples = [
+        {
+            "fires_untuned": platform.lab_fires(bundle, [event], current),
+            "fires_tuned": platform.lab_fires(bundle, [event], combined),
+        }
+        for event in body.examples
+    ]
+    return {
+        "matches_before": before,
+        "matches_after": after,
+        "suppressed": before - after,
+        "days": 30,
+        "positives": positives,
+        "positives_still_fire": all(p["fires"] for p in positives),
+        "examples": examples,
+        "examples_silenced": all(e["fires_untuned"] and not e["fires_tuned"] for e in examples),
+    }
+
+
+@app.get("/api/clients/{client_id}/rules", dependencies=secured)
+def client_rules(client_id: str) -> list[dict]:
+    repo = _studio_repo()
+    client = repo.clients.get(client_id)
+    if client is None:
+        raise HTTPException(status_code=404, detail=f"unknown client {client_id}")
+    return [
+        {
+            "id": b.id,
+            "name": b.meta.name,
+            "lifecycle": b.meta.lifecycle,
+            "tuned": (client_id, b.id) in repo.client_tuning,
+        }
+        for b in repo.detections_for(client)
+    ]

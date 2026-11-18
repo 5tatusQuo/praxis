@@ -37,6 +37,19 @@ services:
     environment:
       PRAXIS_DATABASE_URL: postgresql://praxis:${POSTGRES_PASSWORD}@postgres:5432/praxis
       PRAXIS_API_TOKEN: ${PRAXIS_API_TOKEN}
+      PRAXIS_CONTENT_DIR: /content
+      # The bundled Elastic, for read-only backtests and lab replays (Tuning
+      # studio). Override these three for a SIEM registered in Connect mode.
+      PRAXIS_ELASTIC_LAB_ES_URL: ${PRAXIS_ELASTIC_LAB_ES_URL:-https://es01:9200}
+      PRAXIS_ELASTIC_LAB_KIBANA_URL: ${PRAXIS_ELASTIC_LAB_KIBANA_URL:-http://kibana:5601}
+      PRAXIS_ELASTIC_LAB_CA_CERT: /certs/ca.crt
+    # Read and lab keys only. Deploy keys are never given to this service.
+    env_file:
+      - path: ${PRAXIS_API_ENV_FILE:-/opt/praxis/api.env}
+        required: false
+    volumes:
+      - ${PRAXIS_CONTENT_PATH:-/var/lib/praxis/content}:/content:ro
+      - /etc/praxis/ca.crt:/certs/ca.crt:ro
     ports:
       - "${API_BIND:-127.0.0.1}:8000:8000"
     healthcheck:

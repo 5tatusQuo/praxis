@@ -419,6 +419,221 @@ def admin_provision(
         print(text, end="")
 
 
+pack_app = typer.Typer(no_args_is_help=True, help="Monthly rule packs, curated by agents.")
+app.add_typer(pack_app, name="pack")
+
+
+def _store_run(pack: dict | None, trail, pr_url: str | None) -> None:
+    """Keep the proposal and its audit trail in the database (best effort)."""
+    from praxis import db
+
+    try:
+        with db.connect() as conn:
+            db.migrate(conn)
+            if pack:
+                db.save_pack(conn, pack, pr_url)
+            db.save_audit(conn, trail.events)
+    except Exception as error:  # the pull request is the record; the database is a convenience
+        err.print(f"[yellow]could not store the run in the database: {error}[/yellow]")
+
+
+@pack_app.command("plan")
+def pack_plan(
+    client_id: str,
+    month: Annotated[str, typer.Option(help="YYYY-MM")],
+    budget: Annotated[int, typer.Option(help="Hard cap on detections in the pack.")] = 15,
+    pr: Annotated[bool, typer.Option(help="Push the branch and open a pull request.")] = True,
+) -> None:
+    """Curator, Platform Engineer and Reviewer agents build a candidate pack on a branch."""
+    from praxis.agents import gitops
+    from praxis.agents import pack as packs
+    from praxis.agents.llm import AgentError, ClaudeLLM
+
+    repo = _repo()
+    _client(repo, client_id)
+    content_dir = get_settings().content_dir
+    root = gitops.repo_root(content_dir)
+    start = gitops.current_branch(root)
+    branch = f"ai/pack-{client_id}-{month}"
+    gitops.start_branch(root, branch)
+    try:
+        pack, trail = packs.plan_pack(
+            content_dir,
+            client_id,
+            month,
+            ClaudeLLM(),
+            budget,
+            lambda m: console.print(f"[dim]{m}[/dim]"),
+        )
+    except (AgentError, Exception) as error:
+        gitops.abandon_branch(root, branch, start)
+        err.print(f"[red]pack planning failed:[/red] {error}")
+        raise typer.Exit(1) from error
+    if not pack["picks"]:
+        gitops.abandon_branch(root, branch, start)
+        _store_run(None, trail, None)
+        err.print("[yellow]no pick survived the guardrails and tests; nothing to propose[/yellow]")
+        for rejected in pack["rejected"]:
+            err.print(f"  {rejected['candidate']}: {rejected['reason']}")
+        raise typer.Exit(1)
+    from praxis import db
+
+    with db.connect() as conn:
+        snapshot = db.latest_snapshot(conn, client_id)
+    body = packs.report(pack, snapshot)
+    pr_url = None
+    if pr:
+        body += "\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
+        pr_url = gitops.open_pull_request(
+            root,
+            branch,
+            f"Rule pack {pack['id']}: {len(pack['picks'])} detections for {client_id}",
+            body,
+            f"Rule pack {pack['id']} proposed by ai:curator\n\n"
+            f"{len(pack['picks'])} staged detections for {client_id}, written by "
+            "ai:platform-engineer-elastic and reviewed by ai:reviewer.\n\n"
+            "Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>",
+        )
+        console.print(f"pull request: {pr_url}")
+    else:
+        console.print(body)
+        console.print(f"[dim]left on branch {branch}, not committed[/dim]")
+    _store_run(pack, trail, pr_url)
+    verdict = (pack["review"] or {}).get("verdict", "n/a")
+    console.print(f"{pack['id']}: {len(pack['picks'])} picks, reviewer verdict {verdict}")
+
+
+@app.command()
+def tune(
+    detection_id: str,
+    client_id: Annotated[str, typer.Option("--client")],
+    hint: Annotated[str, typer.Option(help="What the analyst noticed, e.g. an alert id.")] = "",
+    pr: Annotated[bool, typer.Option(help="Push the branch and open a pull request.")] = True,
+) -> None:
+    """The Tuner agent studies a noisy rule's alerts and proposes a tested override."""
+    from praxis.agents import gitops, tuner
+    from praxis.agents.llm import ClaudeLLM
+
+    repo = _repo()
+    _client(repo, client_id)
+    content_dir = get_settings().content_dir
+    root = gitops.repo_root(content_dir)
+    start = gitops.current_branch(root)
+    branch = f"ai/tune-{client_id}-{detection_id.lower()}"
+    gitops.start_branch(root, branch)
+    try:
+        result, trail = tuner.propose_tuning(
+            content_dir,
+            client_id,
+            detection_id,
+            ClaudeLLM(),
+            hint,
+            lambda m: console.print(f"[dim]{m}[/dim]"),
+        )
+    except Exception as error:
+        gitops.abandon_branch(root, branch, start)
+        err.print(f"[red]tuning failed:[/red] {error}")
+        raise typer.Exit(1) from error
+    console.print(result["findings"])
+    console.print(f"[bold]Scope:[/bold] {result['scope_advice']}")
+    if not result["proposed"]:
+        gitops.abandon_branch(root, branch, start)
+        _store_run(None, trail, None)
+        console.print("[yellow]no tuning proposed[/yellow]")
+        return
+    if pr:
+        body = (
+            f"Tuning for `{detection_id}` at `{client_id}`, proposed by the Tuner agent.\n\n"
+            f"## Findings\n\n{result['findings']}\n\n## Scope\n\n{result['scope_advice']}\n\n"
+            "The lab replayed the tuning: its examples are silenced and every positive test "
+            "still fires. CI repeats that check.\n\n"
+            "🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
+        )
+        url = gitops.open_pull_request(
+            root,
+            branch,
+            f"Tune {detection_id} for {client_id}",
+            body,
+            f"Tune {detection_id} for {client_id} (proposed by ai:tuner)\n\n"
+            "Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>",
+        )
+        console.print(f"pull request: {url}")
+    _store_run(None, trail, None)
+
+
+@app.command()
+def mcp() -> None:
+    """Serve the PRAXIS tools over MCP (stdio), for Claude Code and other MCP clients."""
+    from praxis.mcp_server import serve
+
+    serve()
+
+
+catalog_app = typer.Typer(no_args_is_help=True, help="The candidate catalog of upstream rules.")
+app.add_typer(catalog_app, name="catalog")
+
+
+@catalog_app.command("sync")
+def catalog_sync(
+    store: Annotated[bool, typer.Option(help="Replace the catalog in the database.")] = True,
+) -> None:
+    """Fetch the pinned upstream sources, normalise, fingerprint and score every rule."""
+    from praxis.catalog import sync
+
+    repo = _repo()
+    candidates = sync.build(repo, get_settings().sources_cache)
+    drafted = sum(1 for c in candidates if c.drafts)
+    passing = sum(1 for c in candidates if c.quality["passes"])
+    console.print(
+        f"{len(candidates)} candidates, {drafted} with a first-draft query, "
+        f"{passing} pass the quality threshold"
+    )
+    if store:
+        from praxis import db
+
+        with db.connect() as conn:
+            db.migrate(conn)
+            db.replace_catalog(conn, [c.to_dict() for c in candidates])
+        console.print("catalog stored")
+
+
+@app.command("tuning-promotions")
+def tuning_promotions(minimum: int = 3) -> None:
+    """Exclusions repeated across clients that belong in a shared layer instead."""
+    from praxis.agents.tuner import promotable_exclusions
+
+    rows = promotable_exclusions(_repo(), minimum)
+    table = Table("rule", "field", "op", "value", "clients")
+    for row in rows:
+        table.add_row(row["rule"], row["field"], row["op"], row["value"], ", ".join(row["clients"]))
+    console.print(table if rows else f"no exclusion is shared by {minimum} or more clients")
+
+
+@catalog_app.command("search")
+def catalog_search(
+    text: Annotated[str | None, typer.Argument()] = None,
+    technique: Annotated[str | None, typer.Option()] = None,
+    limit: int = 15,
+) -> None:
+    """Search the catalog by meaning and/or ATT&CK technique."""
+    from praxis import db
+
+    with db.connect() as conn:
+        rows = db.search_catalog(conn, technique=technique, text=text, limit=limit)
+    table = Table("id", "score", "tier", "status", "techniques", "title", "flags")
+    for row in rows:
+        table.add_row(
+            row["id"],
+            str(row["score"]),
+            row["tier"],
+            row["status"],
+            ", ".join(row["techniques"]),
+            row["title"],
+            "; ".join(f.split(":")[0] for f in row["flags"]),
+        )
+    console.print(table)
+
+
 @app.command("db-migrate")
 def db_migrate() -> None:
     """Apply database migrations."""

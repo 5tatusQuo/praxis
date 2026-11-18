@@ -1,0 +1,20 @@
+# Upstream rule sources for the candidate catalog. Commits are pinned: bump
+# them deliberately in a pull request, never automatically.
+#
+# `redistribute` says whether a source's rule text may be copied into this
+# repo. Check each licence yourself before shipping its rules to clients.
+sources:
+  - name: sigmahq
+    kind: sigma
+    repo: https://github.com/SigmaHQ/sigma.git
+    commit: 088855f00b65a19e345b09c1619272b44f92fea4
+    licence: DRL-1.1
+    # Detection Rule License 1.1 allows use and redistribution with attribution
+    # to the rule author. PRAXIS keeps the author, rule id and link in
+    # provenance and in reference/sigma.yml.
+    redistribute: true
+    paths:
+      - rules/windows/process_creation
+      - rules/windows/registry
+      - rules/windows/network_connection
+      - rules/windows/file

@@ -15,6 +15,7 @@ from praxis.content.models import (
     DataSourceNote,
     Detection,
     LabTelemetry,
+    RulePack,
     ThreatProfile,
 )
 from praxis.content.tuning import ResolvedTuning, Tuning, resolve
@@ -94,6 +95,7 @@ class ContentRepo:
         self.datamap: dict[tuple[str, str], DataSourceNote] = {}
         self.threat_profiles: dict[str, ThreatProfile] = {}
         self.lab_telemetry: dict[str, LabTelemetry] = {}
+        self.rule_packs: dict[str, RulePack] = {}
         self.issues: list[Issue] = []
         self._implementation_files = implementation_files
         self._load()
@@ -136,6 +138,16 @@ class ContentRepo:
             telemetry = _load_yaml(path, LabTelemetry, self.issues)
             if telemetry is not None:
                 self.lab_telemetry[path.parent.parent.name] = telemetry
+        for path in sorted((self.root / "rule-packs").glob("*.yml")):
+            pack = _load_yaml(path, RulePack, self.issues)
+            if pack is None:
+                continue
+            if pack.id != path.stem:
+                self.issues.append(Issue(path, "rule pack id must match the file name"))
+            for pick in pack.picks:
+                if pick.get("detection") not in self.detections:
+                    self.issues.append(Issue(path, f"unknown detection {pick.get('detection')}"))
+            self.rule_packs[pack.id] = pack
         self._check_references()
 
     def _load_datamap_note(self, path: Path) -> None:

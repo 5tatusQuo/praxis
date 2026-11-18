@@ -13,6 +13,7 @@ from praxis.platforms.base import RenderedRule, content_hash
 
 MANAGED_TAG = "PRAXIS"
 HASH_TAG_PREFIX = "praxis-hash:"
+SHADOW_TAG = "praxis-shadow"
 
 
 def resolve_indices(patterns: list[str], namespace: str) -> list[str]:
@@ -172,6 +173,13 @@ def render_rule(bundle: DetectionBundle, client: Client, tuning: ResolvedTuning)
         "note": section(bundle.readme, "SOC triage"),
         "tags": [MANAGED_TAG, f"praxis-version:{meta.version}", f"praxis-client:{client.id}"],
     }
+    if meta.lifecycle == "staged":
+        # Shadow mode: the rule runs and is measured, but stays out of the
+        # client's alert queue by carrying the lowest severity and a tag the
+        # SOC filters on. Promotion to production removes both.
+        envelope["severity"], envelope["risk_score"] = "low", 1
+        envelope["name"] = f"[shadow] {envelope['name']}"
+        envelope["tags"] = [*envelope["tags"], SHADOW_TAG]
     extras: dict[str, Any] = {}
     if tuning.exclude:
         extras = _exception_extras(bundle, client, tuning)

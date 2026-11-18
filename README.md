@@ -23,7 +23,9 @@ content/                       the detections PRAXIS deploys (clients are fictio
   clients/<id>/packs.lock      exact rule versions and hashes the client runs
   datamap-catalog/             schema notes: what each log source can show
   threat-profiles/             which ATT&CK groups matter to each sector
-src/praxis/                    the platform: schemas, renderers, collectors, gap engine, API, CLI
+  sources.yml                  pinned upstream rule sources for the catalog
+  rule-packs/                  monthly proposals, kept as history
+src/praxis/                    the platform: schemas, renderers, collectors, gap engine, agents, API, CLI
 web/                           the dashboard (Next.js)
 deploy/                        Docker Compose for the stack and server setup
 .github/workflows/             CI on every pull request, CD on merge
@@ -52,6 +54,16 @@ run). Gaps are ranked by how much the sector's known threat actors use the
 technique. The rules are written down in
 [docs/visibility-scoring.md](docs/visibility-scoring.md), and the dashboard
 shows the result for every client.
+
+**AI that proposes, never deploys.** A Curator agent reads a client's coverage
+snapshot and picks rules from a catalog of upstream detections (SigmaHQ,
+pinned and scored). A Platform Engineer agent turns each pick into a native
+detection with docs and tests, and an independent Reviewer agent challenges
+the result. Code enforces the rules of the game (budget, no duplicates, no
+indicator-only rules, must close a real gap) and measures every score,
+backtest and lab result itself. The outcome is a pull request for a person to
+review. New rules deploy in shadow mode first. The same tools are available to
+any MCP client through `praxis mcp`.
 
 ## Quick start
 
@@ -85,6 +97,15 @@ uv run praxis lab test            # replay test events in the lab SIEM
 uv run praxis release acme        # deploy a client's rules and smoke-check them
 uv run praxis coverage acme       # collect (read-only) and classify every technique
 uv run praxis drift acme          # does the SIEM still match packs.lock?
+```
+
+Agents need an Anthropic API key in `ANTHROPIC_API_KEY` and run from your
+workstation against the server through SSH tunnels:
+
+```bash
+deploy/with-server.sh uv run praxis catalog sync                  # rebuild the candidate catalog
+deploy/with-server.sh uv run praxis pack plan acme --month 2026-12 --budget 3
+deploy/with-server.sh uv run praxis tune PRX-000002 --client globex
 ```
 
 The dashboard listens on port 3000 of the server, on localhost only. Reach it
