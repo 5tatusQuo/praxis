@@ -1,0 +1,94 @@
+id: 2026-11-19-akira-and-play-ransomware-precursors-at-a-buildi
+prompt: 'Akira and Play ransomware precursors at a building and engineering contractor: remote tool download,
+  shadow copy deletion and lateral movement on Windows file servers and CAD workstations'
+created: '2026-11-19'
+clients:
+- farrowby-lund
+summary: Shadow copy deletion needs investigation. The results do not establish actor attribution. Confirm
+  which affected systems are file servers or CAD workstations. Reuse existing detections for lateral movement
+  instead of creating duplicates.
+hypotheses:
+- title: Scripts download remote access tools
+  technique: T1105
+  rationale: Play uses tool transfer. Akira uses remote access tools. Download commands can expose preparation
+    for remote control.
+  query: 'process where host.os.type == "windows" and event.type == "start" and process.name : ("powershell.exe",
+    "pwsh.exe", "curl.exe", "bitsadmin.exe", "certutil.exe") and process.command_line : ("*http://*",
+    "*https://*") and process.command_line : ("*anydesk*", "*screenconnect*", "*connectwise*", "*splashtop*",
+    "*rustdesk*", "*teamviewer*")'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No matching commands appeared. Tool names limit this check. Missing file events prevent
+    confirmation of downloaded files. Check approved remote access tools.
+  durable: false
+  results:
+    farrowby-lund:
+      hits: 0
+      days: 30
+  tested: true
+- title: Commands delete shadow copies before encryption
+  technique: T1490
+  rationale: The requested ransomware precursor warrants validation of existing coverage. The returned
+    actor profiles do not explicitly list this technique.
+  query: 'process where host.os.type == "windows" and event.type == "start" and ((process.name : "vssadmin.exe"
+    and process.command_line : "*delete*shadows*") or (process.name : "wmic.exe" and process.command_line
+    : "*shadowcopy*delete*") or (process.name : ("powershell.exe", "pwsh.exe") and process.command_line
+    : "*Win32_ShadowCopy*" and process.command_line : ("*Delete*", "*Remove-WmiObject*", "*Remove-CimInstance*")))'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: A follow-up found PowerShell, Vssadmin and WMIC deletion under one account on one host,
+    separate from backup samples. Verify authorization and inspect the parent scripts.
+  durable: false
+  results:
+    farrowby-lund:
+      hits: 33
+      days: 30
+  tested: true
+- title: Commands connect to administrative shares
+  technique: T1021.002
+  rationale: Play uses administrative shares for lateral movement. Explicit connections can expose access
+    to Windows systems before remote execution.
+  query: 'process where host.os.type == "windows" and event.type == "start" and process.name : ("net.exe",
+    "net1.exe") and process.command_line : "* use *" and process.command_line : ("*\\\\*\\ADMIN$*", "*\\\\*\\C$*")'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: The corrected query found no matching connections. It does not exclude other share access
+    methods. Reuse the existing detection after review.
+  durable: true
+  results:
+    farrowby-lund:
+      hits: 0
+      days: 30
+  tested: true
+- title: PsExec enables remote execution
+  technique: T1021.002
+  rationale: Play uses remote services and administrative shares. PsExec commands and service processes
+    can expose lateral execution.
+  query: 'process where host.os.type == "windows" and event.type == "start" and ((process.name : ("psexec.exe",
+    "psexec64.exe") and process.command_line : "*\\\\*") or process.name : "PSEXESVC.exe" or process.parent.name
+    : "PSEXESVC.exe")'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No matching execution appeared. Renamed tools can evade this query. Confirm approved administration
+    methods before reusing the existing detection.
+  durable: true
+  results:
+    farrowby-lund:
+      hits: 0
+      days: 30
+  tested: true
+failed_queries:
+- client: farrowby-lund
+  indices:
+  - logs-endpoint.events.process-*
+  query: 'process where host.os.type == "windows" and event.type == "start" and process.name : ("net.exe",
+    "net1.exe") and process.args : "use" and process.command_line : ("*\\\\*\\ADMIN$*", "*\\\\*\\C$*")'
+  error: 'POST /logs-endpoint.events.process-farrowby_lund/_eql/search -> 400: {"error":{"root_cause":[{"type":"verification_exception","reason":"Found
+    1 problem\nline 1:114: Unknown column [process.args], did you mean any of [process.name, process.name.text]?"}],"type":"verification_exception","reason":"Foun'
+agents:
+  model: gpt-6.1-sol
+usage:
+  llm_calls: 5
+  input_tokens: 31449
+  output_tokens: 2062
+  tool_calls: 13
