@@ -49,20 +49,19 @@ picks:
     DRL-1.1. Validation is clean; all 14 tests passed (9 positive, 5 negative). Quality score: 94/100;
     acme 30-day backtest: 0 hits. Staged for pull-request/CI and human review; not deployed to production.'
   quality:
-    score: 84
-    passes: false
+    score: 94
+    passes: true
     tier: ttp
     parts:
       specificity: 30
       pyramid: 25
       durability: 10
       maturity: 9
-      overlap: 0
+      overlap: 10
       backtest: 10
-    closest_existing: PRX-000004
-    closest_similarity: 1.0
-    flags:
-    - 'duplicate: 100% overlap with PRX-000004'
+    closest_existing: PRX-000005
+    closest_similarity: 0.1
+    flags: []
     backtest:
       hits: 0
       days: 30
@@ -92,20 +91,19 @@ picks:
     TLS hardening, can alert; the rule detects attempted configuration changes, not successful RDP lateral
     movement.'
   quality:
-    score: 84
-    passes: false
+    score: 94
+    passes: true
     tier: ttp
     parts:
       specificity: 30
       pyramid: 25
       durability: 10
       maturity: 9
-      overlap: 0
+      overlap: 10
       backtest: 10
-    closest_existing: PRX-000005
-    closest_similarity: 1.0
-    flags:
-    - 'duplicate: 100% overlap with PRX-000005'
+    closest_existing: PRX-000004
+    closest_similarity: 0.1
+    flags: []
     backtest:
       hits: 0
       days: 30
@@ -133,20 +131,19 @@ picks:
     \ backtest: 0 hits. Deterministic quality score: 94/100. Does not establish that a connection succeeded;\
     \ encoded commands and script bodies absent from process command lines require complementary telemetry."
   quality:
-    score: 84
-    passes: false
+    score: 94
+    passes: true
     tier: ttp
     parts:
       specificity: 30
       pyramid: 25
       durability: 10
       maturity: 9
-      overlap: 0
+      overlap: 10
       backtest: 10
-    closest_existing: PRX-000006
-    closest_similarity: 1.0
-    flags:
-    - 'duplicate: 100% overlap with PRX-000006'
+    closest_existing: PRX-000002
+    closest_similarity: 0.27
+    flags: []
     backtest:
       hits: 0
       days: 30
