@@ -1,0 +1,85 @@
+id: 2026-11-18-data-theft-from-an-engineering-firm-archiving-of
+prompt: 'Data theft from an engineering firm: archiving of drawings and project files with rar or 7-Zip,
+  staging, and remote services used for lateral movement to file servers before ransomware'
+created: '2026-11-18'
+clients:
+- vantmoor
+summary: The tested queries found no matching behavior. Reported ransomware techniques guided the hunt,
+  not actor attribution. Missing file events prevent staging confirmation. Missing logon types prevent
+  RDP confirmation.
+hypotheses:
+- title: An archive utility collected drawings or project files
+  technique: T1560.001
+  rationale: Engineering file selection can expose collection without password protection, which the existing
+    detection already covers.
+  query: 'process where host.os.type == "windows" and event.type == "start" and process.name : ("rar.exe",
+    "winrar.exe", "7z.exe", "7za.exe", "7zr.exe") and process.command_line : "* a *" and process.command_line
+    : ("*.dwg*", "*.dxf*", "*.rvt*", "*.ifc*", "*drawings*", "*projects*")'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No matching execution appeared. A broader utility search also found none. Check collection
+    completeness before excluding renamed utilities or graphical use.
+  durable: false
+  results:
+    vantmoor:
+      hits: 0
+      days: 30
+  tested: true
+- title: A copy utility staged project files from a share
+  technique: T1074.001
+  rationale: Copying engineering files from a share into temporary or public directories can prepare data
+    for theft.
+  query: 'process where host.os.type == "windows" and event.type == "start" and process.name : ("robocopy.exe",
+    "xcopy.exe") and process.command_line : "*\\\\*" and process.command_line : ("*drawings*", "*projects*",
+    "*.dwg*", "*.rvt*") and process.command_line : ("*\\ProgramData\\*", "*\\Users\\Public\\*", "*\\Temp\\*")'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No matching copy command appeared. Missing file events prevent confirmation of staging.
+    Check backup workflows before enabling detection.
+  durable: true
+  results:
+    vantmoor:
+      hits: 0
+      days: 30
+  tested: true
+- title: Remote service commands enabled lateral movement
+  technique: T1021.002
+  rationale: Remote service commands can execute tools on other systems before data collection or ransomware
+    execution.
+  query: 'process where host.os.type == "windows" and event.type == "start" and ((process.name : "sc.exe"
+    and process.command_line : "*\\\\*" and process.command_line : ("* create *", "* start *")) or (process.name
+    : ("psexec.exe", "psexec64.exe", "paexec.exe") and process.command_line : "*\\\\*"))'
+  indices:
+  - logs-endpoint.events.process-*
+  assessment: No matching command appeared. Check approved administration methods and server roles. This
+    query does not exclude other remote execution methods.
+  durable: false
+  results:
+    vantmoor:
+      hits: 0
+      days: 30
+  tested: true
+- title: A successful logon preceded archive creation
+  technique: T1560.001
+  rationale: A logon followed by archiving under the same account can connect access with collection.
+  query: 'sequence by host.name, user.name with maxspan=2h [authentication where event.code == "4624"]
+    [process where event.type == "start" and process.name : ("rar.exe", "winrar.exe", "7z.exe", "7za.exe",
+    "7zr.exe") and process.command_line : "* a *"]'
+  indices:
+  - logs-system.security-*
+  - logs-endpoint.events.process-*
+  assessment: No matching sequence appeared. The available authentication fields cannot distinguish RDP
+    logons. Check account correlation before using this sequence for detection.
+  durable: false
+  results:
+    vantmoor:
+      hits: 0
+      days: 30
+  tested: true
+agents:
+  model: gpt-6.1-sol
+usage:
+  llm_calls: 9
+  input_tokens: 63378
+  output_tokens: 2277
+  tool_calls: 17
