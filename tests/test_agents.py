@@ -105,6 +105,7 @@ def world(content, tmp_path, monkeypatch):
 
     monkeypatch.setattr(db, "connect", connect)
     monkeypatch.setattr(db, "latest_snapshot", lambda conn, client, offset=0: snapshot)
+    monkeypatch.setattr(db, "get_pack", lambda conn, pack_id: None)
     monkeypatch.setattr(
         db, "get_candidate", lambda conn, cid: dict(catalog[cid]) if cid in catalog else None
     )

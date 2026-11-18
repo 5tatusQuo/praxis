@@ -340,6 +340,22 @@ def plan_pack(
         t["id"]: t["weight"] for t in snapshot["techniques"] if t["class"] == "detection_gap"
     }
 
+    # An earlier proposal of this pack that the Reviewer failed: its blockers go to the
+    # Engineer (to avoid) and to the Reviewer (to judge the same way twice).
+    with db.connect() as conn:
+        earlier = db.get_pack(conn, f"{client_id}-{month.replace('-', '.')}.0")
+    earlier_blockers = [
+        f"{c.get('issue', '')} ({c.get('action', '')})"
+        for c in ((earlier or {}).get("review") or {}).get("comments", [])
+        if c.get("severity") == "blocker"
+    ]
+    lessons = (
+        " An earlier proposal of this pack was failed by review for these reasons; do not "
+        "repeat them: " + " | ".join(earlier_blockers)
+        if earlier_blockers
+        else ""
+    )
+
     # 1. Curator: which gaps, which candidates.
     progress("Curator: reading coverage and searching the catalog")
     curator_box = Toolbox(content_dir, client_id, trail.recorder("ai:curator"))
@@ -381,7 +397,7 @@ def plan_pack(
                     f"({candidate['title']}). It was picked to close {pick['technique']}. "
                     f"Licence: {candidate['licence']}; copying its logic with attribution is "
                     f"{'allowed' if candidate['redistribute'] else 'NOT allowed: write your own'}. "
-                    "Write the detection and get its tests passing."
+                    "Write the detection and get its tests passing." + lessons
                 ),
                 toolbox=box,
                 allowed=ENGINEER_TOOLS,
@@ -453,7 +469,7 @@ def plan_pack(
     # 4. Reviewer: fresh context, read-only tools, no authoring transcript.
     if picks:
         progress("Reviewer: challenging the pack")
-        pack["review"] = _review(content_dir, pack, llm, trail)
+        pack["review"] = _review(content_dir, pack, llm, trail, earlier_blockers)
 
     pack["usage"] = trail.usage()
     pack_path = content_dir / "rule-packs" / f"{pack['id']}.yml"
@@ -465,8 +481,19 @@ def plan_pack(
     return pack, trail
 
 
-def _review(content_dir: Path, pack: dict[str, Any], llm: LLM, trail: AuditTrail) -> dict[str, Any]:
-    """Run the Reviewer on a pack: no authoring context, read-only tools."""
+def _review(
+    content_dir: Path,
+    pack: dict[str, Any],
+    llm: LLM,
+    trail: AuditTrail,
+    earlier_blockers: list[str] | None = None,
+) -> dict[str, Any]:
+    """Run the Reviewer on a pack: no authoring context, read-only tools.
+
+    `earlier_blockers` are the blockers of a failed earlier proposal of the same
+    pack. The Reviewer must check each against this proposal, so the same
+    defect is not failed once and passed the next time.
+    """
     box = Toolbox(content_dir, pack["client"], trail.recorder("ai:reviewer"))
     summary = yaml.safe_dump(
         {
@@ -499,6 +526,14 @@ def _review(content_dir: Path, pack: dict[str, Any], llm: LLM, trail: AuditTrail
         task=(
             f"Review this candidate rule pack for client {pack['client']}. Read each detection "
             f"with the tools before judging it.\n\n{summary}"
+            + (
+                "\nAn earlier proposal of this pack failed review with the blockers below. "
+                "Check each one against this proposal. If the same defect is still present "
+                "in any detection, raise it as a blocker again; if it is fixed or does not "
+                "apply, say so in one comment.\n- " + "\n- ".join(earlier_blockers)
+                if earlier_blockers
+                else ""
+            )
         ),
         toolbox=box,
         allowed=REVIEWER_TOOLS,
