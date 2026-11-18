@@ -9,32 +9,43 @@ is the state of the build.
 2026-11-18 and v1.0.0 is released. Phase 5 does not start until the PLAN.md
 items listed under "Not built yet" below are done.
 
-## Operator test: PRAXIS driven by an AI (passed 2026-11-18)
+## Operator test: PRAXIS driven by an AI (passed on the fifth run, 2026-11-19)
 
 Goal set by the owner: make PRAXIS fully operable by an AI agent with no
 rough spots, and prove it with a fresh sub-agent that takes a new fictional
 client through its whole life using only documented commands.
 
-**Passed on the third run.** Reports, with every finding and its fix:
+Each run used a new sub-agent with no knowledge beyond the repo, and a new
+client. Reports, with every finding and its fix, are in `docs/audits/`.
 
 | Run | Client | Result | Report |
 | --- | --- | --- | --- |
-| 1 | `stonebridge` | 10 steps done, 2 workarounds (`git switch main` twice), one serious finding (a tuning proposal carried an unapproved pack) | `docs/audits/2026-11-18-operator-test-1.md` |
-| 2 | `vantmoor` | 11 steps done, 0 workarounds; 5 commands run by the main session because the sub-agent's session refused relayed approvals | `docs/audits/2026-11-18-operator-test-2.md` |
-| 3 | `brindlewick` | 11 steps done by the agent alone: `WORKAROUNDS: 0`, `STEPS NOT RUN BY ME: 0` | `docs/audits/2026-11-18-operator-test-3.md` |
+| 1 | `stonebridge` | 10 steps; 2 workarounds (`git switch main` twice); one serious finding (a tuning proposal carried an unapproved pack) | `2026-11-18-operator-test-1.md` |
+| 2 | `vantmoor` | 11 steps; 0 workarounds; 5 commands run by the main session because the sub-agent's session refused relayed approvals | `2026-11-18-operator-test-2.md` |
+| 3 | `brindlewick` | 11 steps by the agent alone; 0 workarounds; but it used read-only `git` three times to read pull requests. Not a pass | `2026-11-18-operator-test-3.md` |
+| 4 | `harlowmere` | 0 workarounds, no `git`; the Reviewer failed the pack so it never ran in shadow; 11 undocumented read-only commands (per-command help, `detection list`). Not a pass | `2026-11-18-operator-test-4.md` |
+| 5 | `pellwick` (building and engineering) | **All 11 steps by the agent alone. `WORKAROUNDS: 0`, `UNDOCUMENTED COMMANDS: 1`, `STEPS NOT COMPLETED OR NOT RUN BY ME: 0`** | `2026-11-19-operator-test-5.md` |
+
+The one undocumented command in run 5 was `./px change status <number>`, a
+read-only form the agent found through the documented `./px change --help`.
+The runbook now names it. That one-line addition has not been through a
+further run.
 
 Pull requests:
 
 - Platform: #29 (operator commands, `./px`, MCP server, runbook), #36 (fixes
-  from run 1), #38 (dashboard sign-in), #46 (fixes from run 2), and the fixes
-  from run 3 (this change).
+  from run 1), #38 (dashboard sign-in), #46 (run 2), #54 (run 3), #62 (run 4),
+  and this change (run 5 and the evidence). All merged by the main session.
 - Run 1: #30 to #35 merged by the sub-agent, the agent-opened #33, #34, #35
   on the main session's approval as the user; #37 (offboarding) by the main
   session.
 - Run 2: #39 to #42 merged by the sub-agent; #43 (tuning), #44 (hunt) and
   #45 (offboarding) merged by the main session as the user.
-- Run 3: #47 to #53 all merged by the sub-agent, under approvals written
-  into its task.
+- Run 3: #47 to #53 merged by the sub-agent under approvals in its task.
+- Run 4: #55 to #57 and #59 to #61 merged by the sub-agent; #58 (failed pack)
+  closed by the main session.
+- Run 5: #63 to #65 and #67 to #70 merged by the sub-agent; #66 (failed pack)
+  closed by the sub-agent.
 
 What an operator reads: `CLAUDE.md`, then `docs/runbook.md`. Every step is a
 `./px` command; the same actions are MCP tools (`.mcp.json`).
@@ -42,8 +53,8 @@ What an operator reads: `CLAUDE.md`, then `docs/runbook.md`. Every step is a
 Checked outside the sub-agent runs: the MCP server over stdio through
 `./px mcp` (18 tools listed; `status` and `get_coverage` called). A
 sub-agent does not load a project's MCP servers, so the runs used `./px`.
-After run 3 a direct read-only query of the SIEM showed only `acme` and
-`globex` namespaces, keys and spaces.
+After runs 3 and 5, a direct read-only query of the SIEM showed data, keys
+and Kibana spaces for `acme` and `globex` only.
 
 Still open from the test:
 
@@ -52,12 +63,16 @@ Still open from the test:
   stack); one SIEM connection (no second SIEM here to test against); Elastic
   and EQL only (other SIEMs are Phase 5); an offboarded client cannot be
   re-checked later; no command removes a sector profile or a pack record.
+- The Reviewer agent is not consistent: in run 5 it failed a pack for a query
+  construct and passed the next proposal with the same construct
+  (PRX-000019, staged, runs nowhere). Review it before promoting.
 - The Curator does not propose assigning a detection the library already has.
-- The agents' "before you merge" notes can describe a change already made.
+- Agent wording can lag the facts ("before you merge" notes; hunt summaries).
+  Numbers come from code.
 - A merge takes five to ten minutes, by design.
-- The tests left eight detections that no client runs (PRX-000008 to 000015),
-  three sector profiles, and three pack and three hunt records. Keeping,
-  assigning or deprecating them is the owner's decision.
+- The tests left detections that no client runs (PRX-000008 to 000019),
+  five sector profiles, and pack and hunt records. Keeping, assigning or
+  deprecating them is the owner's decision.
 
 ## Not built yet (PLAN.md items inside Phases 0–4)
 
