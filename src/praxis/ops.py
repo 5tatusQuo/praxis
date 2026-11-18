@@ -358,11 +358,17 @@ def client_subscribe(
     }
 
 
-def client_remove(content_dir: Path, client_id: str) -> list[str]:
-    """Delete a client's folder from the content. Its SIEM side is removed by deprovisioning."""
+def client_remove(content_dir: Path, client_id: str) -> dict[str, Any]:
+    """Delete a client's folder from the content, and say what is deliberately kept.
+
+    Its SIEM side is removed by deprovisioning. The shared library is left
+    alone: records are history, and a detection may serve another client later.
+    """
     folder = content_dir / "clients" / client_id
     if not (folder / "client.yml").is_file():
         raise OpsError(f"unknown client {client_id!r}")
+    before = core.load_repo(content_dir)
+    ran = {b.id for b in before.detections_for(before.clients[client_id])}
     removed = []
     for path in sorted(folder.rglob("*"), reverse=True):
         if path.is_file():
@@ -371,7 +377,20 @@ def client_remove(content_dir: Path, client_id: str) -> list[str]:
         else:
             path.rmdir()
     folder.rmdir()
-    return removed
+    after = core.load_repo(content_dir)
+    in_use = {b.id for c in after.clients.values() for b in after.detections_for(c)}
+    in_packs = {d for p in after.packs.values() for d in p.detections}
+    return {
+        "removed_files": removed,
+        "kept": {
+            "detections_no_client_runs_now": sorted(ran - in_use - in_packs),
+            "rule_pack_records": sorted(
+                p.id for p in after.rule_packs.values() if p.client == client_id
+            ),
+            "hunt_records": sorted(h.id for h in after.hunts.values() if client_id in h.clients),
+            "sector_profile": before.clients[client_id].sector,
+        },
+    }
 
 
 def client_show(repo: ContentRepo, client_id: str) -> dict[str, Any]:

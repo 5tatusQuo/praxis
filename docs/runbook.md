@@ -272,7 +272,9 @@ them, then let the Tuner agent study them and propose a tested exclusion:
 
 The command and the pull request both state the exclusion in plain words and
 the measured impact ("removes 28 of 32 matches over the last 30 days"). The dashboard's Tuning
-studio shows a rule's alerts and lets you try an exclusion before proposing it.
+studio shows a rule's alerts and lets you try an exclusion before proposing it. At any time
+afterwards, `./px tuning PRX-000002 --client ironbridge` shows the rule's
+exclusions in plain words and how many matches they suppress.
 
 Tuning files can also be written by hand in
 `content/clients/<client>/tuning/<rule>.yml`; `docs/agents.md` and the
@@ -309,11 +311,16 @@ counts code measured. Hypotheses it marks durable are candidates for step 6 or 7
 | Offboard a client | `./px client offboard ironbridge --yes --delete-space --delete-data`, then `./px change submit` and `merge` |
 
 Offboarding removes the client's rules and keys from the SIEM, and with the
-two flags its Kibana space and telemetry. It cannot be undone. It leaves the
-shared library alone: the sector's threat profile, detections written for the
-client, and the records of its rule packs and hunts stay, and its coverage
-history stays in the database but no longer shows on the dashboard or in
-`./px status`.
+two flags its Kibana space and telemetry. It then checks the SIEM and says
+what it verified ("verified in the SIEM: no PRAXIS rules, no active keys, no
+Kibana space, no telemetry"); if anything is left it fails and names it. It
+cannot be undone.
+
+It leaves the shared library alone and lists what it kept: the sector's threat
+profile, the records of the client's rule packs and hunts (history), and any
+detection that no client runs now, with the commands to reassign or retire it.
+The client's coverage history stays in the database but no longer shows on
+the dashboard or in `./px status`.
 
 ## The dashboard
 

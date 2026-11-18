@@ -844,6 +844,54 @@ def catalog_sync(
         console.print("catalog stored")
 
 
+@app.command()
+def tuning(
+    detection_id: str,
+    client_id: Annotated[str, typer.Option("--client")],
+    as_json: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """A client's tuning for one rule: the exclusions in plain words, and what they suppress."""
+    repo = _repo()
+    client = _client(repo, client_id)
+    bundle = repo.detections.get(detection_id)
+    if bundle is None or bundle not in repo.detections_for(client):
+        err.print(
+            f"[red]error[/red] {client_id} does not run {detection_id}; "
+            f"see ./px client show {client_id}"
+        )
+        raise typer.Exit(1)
+    name = client.platforms.enabled()[0]
+    resolved = repo.tuning_for(detection_id, client, name)
+    if resolved.is_empty:
+        _out({"rule": detection_id, "client": client_id, "tuned": False}, as_json)
+        return
+    platform = get_platform(name)
+    query, sources = bundle.implementations[name].query, bundle.meta.log_sources[name].indices
+    before = platform.backtest(client, query, sources)["hits"]
+    after = platform.backtest(client, query, sources, tuning=resolved)["hits"]
+    own = repo.client_tuning.get((client_id, detection_id))
+    _out(
+        {
+            "rule": detection_id,
+            "name": bundle.meta.name,
+            "client": client_id,
+            "tuned": True,
+            "reason": " ".join(own.reason.split()) if own else "shared platform tuning",
+            "expires": str(resolved.expires) if resolved.expires else None,
+            "suppressed_when_any_line_matches": [
+                " AND ".join(f"{c.field} {c.op} {c.value}" for c in e.conditions())
+                for e in resolved.exclude
+            ],
+            "last_30_days": {
+                "matches_without_tuning": before,
+                "matches_with_tuning": after,
+                "suppressed": before - after,
+            },
+        },
+        as_json,
+    )
+
+
 @app.command("tuning-promotions")
 def tuning_promotions(minimum: int = 3) -> None:
     """Exclusions repeated across clients that belong in a shared layer instead."""
@@ -1161,10 +1209,26 @@ def client_offboard(
     ).returncode
     if code != 0:
         raise typer.Exit(code)
-    removed = _op(lambda: ops.client_remove(get_settings().content_dir, client_id))
-    console.print(
-        f"removed {len(removed)} content files for {client_id}; commit and merge the change"
+    result = _op(lambda: ops.client_remove(get_settings().content_dir, client_id))
+    kept = result["kept"]
+    lines = [
+        f"removed {len(result['removed_files'])} content files for {client_id}",
+        "Kept on purpose, in the shared library:",
+        f"  sector profile: {kept['sector_profile']}",
+        f"  rule pack records (history): {', '.join(kept['rule_pack_records']) or 'none'}",
+        f"  hunt records (history): {', '.join(kept['hunt_records']) or 'none'}",
+        "  detections no client runs now: "
+        + (", ".join(kept["detections_no_client_runs_now"]) or "none"),
+    ]
+    if kept["detections_no_client_runs_now"]:
+        lines.append(
+            "  Give one to another client with ./px detection assign, or retire it with "
+            "./px detection deprecate."
+        )
+    lines.append(
+        f'Next: ./px change submit "Offboard {client_id}", then ./px change merge <number>'
     )
+    console.print("\n".join(lines), markup=False, highlight=False)
 
 
 @sector_app.command("list")
@@ -1458,7 +1522,8 @@ def admin_deprovision(
     client = _client(repo, client_id)
     for platform_name in client.platforms.enabled():
         for item in get_platform(platform_name).deprovision(client, delete_space, delete_data):
-            console.print(f"removed {item}")
+            verified = item.startswith("verified")
+            console.print(item if verified else f"removed {item}", markup=False)
 
 
 if __name__ == "__main__":

@@ -85,8 +85,9 @@ def test_subscribe_lifecycle_and_remove(base):
 
     ops.client_subscribe(base, "ironbridge", detections=["PRX-000900"], remove=True)
     assert ops.client_show(core.load_repo(base), "ironbridge")["detections_running"] == []
-    assert ops.client_remove(base, "ironbridge")
-    assert "ironbridge" not in core.load_repo(base).clients
+    gone = ops.client_remove(base, "ironbridge")
+    assert gone["removed_files"] and "ironbridge" not in core.load_repo(base).clients
+    assert gone["kept"]["sector_profile"] == "construction"
 
 
 def test_status_is_one_place_to_orient(base):
