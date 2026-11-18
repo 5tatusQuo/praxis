@@ -1,0 +1,26 @@
+id: PRX-000029
+name: Certutil used to download a file from a URL
+intent: Detects certutil fetching a file from a URL, a built-in way for intruders to bring
+  tools onto a Windows host without a browser or PowerShell.
+version: 1
+lifecycle: staged
+owner: detection-engineering
+severity: medium
+risk_score: 47
+attack:
+- technique: T1105
+  tactic: TA0011
+data_components:
+- Process Creation
+pyramid_tier: ttp
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.process-*
+provenance:
+  source: praxis
+  licence: Apache-2.0
+references: []
+false_positives:
+- Administrators who fetch certificates or revocation lists by hand.
+- Software installers that refresh a certificate revocation list from a vendor URL.

