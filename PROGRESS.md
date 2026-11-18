@@ -5,40 +5,39 @@ is the state of the build.
 
 ## Current phase
 
-**Phase 1 · Multi-client core** — in progress. Phase 0 passed on 2026-11-18.
+**Phase 2 · Visibility and gaps** — in progress. Phases 0 and 1 passed on 2026-11-18.
 
-## Phase 1 plan
+## Phase 2 plan
 
-Gate: *one rule, tuned differently for 2 clients, live on Elastic.*
+Gate: *coverage snapshot matches a manual audit of one client.*
 
-1. Tuning files (`clients/<id>/tuning/<rule>.yml`) and platform overlays
-   (`overlays/platform/<siem>/<rule>.yml`) with the closed set of operations:
-   `exclude`, `severity`, `risk_score`, `schedule`, `enabled: false`.
-   (`threshold` and `variant` wait for a detection that needs them.)
-2. Overlay resolver: native query, then platform overlay, then client tuning.
-3. Elastic render of tuning: exclusions become a per-client exception list
-   attached to the rule; the other operations change the envelope.
-4. Lab tests per client render: positives must still fire under each client's
-   tuning (over-tuning guard), and each tuning's example events must fire
-   without the tuning and stay quiet with it.
-5. `packs.lock` per client: the exact version and hash of every rendered rule.
-   CI checks it is current; CD refuses to deploy anything the lock does not pin.
-6. Connect mode for Elastic: `praxis connection check <client>` proves the
-   read and deploy identities work against a registered SIEM.
-7. Second fictional client (`globex`), provisioned in its own space and
-   namespace, and one rule tuned differently for each client.
-8. Gate run: merge, CD deploys both, the same event alerts for one client and
-   is suppressed for the other.
+1. Data map: curated schema notes per log source (`datamap-catalog/`) mapping
+   it to ATT&CK data components and the fields each needs.
+2. Synthetic telemetry for the fictional clients (`clients/<id>/lab/telemetry.yml`),
+   built to exercise every gap class.
+3. Read-only collectors on the platform interface: telemetry inventory and
+   rule health, using each client's read identity.
+4. Gap engine (pure code): visibility score 0–4 per data component, rule
+   status, threat weights from sector profiles, one class per technique.
+   Rules written down in `docs/visibility-scoring.md`.
+5. Coverage snapshots in Postgres, ATT&CK Navigator layer export, snapshot diff.
+6. Core services in Compose: Postgres, `praxis-api` (FastAPI), `praxis-web`
+   (Next.js dashboard v1: Fleet and client overview).
+7. Nightly workflow: top up lab telemetry, snapshot, drift check against
+   `packs.lock`, expiry check. CD stores a fresh snapshot after each deploy.
+8. Gate run: audit `acme` by hand from raw SIEM queries and compare with the snapshot.
 
 ## Done
 
 - **Phase 0 (2026-11-18).** Platform core, Elastic platform, first detections,
-  Full-mode stack on the server, CI, CD and a self-hosted runner. See gate
-  evidence below.
+  Full-mode stack on the server, CI, CD and a self-hosted runner.
+- **Phase 1 (2026-11-18).** Tuning files and platform overlays, exception-list
+  rendering, per-client lab checks, `packs.lock`, connection checks, second
+  fictional client. See gate evidence below.
 
 ## Next
 
-- Phase 1 steps above.
+- Phase 2 steps above.
 
 ## Decisions
 
@@ -60,6 +59,12 @@ Gate: *one rule, tuned differently for 2 clients, live on Elastic.*
 | 2026-11-18 | Every `exclude` must carry `examples`: events that fire untuned and stay quiet tuned, replayed in the lab by CI. PLAN.md updated. | Proves a tune does what it claims; together with "positives must still fire" it is the over-tuning guard. |
 | 2026-11-18 | Elastic exclusions render to a Kibana exception list per client and rule; the lab applies the same query filter Kibana builds from it. Matching is case-sensitive, as in Kibana. | Analysts see tuning where they expect it. Case sensitivity is a Kibana limit; write exclusions with the casing seen in the evidence. |
 | 2026-11-18 | Deferred from Phase 1: `threshold` and `variant` operations (no detection needs them yet), promotion detection (moves to the Tuner in Phase 3), CI routing by changed files (the full run takes under a minute). | Keep the phase to what the gate and current content need. |
+| 2026-11-18 | A log source with no events in the last 24 hours scores 0 ("silent"), whatever its history. | A source that stopped sending cannot detect anything now; scoring its history would hide exactly the "rule exists but is blind" problem. |
+| 2026-11-18 | Technique visibility is the best score among its data components; visible from 2. Rules and thresholds are in `docs/visibility-scoring.md` and recorded in each snapshot. | Simple, explainable, deterministic. The doc states the limit: visible means some relevant telemetry flows, not that every variant can be seen. |
+| 2026-11-18 | Snapshots, including event volumes, live in Postgres. `tables.csv` is produced on demand by `praxis coverage --out`, not committed nightly. | A nightly commit of changing counts to a protected branch is noise. The table list can be committed when it changes; revisit with the schema-note agent in Phase 3. |
+| 2026-11-18 | Core services for now: Postgres, API, dashboard. Not yet deployed: MinIO, Redis worker, Keycloak, Gitea. Navigator layers are generated on request from the snapshot. | Nothing needs object storage, a queue or SSO yet. The API uses a bearer token and every port listens on localhost only. Each is added when a feature needs it. |
+| 2026-11-18 | The dashboard heatmap is plain SVG/CSS hex cells, without ECharts or Monaco yet. | No chart library is needed for a grid of cells; add libraries when the Tuning studio needs them. |
+| 2026-11-18 | Lab telemetry is generated from the sample event in each schema note and marked `labels.praxis_lab: seed`. | One source of truth for what a log source looks like; the marker lets top-ups continue from the last generated event. |
 
 ## Open problems
 
@@ -83,3 +88,26 @@ Gate: *one rule, tuned differently for 2 clients, live on Elastic.*
 - Beyond the gate: replaying the positive test events into the `acme`
   namespace made the deployed rules raise real alerts in the `acme` Kibana
   space: 4 alerts from PRX-000002 and 2 from PRX-000001.
+
+### Phase 1 — one rule, tuned differently for 2 clients, live on Elastic (passed 2026-11-18)
+
+- PR https://github.com/5tatusQuo/praxis/pull/2 added tuning, `packs.lock` and
+  the second client; CI green including lab staging of every client's tuning
+  (https://github.com/5tatusQuo/praxis/actions/runs/44209609696).
+- First deploy (run 44209787575) deployed both clients correctly but **failed
+  its smoke check** for `acme`: an updated rule keeps its old schedule, so no
+  run completed within the timeout. Fixed in PR
+  https://github.com/5tatusQuo/praxis/pull/3 (updated rules are re-enabled so
+  they run at once).
+- Clean deploy: https://github.com/5tatusQuo/praxis/actions/runs/44210735550.
+  PRX-000001 `updated` for both clients, every smoke check `succeeded`.
+- PRX-000001 is tuned differently per client: `acme` excludes its imaging
+  support agent (exception list `praxis-acme-prx-000001`, wildcard on
+  `process.parent.executable`, expires 2027-05-31); `globex` runs it at
+  critical severity every minute.
+- Live proof: the same event (rundll32 comsvcs MiniDump, parent
+  `mdcollect.exe`) was replayed into both namespaces, plus two ordinary
+  positives into `acme` as a control. Result in the alert indices:
+  `globex` 1 alert, parent `mdcollect.exe`, severity `critical`;
+  `acme` 4 alerts, parents `cmd.exe` and `powershell.exe` only, severity
+  `high`. The tuned event was suppressed for `acme` while its rule kept firing.

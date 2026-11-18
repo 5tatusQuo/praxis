@@ -13,6 +13,8 @@ from praxis.content.loader import ContentRepo, DetectionBundle, Issue
 from praxis.content.models import Client
 from praxis.platforms import CaseResult, RenderedRule, get_platform, implementation_files
 from praxis.settings import get_settings
+from praxis.visibility.engine import build_snapshot
+from praxis.visibility.inventory import Inventory
 
 # Lifecycle states that are deployed. Drafts and deprecated rules are not.
 DEPLOYED_LIFECYCLES = ("staged", "production")
@@ -22,9 +24,38 @@ def load_repo(root: Path | None = None) -> ContentRepo:
     return ContentRepo(root or get_settings().content_dir, implementation_files())
 
 
+def _validate_visibility_content(repo: ContentRepo) -> list[Issue]:
+    issues = []
+    components = set(attack.bundle()["data_components"])
+    for (platform, source), note in repo.datamap.items():
+        path = repo.root / "datamap-catalog" / platform / f"{source}.md"
+        for component in note.data_components:
+            if component not in components:
+                issues.append(Issue(path, f"unknown ATT&CK data component {component!r}"))
+    groups = attack.bundle()["groups"]
+    for sector, profile in repo.threat_profiles.items():
+        path = repo.root / "threat-profiles" / f"{sector}.yml"
+        issues.extend(
+            Issue(path, f"{g} is not an ATT&CK group") for g in profile.groups if g not in groups
+        )
+        issues.extend(
+            Issue(path, f"{t} is not in ATT&CK")
+            for t in profile.techniques
+            if not attack.is_technique(t)
+        )
+    for client_id, telemetry in repo.lab_telemetry.items():
+        path = repo.root / "clients" / client_id / "lab" / "telemetry.yml"
+        client = repo.clients.get(client_id)
+        for spec in telemetry.sources:
+            for platform in client.platforms.enabled() if client else []:
+                if (platform, spec.source) not in repo.datamap:
+                    issues.append(Issue(path, f"no datamap-catalog note for {spec.source}"))
+    return issues
+
+
 def validate(repo: ContentRepo) -> list[Issue]:
     """Schema, references, ATT&CK ids, README template and per-platform checks."""
-    issues = list(repo.issues)
+    issues = list(repo.issues) + _validate_visibility_content(repo)
     for bundle in repo.detections.values():
         meta_path = bundle.path / "detection.yml"
         for ref in bundle.meta.attack:
@@ -182,3 +213,76 @@ def docs_follow_queries(repo: ContentRepo, base: str) -> list[Issue]:
                     )
                 )
     return issues
+
+
+# -- visibility and gaps ---------------------------------------------------------
+def collect(repo: ContentRepo, client: Client) -> Inventory:
+    """Run the read-only collectors for every platform the client has."""
+    from datetime import UTC, datetime
+
+    sources, rules = [], []
+    for platform_name in client.platforms.enabled():
+        platform = get_platform(platform_name)
+        fields = {
+            source: sorted({f for names in note.data_components.values() for f in names})
+            for (note_platform, source), note in repo.datamap.items()
+            if note_platform == platform_name
+        }
+        sources += platform.collect_sources(client, fields)
+        rules += platform.collect_rules(client)
+    taken_at = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return Inventory(client=client.id, taken_at=taken_at, sources=sources, rules=rules)
+
+
+def coverage(repo: ContentRepo, client: Client) -> tuple[Inventory, dict]:
+    """Collect, then run the gap engine. Returns the raw inventory and the snapshot."""
+    inventory = collect(repo, client)
+    return inventory, build_snapshot(repo, client, inventory)
+
+
+def datamap_csv(inventory: Inventory) -> str:
+    """clients/<id>/datamap/tables.csv: which tables a client has, and how busy they are."""
+    lines = ["platform,table,source,events_14d,hosts,last_event"]
+    for s in inventory.sources:
+        lines.append(
+            f"{s.platform},{s.table},{s.source},{s.events_14d},{s.hosts},{s.last_event or ''}"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def drift(repo: ContentRepo, client: Client) -> list[str]:
+    """Differences between what packs.lock pins and what the SIEM runs."""
+    problems = []
+    lock = build_lock(repo, client)["platforms"]
+    for platform_name in client.platforms.enabled():
+        deployed = {r.detection_id: r for r in get_platform(platform_name).collect_rules(client)}
+        for rule_id, pinned in lock[platform_name].items():
+            health = deployed.pop(rule_id, None)
+            if health is None:
+                problems.append(f"{platform_name}: {rule_id} is pinned but not deployed")
+            elif health.deployed_hash != pinned["hash"][:16]:
+                problems.append(f"{platform_name}: {rule_id} differs from packs.lock")
+        problems += [f"{platform_name}: {r} is deployed but not pinned" for r in deployed]
+    return problems
+
+
+def expiring(repo: ContentRepo, within_days: int) -> list[dict]:
+    """Tuning files and detections past their `expires` date, or close to it."""
+    from datetime import date, timedelta
+
+    today = date.today()
+    horizon = today + timedelta(days=within_days)
+    items = [
+        (f"clients/{client_id}/tuning/{rule}.yml", tuning.expires)
+        for (client_id, rule), tuning in repo.client_tuning.items()
+    ]
+    items += [
+        (f"overlays/platform/{platform}/{rule}.yml", tuning.expires)
+        for (platform, rule), tuning in repo.platform_overlays.items()
+    ]
+    items += [(f"detections/{b.path.name}", b.meta.expires) for b in repo.detections.values()]
+    return [
+        {"item": item, "expires": when.isoformat(), "expired": when < today}
+        for item, when in sorted(items, key=lambda i: str(i[1]))
+        if when is not None and when <= horizon
+    ]

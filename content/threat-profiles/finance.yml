@@ -1,0 +1,17 @@
+sector: finance
+description: >-
+  Financially motivated intrusion sets with a history of targeting banks,
+  payment systems and trading firms. A curated starting point: review it
+  against your own intelligence.
+groups:
+  - G0046  # FIN7
+  - G0037  # FIN6
+  - G0008  # Carbanak
+  - G0080  # Cobalt Group
+  - G0092  # TA505
+  - G0032  # Lazarus Group
+  - G1015  # Scattered Spider
+techniques:
+  T1003.001: 0.3  # credential theft from LSASS is the usual step before payment-system access
+references:
+  - https://attack.mitre.org/groups/

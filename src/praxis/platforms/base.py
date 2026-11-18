@@ -11,6 +11,7 @@ from typing import Any, Literal
 from praxis.content.loader import DetectionBundle
 from praxis.content.models import Client
 from praxis.content.tuning import ResolvedTuning
+from praxis.visibility.inventory import RuleHealth, SourceInventory
 
 
 @dataclass(frozen=True)
@@ -103,6 +104,27 @@ class Platform(ABC):
     @abstractmethod
     def replay(self, bundle: DetectionBundle, client: Client, events: list[dict]) -> int:
         """Write events into a (fictional) client's telemetry. Returns the event count."""
+
+    @abstractmethod
+    def write_telemetry(self, client: Client, source: str, events: list[dict]) -> int:
+        """Lab only: write events (with their own timestamps) to one of a client's sources."""
+
+    @abstractmethod
+    def last_seeded_event(self, client: Client, source: str) -> str | None:
+        """Timestamp of the newest lab-generated event (labels.praxis_lab = seed), if any."""
+
+    @abstractmethod
+    def collect_sources(
+        self, client: Client, fields: dict[str, list[str]]
+    ) -> list[SourceInventory]:
+        """Read-only telemetry inventory over the last 14 days.
+
+        `fields` maps a catalog source to the fields whose population to measure.
+        """
+
+    @abstractmethod
+    def collect_rules(self, client: Client) -> list[RuleHealth]:
+        """Read-only health of every PRAXIS-managed rule in the client's SIEM."""
 
     @abstractmethod
     def check_connection(self, client: Client) -> list[ConnectionCheck]:

@@ -32,7 +32,7 @@ def _kibana_privileges(space: str, level: str) -> list[dict[str, Any]]:
 
 def _role_descriptors(client: Client) -> dict[str, dict[str, Any]]:
     target = client.platforms.elastic
-    telemetry = [f"*-*-{target.namespace}"]
+    telemetry = [f"{kind}-*-{target.namespace}" for kind in ("logs", "metrics", "traces")]
     alerts = [
         f".alerts-security.alerts-{target.space}",
         f".internal.alerts-security.alerts-{target.space}-*",

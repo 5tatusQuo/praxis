@@ -1,0 +1,16 @@
+# Lab telemetry for the fictional client globex (30 endpoints).
+# Process, registry and logon events from every host, file events from most,
+# and no network events.
+sources:
+  - source: logs-endpoint.events.process
+    hosts: 30
+    events_per_day: 300
+  - source: logs-endpoint.events.registry
+    hosts: 30
+    events_per_day: 150
+  - source: logs-endpoint.events.file
+    hosts: 24
+    events_per_day: 200
+  - source: logs-system.security
+    hosts: 30
+    events_per_day: 200

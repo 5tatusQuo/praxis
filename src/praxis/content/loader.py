@@ -9,7 +9,14 @@ from pathlib import Path
 import yaml
 from pydantic import ValidationError
 
-from praxis.content.models import Client, ContentPack, Detection
+from praxis.content.models import (
+    Client,
+    ContentPack,
+    DataSourceNote,
+    Detection,
+    LabTelemetry,
+    ThreatProfile,
+)
 from praxis.content.tuning import ResolvedTuning, Tuning, resolve
 
 
@@ -83,6 +90,10 @@ class ContentRepo:
         self.client_tuning: dict[tuple[str, str], Tuning] = {}
         # (platform, detection id) -> tuning shared by every client on that SIEM
         self.platform_overlays: dict[tuple[str, str], Tuning] = {}
+        # (platform, source) -> curated schema note
+        self.datamap: dict[tuple[str, str], DataSourceNote] = {}
+        self.threat_profiles: dict[str, ThreatProfile] = {}
+        self.lab_telemetry: dict[str, LabTelemetry] = {}
         self.issues: list[Issue] = []
         self._implementation_files = implementation_files
         self._load()
@@ -112,7 +123,39 @@ class ContentRepo:
             self._load_tuning(path, self.client_tuning, path.parent.parent.name)
         for path in sorted((self.root / "overlays" / "platform").glob("*/*.yml")):
             self._load_tuning(path, self.platform_overlays, path.parent.name)
+        for path in sorted((self.root / "datamap-catalog").glob("*/*.md")):
+            self._load_datamap_note(path)
+        for path in sorted((self.root / "threat-profiles").glob("*.yml")):
+            profile = _load_yaml(path, ThreatProfile, self.issues)
+            if profile is None:
+                continue
+            if profile.sector != path.stem:
+                self.issues.append(Issue(path, "sector must match the file name"))
+            self.threat_profiles[profile.sector] = profile
+        for path in sorted((self.root / "clients").glob("*/lab/telemetry.yml")):
+            telemetry = _load_yaml(path, LabTelemetry, self.issues)
+            if telemetry is not None:
+                self.lab_telemetry[path.parent.parent.name] = telemetry
         self._check_references()
+
+    def _load_datamap_note(self, path: Path) -> None:
+        text = path.read_text()
+        if not text.startswith("---\n") or "\n---\n" not in text[4:]:
+            self.issues.append(Issue(path, "schema note needs YAML front matter between --- lines"))
+            return
+        front, body = text[4:].split("\n---\n", 1)
+        try:
+            note = DataSourceNote.model_validate(yaml.safe_load(front))
+        except (yaml.YAMLError, ValidationError) as err:
+            messages = _format_validation(err) if isinstance(err, ValidationError) else [str(err)]
+            self.issues.extend(Issue(path, m) for m in messages)
+            return
+        if note.platform != path.parent.name or note.source != path.stem:
+            self.issues.append(Issue(path, "path must be <platform>/<source>.md"))
+        for heading in ("## What it is", "## Useful queries", "## Analyst notes"):
+            if heading not in body:
+                self.issues.append(Issue(path, f"schema note is missing '{heading}'"))
+        self.datamap[(note.platform, note.source)] = note
 
     def _load_detection(self, folder: Path) -> None:
         meta_path = folder / "detection.yml"

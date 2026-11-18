@@ -119,10 +119,15 @@ class ClientPlatforms(Strict):
         return [name for name in type(self).model_fields if getattr(self, name) is not None]
 
 
+class Assets(Strict):
+    endpoints: int = Field(ge=1, description="Hosts expected to report; host coverage uses it.")
+
+
 class Client(Strict):
     id: Slug
     name: str
-    sector: str
+    sector: Slug
+    assets: Assets | None = None
     fictional: Literal[True] = Field(
         description="This repo only holds fictional clients; real ones live in praxis-content."
     )
@@ -135,3 +140,45 @@ class Client(Strict):
         if not self.platforms.enabled():
             raise ValueError("a client needs at least one platform")
         return self
+
+
+class DataSourceNote(Strict):
+    """Front matter of a datamap-catalog schema note: what one log source can show."""
+
+    platform: Slug
+    source: str = Field(description="Elastic: data stream type and dataset, e.g. logs-x.y")
+    name: str
+    host_field: str = "host.name"
+    data_components: dict[str, list[str]] = Field(
+        min_length=1,
+        description="ATT&CK data component -> fields an analyst needs to use it.",
+    )
+    sample: dict = Field(description="A representative event; the lab generator uses it.")
+
+
+class ThreatProfile(Strict):
+    """What matters to a sector: actors known to target it, plus explicit weights."""
+
+    sector: Slug
+    description: str
+    groups: list[Annotated[str, StringConstraints(pattern=r"^G\d{4}$")]] = Field(min_length=1)
+    techniques: dict[str, float] = Field(
+        default={}, description="Extra weight (0-1) for techniques seen in your own cases."
+    )
+    references: list[str] = []
+
+
+class LabSource(Strict):
+    source: str
+    hosts: int = Field(ge=1)
+    events_per_day: int = Field(ge=1, le=5000)
+    silent_for_days: int = Field(default=0, ge=0, le=14)
+    sparse_fields: dict[str, float] = Field(
+        default={}, description="Field -> share of events that carry it (default: all)."
+    )
+
+
+class LabTelemetry(Strict):
+    """Synthetic telemetry for a fictional client's lab namespace."""
+
+    sources: list[LabSource] = Field(min_length=1)

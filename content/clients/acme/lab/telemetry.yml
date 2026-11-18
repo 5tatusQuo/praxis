@@ -1,0 +1,20 @@
+# Lab telemetry for the fictional client acme (20 endpoints).
+# Built to exercise every gap class: full process and network visibility,
+# partial logon visibility, a registry source that went quiet five days ago,
+# and no file events at all.
+sources:
+  - source: logs-endpoint.events.process
+    hosts: 20
+    events_per_day: 300
+  - source: logs-endpoint.events.network
+    hosts: 20
+    events_per_day: 300
+  - source: logs-endpoint.events.registry
+    hosts: 20
+    events_per_day: 150
+    silent_for_days: 5
+  - source: logs-system.security
+    hosts: 12
+    events_per_day: 200
+    sparse_fields:
+      source.ip: 0.5

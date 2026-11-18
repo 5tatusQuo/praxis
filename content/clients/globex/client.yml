@@ -2,6 +2,8 @@ id: globex
 name: Globex Capital (fictional)
 sector: finance
 fictional: true
+assets:
+  endpoints: 30
 platforms:
   elastic:
     connection: lab

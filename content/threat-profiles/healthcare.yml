@@ -1,0 +1,16 @@
+sector: healthcare
+description: >-
+  Ransomware and extortion crews that have repeatedly hit hospitals and health
+  services, plus two state-linked groups with documented healthcare targeting.
+  A curated starting point: review it against your own intelligence.
+groups:
+  - G0102  # Wizard Spider
+  - G1015  # Scattered Spider
+  - G1032  # INC Ransom
+  - G1024  # Akira
+  - G0096  # APT41
+  - G0032  # Lazarus Group
+techniques:
+  T1490: 0.3  # shadow copy deletion precedes almost every hospital ransomware case
+references:
+  - https://attack.mitre.org/groups/

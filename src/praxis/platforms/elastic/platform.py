@@ -30,10 +30,17 @@ from praxis.platforms.elastic.render import (
     resolve_indices,
 )
 from praxis.settings import get_settings
+from praxis.visibility.inventory import RuleHealth, SourceInventory
 
 LAB_NAMESPACE_PREFIX = "praxislab"
 _HARD_CODED_INDEX = re.compile(r"\b_index\b|\bfrom\s+(logs|metrics|traces)-", re.IGNORECASE)
 _SINGLE = {"namespace_type": "single"}
+SEED_LABEL = {"term": {"labels.praxis_lab": "seed"}}
+
+
+def telemetry_pattern(namespace: str) -> str:
+    """Every telemetry data stream of one namespace, and nothing else."""
+    return ",".join(f"{kind}-*-{namespace}" for kind in ("logs", "metrics", "traces"))
 
 
 def _stamp(events: list[dict], end: datetime) -> list[dict]:
@@ -126,6 +133,128 @@ class ElasticPlatform(Platform):
             _bulk_index(conn, index, _stamp(events, datetime.now(UTC)))
         return len(events)
 
+    def write_telemetry(self, client: Client, source: str, events: list[dict]) -> int:
+        target = client.platforms.elastic
+        with ElasticConnection.from_env(target.connection, "lab") as conn:
+            for start in range(0, len(events), 2000):
+                _bulk_index(conn, f"{source}-{target.namespace}", events[start : start + 2000])
+        return len(events)
+
+    def last_seeded_event(self, client: Client, source: str) -> str | None:
+        target = client.platforms.elastic
+        with ElasticConnection.from_env(target.connection, "lab") as conn:
+            result = call(
+                conn.es,
+                "POST",
+                f"/{source}-{target.namespace}/_search",
+                params={"ignore_unavailable": "true", "allow_no_indices": "true"},
+                json={
+                    "size": 0,
+                    "query": SEED_LABEL,
+                    "aggs": {"last": {"max": {"field": "@timestamp"}}},
+                },
+            )
+        return (result.get("aggregations") or {}).get("last", {}).get("value_as_string")
+
+    # -- collectors (read identity only) --------------------------------------
+    def _read_conn(self, client: Client) -> ElasticConnection:
+        return ElasticConnection.from_env(client.platforms.elastic.connection, "read", client.id)
+
+    def collect_sources(
+        self, client: Client, fields: dict[str, list[str]]
+    ) -> list[SourceInventory]:
+        namespace = client.platforms.elastic.namespace
+        window = {"range": {"@timestamp": {"gte": "now-14d", "lte": "now"}}}
+        search = {"ignore_unavailable": "true", "allow_no_indices": "true"}
+        sources = []
+        with self._read_conn(client) as conn:
+            streams = call(
+                conn.es, "GET", f"/_data_stream/{telemetry_pattern(namespace)}", ok=(404,)
+            )
+            for stream in sorted(s["name"] for s in (streams or {}).get("data_streams", [])):
+                table = stream
+                source = stream.removesuffix(f"-{namespace}")
+                wanted = fields.get(source, [])
+                aggs: dict[str, Any] = {
+                    "days": {
+                        "date_histogram": {
+                            "field": "@timestamp",
+                            "fixed_interval": "1d",
+                            "min_doc_count": 1,
+                        }
+                    },
+                    "hosts": {"cardinality": {"field": "host.name"}},
+                    "last": {"max": {"field": "@timestamp"}},
+                    "recent": {"filter": {"range": {"@timestamp": {"gte": "now-24h"}}}},
+                }
+                for i, name in enumerate(wanted):
+                    aggs[f"f{i}"] = {"filter": {"exists": {"field": name}}}
+                result = call(
+                    conn.es,
+                    "POST",
+                    f"/{table}/_search",
+                    params=search,
+                    json={"size": 0, "track_total_hits": True, "query": window, "aggs": aggs},
+                )
+                total = result["hits"]["total"]["value"]
+                found = result.get("aggregations") or {}
+                if not total:
+                    continue
+                sources.append(
+                    SourceInventory(
+                        platform=self.name,
+                        source=source,
+                        table=table,
+                        events_14d=total,
+                        events_24h=found["recent"]["doc_count"],
+                        days_with_data=min(len(found["days"]["buckets"]), 14),
+                        hosts=found["hosts"]["value"],
+                        last_event=found["last"].get("value_as_string"),
+                        field_population={
+                            name: round(found[f"f{i}"]["doc_count"] / total, 4)
+                            for i, name in enumerate(wanted)
+                        },
+                    )
+                )
+        return sorted(sources, key=lambda s: s.source)
+
+    def collect_rules(self, client: Client) -> list[RuleHealth]:
+        space = client.platforms.elastic.space
+        with self._read_conn(client) as conn:
+            alerts = call(
+                conn.es,
+                "POST",
+                f"/.alerts-security.alerts-{space}/_search",
+                params={"ignore_unavailable": "true", "allow_no_indices": "true"},
+                json={
+                    "size": 0,
+                    "query": {"range": {"@timestamp": {"gte": "now-30d"}}},
+                    "aggs": {
+                        "rules": {"terms": {"field": "kibana.alert.rule.rule_id", "size": 10000}}
+                    },
+                },
+            )
+            counts = {
+                b["key"]: b["doc_count"]
+                for b in (alerts.get("aggregations") or {}).get("rules", {}).get("buckets", [])
+            }
+            health = []
+            for rule_id, rule in sorted(self._managed_rules(conn, client).items()):
+                last = (rule.get("execution_summary") or {}).get("last_execution") or {}
+                health.append(
+                    RuleHealth(
+                        detection_id=rule_id,
+                        platform=self.name,
+                        enabled=bool(rule.get("enabled")),
+                        last_status=last.get("status"),
+                        last_run=last.get("date"),
+                        alerts_30d=counts.get(rule_id, 0),
+                        deployed_hash=deployed_hash(rule),
+                        tables=list(rule.get("index", [])),
+                    )
+                )
+        return health
+
     # -- onboarding and Connect mode ----------------------------------------
     def provision(self, client: Client, rotate: bool = False) -> list[str]:
         return provision(client, rotate)
@@ -139,7 +268,7 @@ class ElasticPlatform(Platform):
                     hits = call(
                         conn.es,
                         "POST",
-                        f"/*-*-{target.namespace}/_search",
+                        f"/{telemetry_pattern(target.namespace)}/_search",
                         params={"ignore_unavailable": "true", "allow_no_indices": "true"},
                         json={"size": 0, "track_total_hits": True},
                     )["hits"]["total"]["value"]

@@ -1,0 +1,10 @@
+registry where host.os.type == "windows" and event.type in ("creation", "change") and
+  registry.path : (
+    "*\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\*",
+    "*\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce\\*",
+    "*\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Run\\*"
+  ) and
+  registry.data.strings : (
+    "*powershell*", "*pwsh*", "*wscript*", "*cscript*", "*mshta*", "*rundll32*", "*regsvr32*",
+    "*\\Users\\Public\\*", "*\\ProgramData\\*", "*\\Windows\\Temp\\*", "*\\AppData\\Local\\Temp\\*"
+  )

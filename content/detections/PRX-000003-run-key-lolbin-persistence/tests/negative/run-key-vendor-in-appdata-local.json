@@ -1,0 +1,34 @@
+{
+  "event": {
+    "category": [
+      "registry"
+    ],
+    "type": [
+      "change"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "name": "ws-lab-04",
+    "os": {
+      "type": "windows"
+    }
+  },
+  "user": {
+    "name": "j.doe"
+  },
+  "process": {
+    "name": "Teams.exe",
+    "pid": 5120
+  },
+  "registry": {
+    "hive": "HKEY_USERS",
+    "path": "HKEY_USERS\\S-1-5-21-1004\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\Teams",
+    "value": "Teams",
+    "data": {
+      "strings": [
+        "C:\\Users\\j.doe\\AppData\\Local\\Microsoft\\Teams\\Update.exe --processStart Teams.exe"
+      ]
+    }
+  }
+}
