@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -342,7 +343,9 @@ def _print_snapshot(snapshot: dict) -> None:
         if bundle.id in running or bundle.meta.lifecycle == "deprecated":
             continue
         for ref in bundle.meta.attack:
-            shelf.setdefault(ref.technique, []).append(bundle.id)
+            # A rule on a sub-technique also covers its parent.
+            for technique in {ref.technique, ref.technique.split(".")[0]}:
+                shelf.setdefault(technique, []).append(bundle.id)
     gaps = Table(
         "technique", "name", "weight", "visibility", "in the library", title="top detection gaps"
     )
@@ -668,6 +671,20 @@ def pack_plan(
     _store_run(pack, trail, pr_url)
     verdict = (pack["review"] or {}).get("verdict", "n/a")
     console.print(f"{pack['id']}: {len(pack['picks'])} picks, reviewer verdict {verdict}")
+    number = pr_url.rstrip("/").rsplit("/", 1)[-1] if pr_url else "<number>"
+    if verdict == "fail":
+        console.print(
+            "The Reviewer agent found a blocker; it is in the pull request's description. "
+            "Do not merge this pack as it is.\n"
+            f'Next: ./px change show {number}, then ./px change close {number} --reason "..." '
+            "and run ./px pack plan again for a new proposal.",
+            markup=False,
+        )
+    elif pr_url:
+        console.print(
+            f"Next: ./px change show {number} --diff, then ask the person before merging it.",
+            markup=False,
+        )
 
 
 @pack_app.command("rescore")
@@ -1251,6 +1268,14 @@ def client_offboard(
             "  Give one to another client with ./px detection assign, or retire it with "
             "./px detection deprecate."
         )
+    from praxis import changes
+
+    for row in changes.status(get_settings().content_dir):
+        if re.search(rf"(^|[-/]){re.escape(client_id)}($|-)", row["headRefName"]):
+            lines.append(
+                f"Open pull request {row['number']} ({row['title']}) is for this client; close it: "
+                f'./px change close {row["number"]} --reason "client offboarded"'
+            )
     lines.append(
         f'Next: ./px change submit "Offboard {client_id}", then ./px change merge <number>'
     )

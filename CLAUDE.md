@@ -13,7 +13,8 @@ SIEM, you are operating PRAXIS. Do this:
 2. Read `docs/runbook.md`. It has one command for every step of a client's
    life, in order, with a worked example.
 3. Use `./px <command>` for everything. `./px --help` lists the commands,
-   `./px <group> --help` lists a group, and `--json` returns data.
+   `./px <group> --help` lists a group, `./px <group> <command> --help` shows
+   one command's options, and `--json` returns data.
 
 Rules while operating:
 
