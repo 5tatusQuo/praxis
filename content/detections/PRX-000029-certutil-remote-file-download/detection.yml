@@ -3,7 +3,7 @@ name: Certutil used to download a file from a URL
 intent: Detects certutil fetching a file from a URL, a built-in way for intruders to bring
   tools onto a Windows host without a browser or PowerShell.
 version: 1
-lifecycle: staged
+lifecycle: production
 owner: detection-engineering
 severity: medium
 risk_score: 47
