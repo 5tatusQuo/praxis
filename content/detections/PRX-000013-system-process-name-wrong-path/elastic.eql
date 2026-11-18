@@ -1,0 +1,6 @@
+process where host.os.type == "windows" and event.type == "start" and
+  process.name : ("svchost.exe", "lsass.exe", "csrss.exe", "services.exe", "winlogon.exe",
+                  "smss.exe", "spoolsv.exe", "taskhostw.exe", "dllhost.exe", "conhost.exe") and
+  process.executable != null and
+  not process.executable : ("?:\\Windows\\System32\\*", "?:\\Windows\\SysWOW64\\*",
+                            "?:\\Windows\\WinSxS\\*")
