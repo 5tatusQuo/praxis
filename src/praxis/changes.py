@@ -136,6 +136,14 @@ def show(path: Path, number: int, with_body: bool = True) -> dict[str, Any]:
         if view["state"] == "OPEN"
         else {}
     )
+    unfinished = isinstance(view["checks"], dict) and (
+        "pending" in view["checks"].values() or len(view["checks"]) < 4
+    )
+    if view["state"] == "OPEN" and unfinished:
+        view["checks_note"] = (
+            "not all checks have finished; the lab check starts after the others pass. "
+            "./px change merge waits for every check and does not merge if one fails"
+        )
     return view
 
 

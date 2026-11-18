@@ -28,6 +28,7 @@ client. Reports, with every finding and its fix, are in `docs/audits/`.
 | 6 | `corvenhallow` (building and engineering) | `WORKAROUNDS: 0`, `UNDOCUMENTED COMMANDS: 0`, but the rule pack failed review three times: `STEPS NOT COMPLETED: 1`. Not a pass | `2026-11-19-operator-test-6.md` |
 | 7 | `wrenfold` (building and engineering) | **All 11 steps by the agent alone. `WORKAROUNDS: 0`, `UNDOCUMENTED COMMANDS: 0`, `STEPS NOT COMPLETED OR NOT RUN BY ME: 0`. Pass** | `2026-11-19-operator-test-7.md` |
 | 8 | `thackwell` (building and engineering) | Exercised the fixes made after run 7. `WORKAROUNDS: 0`, `UNDOCUMENTED COMMANDS: 0`, `STEPS NOT RUN BY ME: 1`: the sub-agent's own session refused one merge (PR #97), which the main session ran on the owner's word. Not a PRAXIS fault | `2026-11-19-operator-test-8.md` |
+| 9 | `dunmerrow` (building and engineering) | On the current product, in under an hour. `WORKAROUNDS: 0`, `UNDOCUMENTED COMMANDS: 0`, `STEPS NOT RUN BY ME: 1`: again the sub-agent's session refused its first merge of an agent-opened pull request (#106), which the main session ran. Not a PRAXIS fault | `2026-11-19-operator-test-9.md` |
 
 The one undocumented command in run 5 was `./px change status <number>`, a
 read-only form the agent found through the documented `./px change --help`.
@@ -46,7 +47,8 @@ Pull requests:
   #71 (run 5 and the evidence), #72 (Reviewer re-checks earlier blockers),
   #83 (run 6), #91 (run 7 and the evidence), #92 (failed hunt queries as data,
   group lookup, `sector remove`, `pack remove`), #93 (what the MCP tools do
-  not cover), and this change (run 8 and the evidence). All merged by the
+  not cover), #101 (run 8 and the evidence), #102 (fixes from run 8, clean-up of test
+  records), and this change (run 9 and the evidence). All merged by the
   main session.
 - Run 1: #30 to #35 merged by the sub-agent, the agent-opened #33, #34, #35
   on the main session's approval as the user; #37 (offboarding) by the main
@@ -64,6 +66,8 @@ Pull requests:
   #88 (tuning) and #89 (hunt) under approvals written into its task.
 - Run 8: #94 to #96 and #98 to #100 merged by the sub-agent; #97 (pack)
   merged by the main session after the sub-agent's session refused it.
+- Run 9: #103 to #105 and #107 to #109 merged by the sub-agent; #106 (pack)
+  merged by the main session after the sub-agent's session refused it.
 
 What an operator reads: `CLAUDE.md`, then `docs/runbook.md`. Every step is a
 `./px` command; reading and authoring actions are also MCP tools (`.mcp.json`).
@@ -74,10 +78,10 @@ sub-agent does not load a project's MCP servers, so the runs used `./px`.
 A separate fresh headless Claude Code session, allowed only the `praxis` MCP
 tools, called `status`, `get_coverage` and `search_catalog` with no errors
 (details in the run 8 report).
-After runs 3, 5, 7 and 8, a direct read-only query of the SIEM showed data, keys
+After runs 3, 5, 7, 8 and 9, a direct read-only query of the SIEM showed data, keys
 and Kibana spaces for `acme` and `globex` only.
 
-After run 8 (this change): every friction item in its report was fixed in the
+After run 8 (PR #102): every friction item in its report was fixed in the
 product. The top-gaps table no longer repeats an id. `attack groups` matches
 whole words and an empty answer is not an error. A hunt query at the counting
 limit is marked too broad and its hypothesis is not counted as tested.
@@ -92,6 +96,11 @@ them.
 
 Still open from the test:
 
+- In runs 8 and 9 the sub-agent's own session refused its first merge of an
+  agent-opened pull request, so the main session ran that one command. Runs 3
+  to 7 were not refused. A permission rule for `./px change merge` in the
+  owner's Claude Code settings would remove this; it is the owner's to add.
+
 - Runbook limits that cannot be fixed here, each stated there with its
   reason: lab telemetry is synthetic (no Fleet Server or Elastic Agent in the
   stack); one SIEM connection (no second SIEM here to test against); Elastic
@@ -102,7 +111,7 @@ Still open from the test:
   when a proposal fails review, which no run can force.
 - No sub-agent can use the MCP server: a sub-agent's session does not load a
   project's MCP servers. A fresh headless session did (run 8 report).
-- The tests left detections PRX-000008 to 000025 in the library with no
+- The tests left detections PRX-000008 to 000028 in the library with no
   client. They are kept on purpose: each passed its lab tests and is there
   for the next client. PRX-000019 is staged; read its query before promoting,
   because the Reviewer disagreed with itself about it in run 5.
