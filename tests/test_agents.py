@@ -257,6 +257,11 @@ def test_pack_flow_end_to_end(world):
         "measured by code, not the model"
     )
     assert chosen["lab"] == {"passed": True, "cases": 2}
+    assert not any(f.startswith("duplicate") for f in chosen["quality"]["flags"]), (
+        "a new detection must not be scored as a duplicate of itself"
+    )
+    again = packs.rescore(world["content"], pack["id"])
+    assert again["picks"][0]["quality"] == chosen["quality"]
 
     repo = core.load_repo(world["content"])
     assert core.validate(repo) == [], "the working tree is valid, including the pack record"
