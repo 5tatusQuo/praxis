@@ -77,30 +77,38 @@ tools, called `status`, `get_coverage` and `search_catalog` with no errors
 After runs 3, 5, 7 and 8, a direct read-only query of the SIEM showed data, keys
 and Kibana spaces for `acme` and `globex` only.
 
+After run 8 (this change): every friction item in its report was fixed in the
+product. The top-gaps table no longer repeats an id. `attack groups` matches
+whole words and an empty answer is not an error. A hunt query at the counting
+limit is marked too broad and its hypothesis is not counted as tested.
+`./px hunt-remove` removes a hunt record. The lab check in CI replays only the
+detections a change affects, so a record-only merge no longer waits for all of
+them. A test fails if a `./px` command is not named in the guides, and the
+runbook now names all 63.
+
+Removed with the new commands, as test data: the seven sector profiles, five
+pack records and seven hunt records the test clients left. Git history keeps
+them.
+
 Still open from the test:
 
-- Runbook limits that could not be fixed here, each stated there with its
+- Runbook limits that cannot be fixed here, each stated there with its
   reason: lab telemetry is synthetic (no Fleet Server or Elastic Agent in the
   stack); one SIEM connection (no second SIEM here to test against); Elastic
   and EQL only (other SIEMs are Phase 5); an offboarded client cannot be
-  re-checked later; no command removes a hunt record (shared history).
-- The Reviewer agent was not consistent in run 5: it failed a pack for a query
-  construct and passed the next proposal with the same construct
-  (PRX-000019, staged, runs nowhere; review it before promoting). Since PR #72
-  it re-checks earlier blockers, but no run has exercised that live.
-- Decided by the owner (2026-11-19): the rule against real names is about
-  client names. Product names and paths in detection logic are fine, so
-  PRX-000022 stays as it is.
-- Friction from run 8 that was recorded and not fixed is listed at the end of
-  its report.
+  re-checked later (PRAXIS no longer knows its space or keys).
+- The pack fixes for repeated failed picks (PR #83) and the Reviewer's
+  re-check of earlier blockers (PR #72) have unit tests only. They act only
+  when a proposal fails review, which no run can force.
+- No sub-agent can use the MCP server: a sub-agent's session does not load a
+  project's MCP servers. A fresh headless session did (run 8 report).
+- The tests left detections PRX-000008 to 000025 in the library with no
+  client. They are kept on purpose: each passed its lab tests and is there
+  for the next client. PRX-000019 is staged; read its query before promoting,
+  because the Reviewer disagreed with itself about it in run 5.
 - The Curator does not propose assigning a detection the library already has.
-- Agent wording can lag the facts ("before you merge" notes; hunt summaries).
-  Numbers come from code.
-- A merge takes seven to fifteen minutes (lab checks, then one runner for the
-  deploy), also for a change that deploys nothing.
-- The tests left detections that no client runs (PRX-000008 to 000025),
-  seven sector profiles, and pack and hunt records. Keeping, assigning or
-  deprecating them is the owner's decision.
+- Decided by the owner (2026-11-19): the rule against real names is about
+  client names. Product names and paths in detection logic are fine.
 
 ## Not built yet (PLAN.md items inside Phases 0–4)
 

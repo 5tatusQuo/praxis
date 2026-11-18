@@ -30,7 +30,10 @@ query that would surface it. Aim for a handful of sharp hypotheses over a long l
 
 Run every query against every client in scope and read what comes back. Hits are leads, not \
 verdicts: say what you see and what an analyst should check next. No hits is also a finding. \
-Note which hypotheses you could not test because the telemetry is missing.
+Note which hypotheses you could not test because the telemetry is missing. If a query is \
+refused and you cannot write another that tests the same behaviour, report the hypothesis \
+with the refused query: do not put a broader query in its place. A query that matches every \
+logon or every process start tests nothing.
 
 Mark a hypothesis `durable` when its query describes behaviour that would stay suspicious \
 next year and was quiet enough on these clients to run as a detection. Those are candidates \
@@ -121,7 +124,9 @@ def run_hunt(
             for client in client_ids
             if (client, hypothesis["query"].strip()) in ran
         }
-        hypotheses.append({**hypothesis, "results": results, "tested": bool(results)})
+        # A query at the counting limit matched too much to say anything about the hypothesis.
+        tested = bool(results) and not all(r.get("too_broad") for r in results.values())
+        hypotheses.append({**hypothesis, "results": results, "tested": tested})
     slug = re.sub(r"[^a-z0-9]+", "-", prompt.lower()).strip("-")[:48].strip("-")
     # Two hunts on one day can start with the same words; never overwrite a record.
     hunt_id, n = f"{date.today().isoformat()}-{slug}", 1
@@ -163,7 +168,13 @@ def report(hunt: dict[str, Any]) -> str:
         "| --- | --- | --- | --- |",
     ]
     for h in hunt["hypotheses"]:
-        hits = ", ".join(f"{c}: {r['hits']}" for c, r in h["results"].items()) or "not tested"
+        hits = (
+            ", ".join(
+                f"{c}: {r['hits']}" + ("+ (too broad to test this)" if r.get("too_broad") else "")
+                for c, r in h["results"].items()
+            )
+            or "not tested (its query did not run)"
+        )
         lines.append(
             f"| {h['title']} | {h['technique']} | {hits} | {'yes' if h['durable'] else 'no'} |"
         )

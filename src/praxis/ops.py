@@ -76,13 +76,14 @@ FALSE_FRIENDS = {"engineering": ("social ", "reverse ")}
 
 
 def _find_word(text: str, wanted: str) -> int:
-    """Where `wanted` first occurs in `text`, skipping false friends. -1 if nowhere."""
-    at = text.find(wanted)
-    while at >= 0:
-        before = text[max(0, at - 10) : at]
+    """Where `wanted` first occurs in `text` as a whole word, skipping false friends. -1 if nowhere.
+
+    Whole words (a plural counts): "play" is not "Playbook" or "displayed".
+    """
+    for match in re.finditer(rf"(?<![a-z]){re.escape(wanted)}(?:s|es)?(?![a-z])", text):
+        before = text[max(0, match.start() - 10) : match.start()]
         if not any(before.endswith(prefix) for prefix in FALSE_FRIENDS.get(wanted, ())):
-            return at
-        at = text.find(wanted, at + 1)
+            return match.start()
     return -1
 
 
@@ -96,6 +97,23 @@ def sector_remove(content_dir: Path, sector: str) -> Path:
         raise OpsError(
             f"sector {sector!r} is used by {', '.join(users)}; offboard those clients first"
         )
+    path.unlink()
+    return path
+
+
+def hunt_remove(content_dir: Path, hunt_id: str) -> Path:
+    """Delete a hunt record. Refused while a client it covers still exists."""
+    repo = core.load_repo(content_dir)
+    hunt = repo.hunts.get(hunt_id)
+    if hunt is None:
+        raise OpsError(f"there is no hunt record {hunt_id!r}; see `./px status`")
+    live = sorted(c for c in hunt.clients if c in repo.clients)
+    if live:
+        raise OpsError(
+            f"{hunt_id} covers {', '.join(live)}, which still exist; a hunt record is only "
+            "removed after its clients are offboarded"
+        )
+    path = content_dir / "hunts" / f"{hunt_id}.yml"
     path.unlink()
     return path
 
@@ -490,6 +508,32 @@ def next_detection_id(content_dir: Path) -> str:
 
 
 # -- status ----------------------------------------------------------------------------
+def changed_detections(content_dir: Path, since: str) -> list[str] | None:
+    """Detections a change since `since` can affect. None means all of them.
+
+    All of them when Git cannot answer or anything outside the content folder
+    changed (platform code decides how every rule renders and runs). Inside
+    it, a detection's own folder and a client's tuning file for it count.
+    """
+    root = Path(_git(["rev-parse", "--show-toplevel"], content_dir) or ".")
+    if not _git(["rev-parse", "--verify", "--quiet", f"{since}^{{commit}}"], root):
+        return None
+    try:
+        prefix = content_dir.resolve().relative_to(root.resolve()).as_posix() + "/"
+    except ValueError:
+        return None
+    found: set[str] = set()
+    for path in _git(["diff", "--name-only", since, "HEAD"], root).splitlines():
+        if not path.startswith(prefix):
+            if path.endswith(".md") and not path.startswith("src/"):
+                continue  # guides and reports change no rule
+            return None
+        match = re.search(r"(?:detections/|tuning/)(PRX-\d{6})", path[len(prefix) :])
+        if match:
+            found.add(match.group(1))
+    return sorted(found)
+
+
 def _git(args: list[str], cwd: Path) -> str:
     result = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
     return result.stdout.strip() if result.returncode == 0 else ""
