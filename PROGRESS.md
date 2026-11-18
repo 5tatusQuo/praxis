@@ -27,23 +27,26 @@ client. Reports, with every finding and its fix, are in `docs/audits/`.
 | 5 | `pellwick` (building and engineering) | **All 11 steps by the agent alone. `WORKAROUNDS: 0`, `UNDOCUMENTED COMMANDS: 1`, `STEPS NOT COMPLETED OR NOT RUN BY ME: 0`** | `2026-11-19-operator-test-5.md` |
 | 6 | `corvenhallow` (building and engineering) | `WORKAROUNDS: 0`, `UNDOCUMENTED COMMANDS: 0`, but the rule pack failed review three times: `STEPS NOT COMPLETED: 1`. Not a pass | `2026-11-19-operator-test-6.md` |
 | 7 | `wrenfold` (building and engineering) | **All 11 steps by the agent alone. `WORKAROUNDS: 0`, `UNDOCUMENTED COMMANDS: 0`, `STEPS NOT COMPLETED OR NOT RUN BY ME: 0`. Pass** | `2026-11-19-operator-test-7.md` |
+| 8 | `thackwell` (building and engineering) | Exercised the fixes made after run 7. `WORKAROUNDS: 0`, `UNDOCUMENTED COMMANDS: 0`, `STEPS NOT RUN BY ME: 1`: the sub-agent's own session refused one merge (PR #97), which the main session ran on the owner's word. Not a PRAXIS fault | `2026-11-19-operator-test-8.md` |
 
 The one undocumented command in run 5 was `./px change status <number>`, a
 read-only form the agent found through the documented `./px change --help`.
 The runbook now names it, and runs 6 and 7 used it with nothing undocumented.
 Run 5 is not counted as the pass for that reason; run 7 is.
 
-Limits of the run 7 evidence: its pack passed review on the first proposal,
-so the run 6 fixes for repeated failed picks (PR #83) were not triggered live
-and rest on unit tests. Six small wording fixes made after run 7 (listed in
-its report) were checked by the main session, not by a fresh sub-agent.
+Limits of the evidence: in runs 7 and 8 the pack passed review on the first
+proposal, so the run 6 fixes for repeated failed picks (PR #83) were not
+triggered live and rest on unit tests. The changes made after run 7 (PRs #91
+and #92) were used live by the fresh agent in run 8.
 
 Pull requests:
 
 - Platform: #29 (operator commands, `./px`, MCP server, runbook), #36 (fixes
   from run 1), #38 (dashboard sign-in), #46 (run 2), #54 (run 3), #62 (run 4),
   #71 (run 5 and the evidence), #72 (Reviewer re-checks earlier blockers),
-  #83 (run 6), and this change (run 7 and the evidence). All merged by the
+  #83 (run 6), #91 (run 7 and the evidence), #92 (failed hunt queries as data,
+  group lookup, `sector remove`, `pack remove`), #93 (what the MCP tools do
+  not cover), and this change (run 8 and the evidence). All merged by the
   main session.
 - Run 1: #30 to #35 merged by the sub-agent, the agent-opened #33, #34, #35
   on the main session's approval as the user; #37 (offboarding) by the main
@@ -59,14 +62,19 @@ Pull requests:
   (failed packs) and #80 closed by the sub-agent.
 - Run 7: #84 to #90 merged by the sub-agent, the agent-opened #87 (pack),
   #88 (tuning) and #89 (hunt) under approvals written into its task.
+- Run 8: #94 to #96 and #98 to #100 merged by the sub-agent; #97 (pack)
+  merged by the main session after the sub-agent's session refused it.
 
 What an operator reads: `CLAUDE.md`, then `docs/runbook.md`. Every step is a
-`./px` command; the same actions are MCP tools (`.mcp.json`).
+`./px` command; reading and authoring actions are also MCP tools (`.mcp.json`).
 
 Checked outside the sub-agent runs: the MCP server over stdio through
 `./px mcp` (18 tools listed; `status` and `get_coverage` called). A
 sub-agent does not load a project's MCP servers, so the runs used `./px`.
-After runs 3, 5 and 7, a direct read-only query of the SIEM showed data, keys
+A separate fresh headless Claude Code session, allowed only the `praxis` MCP
+tools, called `status`, `get_coverage` and `search_catalog` with no errors
+(details in the run 8 report).
+After runs 3, 5, 7 and 8, a direct read-only query of the SIEM showed data, keys
 and Kibana spaces for `acme` and `globex` only.
 
 Still open from the test:
@@ -75,22 +83,22 @@ Still open from the test:
   reason: lab telemetry is synthetic (no Fleet Server or Elastic Agent in the
   stack); one SIEM connection (no second SIEM here to test against); Elastic
   and EQL only (other SIEMs are Phase 5); an offboarded client cannot be
-  re-checked later; no command removes a sector profile or a pack record.
+  re-checked later; no command removes a hunt record (shared history).
 - The Reviewer agent was not consistent in run 5: it failed a pack for a query
   construct and passed the next proposal with the same construct
   (PRX-000019, staged, runs nowhere; review it before promoting). Since PR #72
   it re-checks earlier blockers, but no run has exercised that live.
-- PRX-000022 (staged, runs nowhere) names a real software vendor in an
-  exclusion path copied from the upstream Elastic rule. Owner to decide
-  whether product paths in detection logic are acceptable in this repo.
-- A hunt query that fails is kept only as a sentence in the assessment, not
-  as data in the record.
+- Decided by the owner (2026-11-19): the rule against real names is about
+  client names. Product names and paths in detection logic are fine, so
+  PRX-000022 stays as it is.
+- Friction from run 8 that was recorded and not fixed is listed at the end of
+  its report.
 - The Curator does not propose assigning a detection the library already has.
 - Agent wording can lag the facts ("before you merge" notes; hunt summaries).
   Numbers come from code.
 - A merge takes seven to fifteen minutes (lab checks, then one runner for the
   deploy), also for a change that deploys nothing.
-- The tests left detections that no client runs (PRX-000008 to 000022),
+- The tests left detections that no client runs (PRX-000008 to 000025),
   seven sector profiles, and pack and hunt records. Keeping, assigning or
   deprecating them is the owner's decision.
 

@@ -18,8 +18,9 @@ SIEM, you are operating PRAXIS. Do this:
 
 Rules while operating:
 
-- Client names are invented. Never write a real company name, hostname or
-  credential anywhere in this repo. It is public.
+- Client names are invented. Never write a real client or company name as a
+  client, or a hostname or credential, anywhere in this repo. It is public.
+  Detection logic may name the software it looks at (a product's path).
 - Ship every change with `./px change submit "<what it does>"`, then
   `./px change merge <number>`. Merging deploys to the SIEM. `./px change show`
   reads a pull request, `./px change close` closes one, and `./px change home`
