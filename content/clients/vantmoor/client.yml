@@ -1,0 +1,13 @@
+id: vantmoor
+name: Vantmoor Quillworks Structural (fictional)
+sector: engineering
+fictional: true
+assets:
+  endpoints: 45
+platforms:
+  elastic:
+    connection: lab
+    space: vantmoor
+    namespace: vantmoor
+packs:
+- baseline
