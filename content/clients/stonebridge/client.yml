@@ -11,3 +11,5 @@ platforms:
     namespace: stonebridge
 packs:
 - baseline
+detections:
+- PRX-000007

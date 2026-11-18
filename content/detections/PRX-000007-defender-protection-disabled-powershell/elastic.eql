@@ -1,0 +1,7 @@
+process where host.os.type == "windows" and event.type == "start" and
+  (process.name : ("powershell.exe", "pwsh.exe") or
+   ?process.pe.original_file_name : ("PowerShell.EXE", "pwsh.dll")) and
+  process.command_line : "*Set-MpPreference*" and
+  process.command_line : ("*DisableRealtimeMonitoring*", "*DisableBehaviorMonitoring*",
+                          "*DisableIOAVProtection*", "*DisableScriptScanning*") and
+  process.command_line : ("*$true*", "* 1*")
