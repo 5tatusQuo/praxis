@@ -10,4 +10,8 @@ platforms:
     space: acme
     namespace: acme
 packs:
-  - baseline
+- baseline
+detections:
+- PRX-000004
+- PRX-000005
+- PRX-000006

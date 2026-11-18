@@ -1,0 +1,20 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "powershell.exe",
+    "command_line": "powershell.exe -Command \"$s=[IO.File]::OpenWrite('C:\\Temp\\test.txt');$s.Write($b,0,$b.Length);$s.Close()\""
+  }
+}

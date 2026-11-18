@@ -1,0 +1,20 @@
+{
+  "@timestamp": "2026-01-01T00:01:03Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "reg.exe",
+    "command_line": "reg.exe add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\" /v ExampleNote /d documentation"
+  }
+}

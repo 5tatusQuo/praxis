@@ -1,0 +1,28 @@
+{
+  "@timestamp": "2026-01-01T00:00:02Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "reg.exe",
+    "args": [
+      "reg.exe",
+      "delete",
+      "HKLM\\SYSTEM\\CurrentControlSet\\Services\\SecurityAgent",
+      "/v",
+      "Start",
+      "/f"
+    ],
+    "command_line": "reg.exe\t\"delete\"\tHKLM\\SYSTEM\\CurrentControlSet\\Services\\SecurityAgent /v Start /f"
+  }
+}

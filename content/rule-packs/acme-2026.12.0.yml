@@ -1,0 +1,207 @@
+id: acme-2026.12.0
+client: acme
+month: 2026-12
+created: '2026-11-18'
+status: proposed
+budget: 3
+snapshot:
+  taken_at: '2026-11-18T03:27:12Z'
+  summary:
+    rules:
+      blind: 1
+      healthy: 2
+      disabled: 0
+    covered: 5
+    blind_rule: 2
+    techniques: 706
+    visible_pct: 75.64
+    coverage_pct: 0.71
+    detection_gap: 527
+    visibility_gap: 172
+    weighted_coverage_pct: 3.1
+brief: "ACME healthcare \u2014 December 2026: propose 3 detections for PR/CI and human review. The latest\
+  \ available snapshot (2026-11-18) reports 75.64% visibility but only 3.1% threat-weighted coverage,\
+  \ with 527 visible detection gaps. Process, command and network telemetry score 4; authentication and\
+  \ logon telemetry are available, but registry-modification telemetry is silent. Highest-weight gaps\
+  \ include remote services/RDP, command execution, valid accounts and disabling security tools (weight\
+  \ 1.0); PowerShell is also prominent (0.833). This pack adds focused RDP-configuration tampering, service-removal\
+  \ and PowerShell reverse-shell behaviours using the available endpoint process stream, without depending\
+  \ on silent registry events. It does not provide comprehensive RDP or valid-account detection, repair\
+  \ blind Run-key coverage, or duplicate the existing LSASS-dump and shadow-copy rules. All three proposed\
+  \ queries passed client scoring at 94/100, TTP tier, with zero hits over the 30-day backtest; zero historical\
+  \ hits supports a low initial alert burden but does not establish detection efficacy."
+picks:
+- detection: PRX-000004
+  candidate: sigma:05b2aa93-1210-42c8-8d9a-2fcc13b284f5
+  technique: T1685
+  weight: 1.0
+  rationale: 'Service Registry Key Deleted Via Reg.EXE addresses a weight-1.0, visibility-4 gap. It matches
+    reg.exe service-key deletion commands rather than named malware, hashes or particular antivirus products,
+    providing a durable signal of possible service/security-tool removal. It uses logs-endpoint.events.process-*
+    and therefore remains observable despite silent registry telemetry. ACME scoring: 94/100, passes=true,
+    TTP tier, no existing-library similarity, zero hits in 30 days. Review the targeted service and approved
+    uninstall/maintenance activity: the query detects an attempted deletion of any service key, not proof
+    that antivirus was disabled.'
+  justification: ''
+  engineer_notes: 'Created Service registry deletion via reg.exe for acme, mapped to T1685. Native EQL
+    covers renamed binaries via optional PE metadata, service keys and values, CurrentControlSet and explicit
+    ControlSet paths. Includes actionable SOC documentation, blind spots, and Sigma attribution under
+    DRL-1.1. Validation is clean; all 14 tests passed (9 positive, 5 negative). Quality score: 94/100;
+    acme 30-day backtest: 0 hits. Staged for pull-request/CI and human review; not deployed to production.'
+  quality:
+    score: 84
+    passes: false
+    tier: ttp
+    parts:
+      specificity: 30
+      pyramid: 25
+      durability: 10
+      maturity: 9
+      overlap: 0
+      backtest: 10
+    closest_existing: PRX-000004
+    closest_similarity: 1.0
+    flags:
+    - 'duplicate: 100% overlap with PRX-000004'
+    backtest:
+      hits: 0
+      days: 30
+  lab:
+    passed: true
+    cases: 14
+- detection: PRX-000005
+  candidate: sigma:0d5675be-bc88-4172-86d3-1e96a4476536
+  technique: T1021.001
+  weight: 1.0
+  rationale: "Potential Tampering With RDP Related Registry Keys Via Reg.EXE addresses the weight-1.0,\
+    \ visibility-4 RDP gap through command-line evidence of Terminal Server configuration changes. Its\
+    \ predicates combine reg.exe identity, registry-add syntax, the Terminal Server path and RDP-related\
+    \ values, with a TLS-setting exclusion. These Windows configuration behaviours are independent of\
+    \ attacker tool branding. The endpoint process query scored 94/100, passes=true, TTP tier, with no\
+    \ library overlap and zero ACME hits in 30 days. Unlike the examined SharpRDP and remote scheduled-task\
+    \ correlations, it does not require the silent registry stream. Scope is configuration-change attempts,\
+    \ including potentially legitimate enabling or disabling\u2014not detection of all RDP lateral movement\
+    \ or confirmation that the change succeeded."
+  justification: ''
+  engineer_notes: 'Created RDP registry configuration modified via reg.exe for acme, mapped to T1021.001
+    and T1112, with attributed DRL-1.1 provenance, native EQL, analyst triage documentation and explicit
+    blind spots. Supports renamed reg.exe via optional original PE filename, numbered control sets and
+    common argument variations; removes unnecessary REG_DWORD and /f requirements. Validation is clean;
+    all 18 tests pass (13 positive, 5 negative). Exact-query 30-day acme backtest: 0 hits. Deterministic
+    quality score: 94/100. Staged for CI and human review, not deployed. Authorized RDP changes, including
+    TLS hardening, can alert; the rule detects attempted configuration changes, not successful RDP lateral
+    movement.'
+  quality:
+    score: 84
+    passes: false
+    tier: ttp
+    parts:
+      specificity: 30
+      pyramid: 25
+      durability: 10
+      maturity: 9
+      overlap: 0
+      backtest: 10
+    closest_existing: PRX-000005
+    closest_similarity: 1.0
+    flags:
+    - 'duplicate: 100% overlap with PRX-000005'
+    backtest:
+      hits: 0
+      days: 30
+  lab:
+    passed: true
+    cases: 18
+- detection: PRX-000006
+  candidate: sigma:edc2f8ae-2412-4dfd-b9d5-0c57727e70be
+  technique: T1059.001
+  weight: 0.833
+  rationale: Potential Powershell ReverseShell Connection addresses the weight-0.833, visibility-4 PowerShell
+    gap with a focused combination of TCPClient construction, GetStream and Write in PowerShell/pwsh command
+    lines. It follows socket-stream behaviour rather than Nishang names or network indicators, and original-file-name
+    matching also accommodates renamed interpreter binaries. On ACME's endpoint process stream it scored
+    94/100, passes=true, TTP tier, with zero hits in 30 days; its closest library similarity was only
+    0.18 to PRX-000002, not a duplicate. Prefer this focused execution signal over spending the third
+    slot on generic account-use evidence. Review rare administrative connectivity scripts; encoded, obfuscated
+    or script-file-only implementations may evade these command-line predicates.
+  justification: ''
+  engineer_notes: "Created PRX-000006 \u2014 Potential PowerShell reverse shell via TCP stream \u2014\
+    \ in staged lifecycle for PR review, not deployed. Native EQL covers PowerShell and pwsh, renamed\
+    \ binaries via optional original PE metadata, case variations, and System.Net.Sockets.TCPClient without\
+    \ the upstream leading-space restriction. Includes DRL-1.1 attribution, actionable SOC triage and\
+    \ explicit blind spots. Validation is clean; all 10 tests passed (4 positive, 6 negative). Acme 30-day\
+    \ backtest: 0 hits. Deterministic quality score: 94/100. Does not establish that a connection succeeded;\
+    \ encoded commands and script bodies absent from process command lines require complementary telemetry."
+  quality:
+    score: 84
+    passes: false
+    tier: ttp
+    parts:
+      specificity: 30
+      pyramid: 25
+      durability: 10
+      maturity: 9
+      overlap: 0
+      backtest: 10
+    closest_existing: PRX-000006
+    closest_similarity: 1.0
+    flags:
+    - 'duplicate: 100% overlap with PRX-000006'
+    backtest:
+      hits: 0
+      days: 30
+  lab:
+    passed: true
+    cases: 10
+rejected: []
+review:
+  verdict: pass
+  summary: 'Reviewed all three detection files, independently ran validation/lab replay and rescored each
+    exact query using its declared indices. All 42 test cases passed with no validation errors; each scoring
+    backtest returned zero hits over 30 days. The pack meets the three-rule budget, targets distinct techniques,
+    uses available process telemetry rather than the silent registry stream, and does not duplicate ACME''s
+    production detections. No merge-blocking logic defect was found. Current scores are 84/100 with passes=false,
+    not the claimed 94/100: each overlap flag points to the candidate''s own staged library entry, so
+    this is not evidence of three redundant additions. Reconcile the quality narrative and the RDP exclusion
+    claim before human approval.'
+  comments:
+  - detection_id: PRX-000004
+    severity: concern
+    comment: "Current scoring returns 84/100, passes=false and 100% similarity to PRX-000004 itself. The\
+      \ same self-match occurs for PRX-000005 and PRX-000006; list_detections identifies all three as\
+      \ staged, and the coverage snapshot lists only PRX-000001\u2013000003 as deployed. Do not treat\
+      \ these self-matches as independent duplicate rules, but do not present 94/100 and passes=true as\
+      \ currently verified either. Reconcile the brief, pick rationales and READMEs with the current quality\
+      \ objects, distinguishing any historical pre-registration score from current scoring. The tools\
+      \ do not independently establish the historical 94-point scores."
+  - detection_id: PRX-000005
+    severity: concern
+    comment: 'The pick rationale says the query includes a TLS-setting exclusion. It does not: both the
+      actual query and README explicitly retain SecurityLayer changes, including legitimate SecurityLayer=2
+      hardening. Correct the pack rationale. The broad direction-agnostic behavior is otherwise clearly
+      documented and is not itself a blocker; add an explicit TLS-hardening expected-fire test to preserve
+      this intentional choice.'
+  - detection_id: PRX-000006
+    severity: concern
+    comment: This is a literal inline TCP-stream pattern, not a verified reverse-shell interaction. It
+      requires neither receiving commands nor executing received data, and a legitimate TCP sender with
+      GetStream and Write will match. The README accurately admits this and names encoded, script-file
+      and obfuscated evasions, so the limited scope is acceptable. Current positives exercise interpreter
+      and construction variants, but the example event only demonstrates sending bytes. Add a realistic
+      command-execution/output-return reverse-shell fixture and an explicitly expected-fire benign TCP-sender
+      fixture so reviewers can see both efficacy within scope and the unavoidable false-positive boundary.
+  - detection_id: PRX-000004
+    severity: note
+    comment: Service-tree deletion is a useful attempted-tampering signal, not proof of disabling a security
+      tool. The query also matches value removal and ordinary service configuration, while sc.exe and
+      direct registry APIs evade it. These limitations are already candidly documented, and the tests
+      cover renamed binaries, numbered control sets, root deletion, whitespace and unrelated operations.
+      Retain this narrow coverage interpretation rather than treating the T1685 gap as comprehensively
+      closed.
+agents:
+  model: gpt-6.1-sol
+usage:
+  llm_calls: 31
+  input_tokens: 243510
+  output_tokens: 16890
+  tool_calls: 50

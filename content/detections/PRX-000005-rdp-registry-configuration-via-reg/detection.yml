@@ -1,0 +1,41 @@
+id: PRX-000005
+name: RDP registry configuration modified via reg.exe
+intent: Detects reg.exe attempts to modify Terminal Server configuration that could enable
+  remote access or weaken RDP security.
+version: 1
+lifecycle: staged
+owner: ai:platform-engineer-elastic
+severity: high
+risk_score: 73
+attack:
+- technique: T1021.001
+  tactic: TA0008
+- technique: T1112
+  tactic: TA0112
+data_components:
+- Process Creation
+- Command Execution
+pyramid_tier: ttp
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.process-*
+    - logs-windows.sysmon_operational-*
+provenance:
+  source: sigmahq
+  upstream_id: 0d5675be-bc88-4172-86d3-1e96a4476536
+  upstream_commit: 088855f00b65a19e345b09c1619272b44f92fea4
+  upstream_author: pH-T (Nextron Systems), @Kostastsale, TheDFIRReport
+  licence: DRL-1.1
+references:
+- https://github.com/SigmaHQ/sigma/blob/088855f00b65a19e345b09c1619272b44f92fea4/rules/windows/process_creation/proc_creation_win_reg_rdp_keys_tamper.yml
+- https://thedfirreport.com/2022/02/21/qbot-and-zerologon-lead-to-full-domain-compromise/
+- https://learn.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-terminalservices-rdp-winstationextensions-securitylayer
+- http://etutorials.org/Microsoft+Products/microsoft+windows+server+2003+terminal+services/Chapter+6+Registry/Registry+Keys+for+Terminal+Services/
+- http://woshub.com/rds-shadow-how-to-connect-to-a-user-session-in-windows-server-2012-r2/
+- https://admx.help/HKLM/SOFTWARE/Policies/Microsoft/Windows%20NT/Terminal%20Services
+- https://bazaar.abuse.ch/sample/6f3aa9362d72e806490a8abce245331030d1ab5ac77e400dd475748236a6cc81/
+- https://blog.sekoia.io/darkgate-internals/
+false_positives:
+- Authorized RDP provisioning, maintenance, security hardening and troubleshooting using reg.exe.
+- Configuration-management scripts changing Terminal Server session or listener settings.

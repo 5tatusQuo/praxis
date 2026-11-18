@@ -1,0 +1,32 @@
+{
+  "@timestamp": "2026-01-01T00:00:01Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "update.exe",
+    "pe": {
+      "original_file_name": "REG.EXE"
+    },
+    "args": [
+      "update.exe",
+      "add",
+      "HKLM\\SYSTEM\\ControlSet001\\Control\\Terminal Server\\WinStations\\RDP-Tcp",
+      "/v",
+      "UserAuthentication",
+      "/d",
+      "0"
+    ],
+    "command_line": "update.exe\t\"add\"\t\"HKLM\\SYSTEM\\ControlSet001\\Control\\Terminal Server\\WinStations\\RDP-Tcp\" /v UserAuthentication /d 0"
+  }
+}

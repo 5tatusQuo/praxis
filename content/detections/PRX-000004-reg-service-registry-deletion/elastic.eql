@@ -1,0 +1,16 @@
+process where host.os.type == "windows" and event.type == "start" and
+  (process.name : "reg.exe" or ?process.pe.original_file_name : "reg.exe") and
+  (
+    ?process.args : "delete" or
+    process.command_line : ("* delete *", "*\tdelete *", "* delete\t*", "*\tdelete\t*", "* \"delete\" *")
+  ) and
+  process.command_line : (
+    "*\\SYSTEM\\CurrentControlSet\\Services\\*",
+    "*\\SYSTEM\\ControlSet???\\Services\\*",
+    "*\\SYSTEM\\CurrentControlSet\\Services\"*",
+    "*\\SYSTEM\\ControlSet???\\Services\"*",
+    "*\\SYSTEM\\CurrentControlSet\\Services",
+    "*\\SYSTEM\\ControlSet???\\Services",
+    "*\\SYSTEM\\CurrentControlSet\\Services *",
+    "*\\SYSTEM\\ControlSet???\\Services *"
+  )
