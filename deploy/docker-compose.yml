@@ -1,0 +1,99 @@
+# PRAXIS stack. Profiles pick the mode:
+#   Full mode:    docker compose --profile core --profile elk up -d
+#   Connect mode: docker compose --profile core up -d
+# Secrets and bind addresses come from deploy/.env (generated on the server by
+# deploy/server/bootstrap.sh, never committed).
+name: praxis
+
+services:
+  # One-shot: creates the CA and the node certificate on first start.
+  elk-certs:
+    profiles: [elk]
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    user: "0"
+    volumes:
+      - certs:/usr/share/elasticsearch/config/certs
+      - ./elastic/make-certs.sh:/make-certs.sh:ro
+    command: ["bash", "/make-certs.sh"]
+
+  es01:
+    profiles: [elk]
+    depends_on:
+      elk-certs:
+        condition: service_completed_successfully
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    restart: unless-stopped
+    volumes:
+      - certs:/usr/share/elasticsearch/config/certs:ro
+      - esdata01:/usr/share/elasticsearch/data
+    ports:
+      - "${ES_BIND:-127.0.0.1}:9200:9200"
+    environment:
+      node.name: es01
+      cluster.name: praxis
+      discovery.type: single-node
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
+      ES_JAVA_OPTS: -Xms${ES_HEAP:-4g} -Xmx${ES_HEAP:-4g}
+      bootstrap.memory_lock: "true"
+      xpack.license.self_generated.type: basic
+      xpack.security.enabled: "true"
+      xpack.security.http.ssl.enabled: "true"
+      xpack.security.http.ssl.key: certs/es01/es01.key
+      xpack.security.http.ssl.certificate: certs/es01/es01.crt
+      xpack.security.http.ssl.certificate_authorities: certs/ca/ca.crt
+      xpack.security.authc.api_key.enabled: "true"
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication credentials'"]
+      interval: 10s
+      timeout: 10s
+      retries: 60
+
+  # One-shot: sets the password Kibana uses to talk to Elasticsearch.
+  elk-init:
+    profiles: [elk]
+    depends_on:
+      es01:
+        condition: service_healthy
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    volumes:
+      - certs:/usr/share/elasticsearch/config/certs:ro
+      - ./elastic/set-kibana-password.sh:/set-kibana-password.sh:ro
+    environment:
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
+      KIBANA_PASSWORD: ${KIBANA_PASSWORD}
+    command: ["bash", "/set-kibana-password.sh"]
+
+  kibana:
+    profiles: [elk]
+    depends_on:
+      elk-init:
+        condition: service_completed_successfully
+    image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
+    restart: unless-stopped
+    volumes:
+      - certs:/usr/share/kibana/config/certs:ro
+      - kibanadata:/usr/share/kibana/data
+    ports:
+      - "${KIBANA_BIND:-127.0.0.1}:5601:5601"
+    environment:
+      SERVERNAME: kibana
+      ELASTICSEARCH_HOSTS: https://es01:9200
+      ELASTICSEARCH_USERNAME: kibana_system
+      ELASTICSEARCH_PASSWORD: ${KIBANA_PASSWORD}
+      ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES: config/certs/ca/ca.crt
+      XPACK_SECURITY_ENCRYPTIONKEY: ${KIBANA_KEY_SECURITY}
+      XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: ${KIBANA_KEY_SAVED_OBJECTS}
+      XPACK_REPORTING_ENCRYPTIONKEY: ${KIBANA_KEY_REPORTING}
+      TELEMETRY_OPTIN: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -I http://localhost:5601/api/status | grep -q 'HTTP/1.1 200 OK'"]
+      interval: 10s
+      timeout: 10s
+      retries: 90
+
+volumes:
+  certs:
+  esdata01:
+  kibanadata:
