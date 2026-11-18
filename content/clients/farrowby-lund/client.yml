@@ -11,3 +11,5 @@ platforms:
     namespace: farrowby_lund
 packs:
 - baseline
+detections:
+- PRX-000029

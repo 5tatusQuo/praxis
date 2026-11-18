@@ -1,0 +1,4 @@
+process where host.os.type == "windows" and event.type == "start" and
+  (process.name : "certutil.exe" or ?process.pe.original_file_name : "CertUtil.exe") and
+  process.command_line : ("*urlcache*", "*verifyctl*") and
+  process.command_line : ("*http://*", "*https://*", "*ftp://*")
