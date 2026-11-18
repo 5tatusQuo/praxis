@@ -40,6 +40,8 @@ esac
 # The content the API serves. CD refreshes it after every merge; seed it once
 # from this checkout so a new server has something to show.
 CONTENT=/var/lib/praxis/content
+sudo install -d -m 755 "$(dirname "$CONTENT")"
+sudo chmod 755 "$(dirname "$CONTENT")"   # the runner and the API must be able to enter it
 if [ ! -d "$CONTENT" ]; then
   sudo install -d -m 755 "$CONTENT"
   sudo cp -a "$DEPLOY_DIR/../content/." "$CONTENT/"
