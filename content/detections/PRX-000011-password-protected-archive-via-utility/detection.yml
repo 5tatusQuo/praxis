@@ -3,7 +3,7 @@ name: Password-protected archive created with a command-line archiver
 intent: Detects WinRAR or 7-Zip run from the command line to build a password-protected archive,
   a common way to stage drawings and project data before theft.
 version: 1
-lifecycle: staged
+lifecycle: production
 owner: detection-engineering
 severity: medium
 risk_score: 47
