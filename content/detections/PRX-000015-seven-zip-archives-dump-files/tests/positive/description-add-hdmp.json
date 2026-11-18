@@ -1,0 +1,23 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "pack.exe",
+    "pe": {
+      "description": "7-Zip standalone console"
+    },
+    "command_line": "pack.exe a out.7z C:\\Temp\\app.hdmp -mx9"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "7za.exe",
+    "command_line": "7za.exe a out.7z \"C:\\Temp\\app.hdmp\""
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "@timestamp": "2026-01-01T00:00:05Z",
+  "event": {
+    "category": [
+      "registry"
+    ],
+    "type": [
+      "change"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "registry": {
+    "path": "MACHINE\\SYSTEM\\ControlSet001\\Control\\Terminal Server\\WinStations\\RDP-Tcp\\UserAuthentication",
+    "data": {
+      "strings": [
+        "0"
+      ]
+    }
+  }
+}

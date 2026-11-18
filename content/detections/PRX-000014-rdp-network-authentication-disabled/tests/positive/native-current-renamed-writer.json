@@ -1,0 +1,30 @@
+{
+  "@timestamp": "2026-01-01T00:00:02Z",
+  "event": {
+    "category": [
+      "registry"
+    ],
+    "type": [
+      "change"
+    ]
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "update.exe",
+    "pe": {
+      "original_file_name": "reg.exe"
+    }
+  },
+  "registry": {
+    "path": "\\REGISTRY\\MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp\\UserAuthentication",
+    "data": {
+      "strings": [
+        "0"
+      ]
+    }
+  }
+}
