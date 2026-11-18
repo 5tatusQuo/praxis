@@ -1,8 +1,10 @@
+import { canSee, currentSession } from "@/lib/session";
 import { api } from "@/lib/api";
 
 // Forwards a tuning preview to praxis-api, keeping the API token on the server.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; rule: string }> }) {
   const { id, rule } = await params;
+  if (!canSee(await currentSession(), id)) return Response.json({ error: "Not found" }, { status: 404 });
   try {
     const result = await api<object>(
       `/api/clients/${encodeURIComponent(id)}/rules/${encodeURIComponent(rule)}/preview`,

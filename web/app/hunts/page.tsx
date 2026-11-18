@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin";
 import Link from "next/link";
 import { Panel } from "@/components/Stat";
 import { api, when } from "@/lib/api";
@@ -7,6 +8,7 @@ export const dynamic = "force-dynamic";
 type HuntRow = { id: string; prompt: string; clients: string[]; hypotheses: number; created_at: string };
 
 export default async function Hunts() {
+  await requireAdmin();
   const hunts = (await api<HuntRow[]>("/api/hunts")) ?? [];
   return (
     <div className="space-y-6">

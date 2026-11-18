@@ -60,6 +60,25 @@ services:
       timeout: 5s
       retries: 30
 
+  # Sign-in for the dashboard. Served under the dashboard's own address at /kc,
+  # so it needs no port of its own.
+  keycloak:
+    profiles: [core]
+    image: quay.io/keycloak/keycloak:26.8.2
+    restart: unless-stopped
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HTTP_RELATIVE_PATH: /kc
+      KC_HOSTNAME: http://127.0.0.1:3000/kc
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      PRAXIS_WEB_CLIENT_SECRET: ${KEYCLOAK_WEB_SECRET}
+    volumes:
+      - keycloakdata:/opt/keycloak/data
+      - ./keycloak/praxis-realm.json:/opt/keycloak/data/import/praxis-realm.json:ro
+
   praxis-web:
     profiles: [core]
     build:
@@ -68,9 +87,18 @@ services:
     depends_on:
       praxis-api:
         condition: service_healthy
+      keycloak:
+        condition: service_started
     environment:
       PRAXIS_API_URL: http://praxis-api:8000
       PRAXIS_API_TOKEN: ${PRAXIS_API_TOKEN}
+      # Dashboard sign-in. The issuer is the dashboard's own address: inside
+      # this container that address is this server, which forwards /kc on.
+      PRAXIS_WEB_URL: http://127.0.0.1:3000
+      PRAXIS_OIDC_ISSUER: http://127.0.0.1:3000/kc/realms/praxis
+      PRAXIS_OIDC_CLIENT_ID: praxis-web
+      PRAXIS_OIDC_CLIENT_SECRET: ${KEYCLOAK_WEB_SECRET}
+      PRAXIS_SESSION_SECRET: ${PRAXIS_SESSION_SECRET}
     ports:
       - "${WEB_BIND:-127.0.0.1}:3000:3000"
 
@@ -164,6 +192,7 @@ services:
 
 volumes:
   pgdata:
+  keycloakdata:
   apistate:
   certs:
   esdata01:

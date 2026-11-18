@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { canSee, currentSession } from "@/lib/session";
 import { OverrideEditor } from "@/components/OverrideEditor";
 import { Panel, Stat } from "@/components/Stat";
 import { api, type RuleDetail } from "@/lib/api";
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function TuningStudio({ params }: { params: Promise<{ id: string; rule: string }> }) {
   const { id, rule } = await params;
+  if (!canSee(await currentSession(), id)) notFound();
   const detail = await api<RuleDetail>(`/api/clients/${encodeURIComponent(id)}/rules/${encodeURIComponent(rule)}`);
   if (!detail) notFound();
   const alerts = detail.alerts;

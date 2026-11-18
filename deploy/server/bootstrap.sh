@@ -30,6 +30,10 @@ ensure KIBANA_KEY_SAVED_OBJECTS "$(rand 24)"
 ensure KIBANA_KEY_REPORTING "$(rand 24)"
 ensure POSTGRES_PASSWORD "$(rand 16)"
 ensure PRAXIS_API_TOKEN "$(rand 24)"
+ensure KEYCLOAK_ADMIN_PASSWORD "$(rand 16)"
+ensure KEYCLOAK_WEB_SECRET "$(rand 24)"
+ensure PRAXIS_SESSION_SECRET "$(rand 32)"
+ensure DASHBOARD_PASSWORD "$(rand 12)"
 
 case "$MODE" in
   full) PROFILES=(--profile core --profile elk) ;;
@@ -73,4 +77,8 @@ if [ "$MODE" = full ]; then
   sudo install -m 644 /tmp/praxis-ca.crt "$ETC_DIR/ca.crt" && rm -f /tmp/praxis-ca.crt
   echo "Elasticsearch CA at $ETC_DIR/ca.crt"
 fi
+# The first dashboard user: an administrator named `operator`. Its password is
+# DASHBOARD_PASSWORD in deploy/.env; change it with dashboard-user.sh.
+"$DEPLOY_DIR/server/dashboard-user.sh" operator "$(grep '^DASHBOARD_PASSWORD=' "$ENV_FILE" | cut -d= -f2)" --admin
+
 docker compose "${PROFILES[@]}" ps --format 'table {{.Service}}\t{{.Status}}'

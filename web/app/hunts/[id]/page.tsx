@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Panel } from "@/components/Stat";
@@ -18,6 +19,7 @@ type Hypothesis = {
 type Hunt = { id: string; prompt: string; clients: string[]; summary: string; hypotheses: Hypothesis[]; pr_url: string | null };
 
 export default async function HuntDetail({ params }: { params: Promise<{ id: string }> }) {
+  await requireAdmin();
   const { id } = await params;
   const hunt = await api<Hunt>(`/api/hunts/${encodeURIComponent(id)}`);
   if (!hunt) notFound();

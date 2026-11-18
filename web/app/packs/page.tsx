@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin";
 import Link from "next/link";
 import { Panel } from "@/components/Stat";
 import { api, type PackRow, when } from "@/lib/api";
@@ -10,6 +11,7 @@ export function Verdict({ verdict }: { verdict: string | null }) {
 }
 
 export default async function Packs() {
+  await requireAdmin();
   const packs = (await api<PackRow[]>("/api/packs")) ?? [];
   return (
     <div className="space-y-6">
