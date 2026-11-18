@@ -1474,6 +1474,19 @@ def detection_write(
             f"./px lab test {result['detection_id']}, then "
             f"./px detection assign {result['detection_id']} --client <id>"
         )
+        # Say what the library already has on the same techniques, so overlap is a choice.
+        mine = {
+            str(ref.get("technique")) for ref in data.get("attack", []) if isinstance(ref, dict)
+        }
+        same = sorted(
+            b.id
+            for b in _repo().detections.values()
+            if b.id != result["detection_id"]
+            and b.meta.lifecycle != "deprecated"
+            and mine & {ref.technique for ref in b.meta.attack}
+        )
+        if same:
+            result["already_on_these_techniques"] = same
     _out(result, as_json)
     if result["validation_errors"]:
         raise typer.Exit(1)
