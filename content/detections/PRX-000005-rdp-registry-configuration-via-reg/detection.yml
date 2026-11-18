@@ -3,7 +3,7 @@ name: RDP registry configuration modified via reg.exe
 intent: Detects reg.exe attempts to modify Terminal Server configuration that could enable
   remote access or weaken RDP security.
 version: 1
-lifecycle: staged
+lifecycle: production
 owner: ai:platform-engineer-elastic
 severity: high
 risk_score: 73
