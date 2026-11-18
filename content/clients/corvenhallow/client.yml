@@ -1,0 +1,13 @@
+id: corvenhallow
+name: Corvenhallow Thistlemoor Building & Engineering (fictional)
+sector: buildingeng
+fictional: true
+assets:
+  endpoints: 60
+platforms:
+  elastic:
+    connection: lab
+    space: corvenhallow
+    namespace: corvenhallow
+packs:
+- baseline
