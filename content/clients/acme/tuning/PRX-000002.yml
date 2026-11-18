@@ -1,0 +1,42 @@
+rule: PRX-000002
+reason: The backup agent deletes the oldest shadow copy. Limit the exclusion to its exact
+  parent path, child path, account, and command.
+evidence:
+- The sampled events share the backup agent parent path and the same account.
+- The sampled command deletes only the oldest shadow copy on drive D.
+author: ai:tuner (awaiting human approval)
+expires: '2026-04-30'
+exclude:
+- field: process.parent.executable
+  op: equals
+  value: C:\Program Files\MedBackup\mbagent.exe
+- field: process.executable
+  op: equals
+  value: C:\Windows\System32\vssadmin.exe
+- field: user.name
+  op: equals
+  value: id-b18f61b1
+- field: process.command_line
+  op: equals
+  value: 'vssadmin.exe delete shadows /for=D: /oldest /quiet'
+examples:
+- event:
+    category:
+    - process
+    type:
+    - start
+  host:
+    name: id-465d0c6a
+    os:
+      type: windows
+  user:
+    name: id-b18f61b1
+  process:
+    name: vssadmin.exe
+    executable: C:\Windows\System32\vssadmin.exe
+    command_line: 'vssadmin.exe delete shadows /for=D: /oldest /quiet'
+    pe:
+      original_file_name: VSSADMIN.EXE
+    parent:
+      name: mbagent.exe
+      executable: C:\Program Files\MedBackup\mbagent.exe

@@ -7,8 +7,8 @@ platforms:
       tuning: 784cdaf97e009e96bb504acef698c1cb7ed00897b15f51c46de6f6e84fede8fe
       version: 2
     PRX-000002:
-      hash: b500a67965478527058653736acbb4077a99783eca31d7f7113166888f45340b
-      tuning: null
+      hash: 8dd1d11f8954abd4d5d9947c28b6e0916b942fcfae05957cebad621f16cc4bdf
+      tuning: 707b3cedcb006c271a8fccb67f0398c128297b16a40fbcdf03e80d4aad17e6ef
       version: 1
     PRX-000003:
       hash: 9c1d22efae0d9663f890b77d180d2d89f7723acc1c505ef33c2a5f735967e7d6
