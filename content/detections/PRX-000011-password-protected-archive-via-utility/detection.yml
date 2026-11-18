@@ -1,0 +1,26 @@
+id: PRX-000011
+name: Password-protected archive created with a command-line archiver
+intent: Detects WinRAR or 7-Zip run from the command line to build a password-protected archive,
+  a common way to stage drawings and project data before theft.
+version: 1
+lifecycle: staged
+owner: detection-engineering
+severity: medium
+risk_score: 47
+attack:
+- technique: T1560.001
+  tactic: TA0009
+data_components:
+- Process Creation
+pyramid_tier: ttp
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.process-*
+provenance:
+  source: praxis
+  licence: Apache-2.0
+references: []
+false_positives:
+- Staff who send password-protected archives of drawings to partners by hand.
+- Backup or document-control scripts that encrypt archives on a schedule.

@@ -1,0 +1,24 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "name": "ws-lab-07",
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "7z.exe",
+    "command_line": "7z.exe x C:\\Temp\\setup.7z -oC:\\Temp\\setup",
+    "pe": {
+      "original_file_name": "7z.exe"
+    }
+  }
+}
