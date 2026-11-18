@@ -71,12 +71,16 @@ def validate(
         str | None,
         typer.Option(help="Git ref to compare with: query changes must update the docs."),
     ] = None,
+    as_json: Annotated[bool, typer.Option("--json")] = False,
 ) -> None:
     """Check schemas, references, ATT&CK ids, README template and tuning hooks."""
     repo = _repo(strict=False)
     issues = core.validate(repo)
     if base:
         issues += core.docs_follow_queries(repo, base)
+    if as_json:
+        print(json.dumps({"valid": not issues, "issues": [str(i) for i in issues]}, indent=2))
+        raise typer.Exit(1 if issues else 0)
     for issue in issues:
         err.print(f"[red]error[/red] {issue}")
     if issues:
@@ -136,11 +140,13 @@ def render(
 @lab_app.command("test")
 def lab_test(
     detection_ids: Annotated[list[str] | None, typer.Argument()] = None,
+    as_json: Annotated[bool, typer.Option("--json")] = False,
 ) -> None:
     """Replay test events in the lab SIEM, raw and under every client's tuning."""
     repo = _repo()
     wanted = detection_ids or sorted(repo.detections)
     failed = False
+    rows = []
     table = Table("detection", "platform", "scope", "case", "expected", "fired", "result")
     for det_id in wanted:
         bundle = repo.detections.get(det_id)
@@ -149,6 +155,13 @@ def lab_test(
             raise typer.Exit(2)
         for case in core.lab_test(repo, bundle):
             failed |= not case.passed
+            rows.append(
+                {
+                    "detection": det_id, "scope": case.scope, "case": case.name,
+                    "expected_to_fire": case.expected, "fired": case.fired,
+                    "passed": case.passed, "error": case.error,
+                }
+            )  # fmt: skip
             table.add_row(
                 det_id,
                 case.platform,
@@ -158,7 +171,10 @@ def lab_test(
                 "error" if case.error else ("yes" if case.fired else "no"),
                 "[green]pass[/green]" if case.passed else f"[red]FAIL[/red] {case.error or ''}",
             )
-    console.print(table)
+    if as_json:
+        print(json.dumps({"passed": not failed, "cases": rows}, indent=2))
+    else:
+        console.print(table)
     if failed:
         raise typer.Exit(1)
 
@@ -174,22 +190,40 @@ def lab_replay(
         str | None,
         typer.Option(help="With --kind examples: replay another client's tuning examples."),
     ] = None,
+    file: Annotated[
+        Path | None,
+        typer.Option(help="Replay the event(s) in this JSON file instead of the test events."),
+    ] = None,
+    repeat: Annotated[int, typer.Option(help="Write the events this many times.")] = 1,
 ) -> None:
-    """Write a detection's test events into a fictional client's telemetry."""
+    """Write events into a fictional client's telemetry, as if they had just happened.
+
+    Use it to see a deployed rule fire, or with --file and --repeat to simulate
+    a noisy benign pattern before tuning it.
+    """
     repo = _repo()
     client = _client(repo, client_id)
-    bundle = repo.detections[detection_id]
+    bundle = repo.detections.get(detection_id)
+    if bundle is None:
+        err.print(f"[red]error[/red] unknown detection {detection_id}")
+        raise typer.Exit(1)
     for platform_name in client.platforms.enabled():
         if platform_name not in bundle.implementations:
             continue
-        if kind == "examples":
+        if file is not None:
+            loaded = json.loads(file.read_text())
+            events = loaded if isinstance(loaded, list) else [loaded]
+            label = f"events from {file.name}"
+        elif kind == "examples":
             source = _client(repo, from_client) if from_client else client
             events = repo.tuning_examples(detection_id, source, platform_name)
+            label = "tuning example events"
         else:
             cases = bundle.positive if kind == "positive" else bundle.negative
             events = [event for case in cases for event in case.events]
-        count = get_platform(platform_name).replay(bundle, client, events)
-        console.print(f"{platform_name}: wrote {count} {kind} events for {client.id}")
+            label = f"{kind} test events"
+        count = get_platform(platform_name).replay(bundle, client, events * repeat)
+        console.print(f"{platform_name}: wrote {count} {label} for {client.id}")
 
 
 @lab_app.command("seed")
@@ -197,6 +231,9 @@ def lab_seed(client_ids: Annotated[list[str] | None, typer.Argument()] = None) -
     """Top up a fictional client's synthetic telemetry (clients/<id>/lab/telemetry.yml)."""
     repo = _repo()
     for client_id in client_ids or sorted(repo.lab_telemetry):
+        if _client(repo, client_id).id not in repo.lab_telemetry:
+            console.print(f"{client_id}: no lab telemetry profile, nothing to seed")
+            continue
         written = lab.seed(repo, _client(repo, client_id))
         for source, count in written.items():
             console.print(f"{client_id}: {source} +{count} events")
@@ -335,18 +372,32 @@ def lock(
 
 
 @app.command("connection")
-def connection_check(client_id: str) -> None:
-    """Connect mode: check a client's read and deploy identities against its SIEMs."""
+def connection_check(
+    client_id: str, as_json: Annotated[bool, typer.Option("--json")] = False
+) -> None:
+    """Check a client's read and deploy identities against its SIEMs."""
     repo = _repo()
     client = _client(repo, client_id)
     failed = False
+    rows = []
     table = Table("platform", "identity", "result", "detail")
     for platform_name in client.platforms.enabled():
         for check in get_platform(platform_name).check_connection(client):
             failed |= not check.ok
             result = "[green]ok[/green]" if check.ok else "[red]FAIL[/red]"
             table.add_row(platform_name, check.role, result, check.detail)
-    console.print(table)
+            rows.append(
+                {
+                    "platform": platform_name,
+                    "identity": check.role,
+                    "ok": check.ok,
+                    "detail": check.detail,
+                }
+            )
+    if as_json:
+        print(json.dumps({"ok": not failed, "checks": rows}, indent=2))
+    else:
+        console.print(table)
     if failed:
         raise typer.Exit(1)
 
@@ -355,6 +406,9 @@ def connection_check(client_id: str) -> None:
 def release(
     client_id: str,
     smoke: Annotated[bool, typer.Option(help="Check each rule's first run after deploy.")] = True,
+    force: Annotated[
+        bool, typer.Option(help="Rewrite every rule even if unchanged: undoes console edits.")
+    ] = False,
 ) -> None:
     """Deploy a client's rendered rules to its SIEMs, then smoke-check them. CD runs this."""
     repo = _repo()
@@ -370,7 +424,7 @@ def release(
         platform = get_platform(platform_name)
         rules = core.render_client(repo, client, platform_name)
         table = Table("detection", "action", "hash", title=f"{client.id} on {platform_name}")
-        for action in platform.deploy(rules, client):
+        for action in platform.deploy(rules, client, force):
             table.add_row(action.detection_id, action.action, (action.content_hash or "")[:16])
         console.print(table)
         if smoke:
@@ -775,6 +829,442 @@ def schema_export(out: Path = Path("schemas")) -> None:
         path = out / f"{name}.schema.json"
         path.write_text(json.dumps(model.model_json_schema(), indent=2) + "\n")
         console.print(f"wrote {path}")
+
+
+# -- operator commands: every runbook step, for a person or an AI ---------------------------
+client_app = typer.Typer(no_args_is_help=True, help="Clients: create, inspect, connect, remove.")
+sector_app = typer.Typer(no_args_is_help=True, help="Sector threat profiles.")
+attack_app = typer.Typer(no_args_is_help=True, help="Look things up in MITRE ATT&CK.")
+detection_app = typer.Typer(no_args_is_help=True, help="Detections: write, assign, promote.")
+change_app = typer.Typer(no_args_is_help=True, help="Ship changes: pull request, checks, merge.")
+for _name, _app in (
+    ("client", client_app),
+    ("sector", sector_app),
+    ("attack", attack_app),
+    ("detection", detection_app),
+    ("change", change_app),
+):
+    app.add_typer(_app, name=_name)
+
+
+def _out(data, as_json: bool) -> None:
+    """Data for a machine (--json) or the same data as YAML for a person."""
+    import yaml
+
+    if as_json:
+        print(json.dumps(data, indent=2, default=str))
+    else:
+        console.print(yaml.safe_dump(data, sort_keys=False, width=100).rstrip(), highlight=False)
+
+
+def _op(action):
+    """Run an operator action; turn its errors into one clear line and exit code 1."""
+    from praxis import ops
+    from praxis.agents.gitops import GitError
+    from praxis.agents.toolbox import ToolError
+
+    try:
+        return action()
+    except (ops.OpsError, GitError, ToolError, ValueError) as error:
+        err.print(f"[red]error[/red] {error}")
+        raise typer.Exit(1) from error
+
+
+def _server(*args: str) -> None:
+    """Run a step that needs keys which never leave the server (deploy/remote.sh)."""
+    deploy_dir = get_settings().deploy_dir
+    if deploy_dir is None or not (deploy_dir / "remote.sh").is_file():
+        err.print("[red]error[/red] deploy/remote.sh not found; set deploy_dir in praxis.toml")
+        raise typer.Exit(1)
+    raise typer.Exit(subprocess.run([str(deploy_dir / "remote.sh"), *args]).returncode)
+
+
+@app.command()
+def status(as_json: Annotated[bool, typer.Option("--json")] = False) -> None:
+    """Where everything stands: content, clients, working tree and, if reachable, the server."""
+    from praxis import ops
+
+    _out(ops.status(get_settings().content_dir), as_json)
+
+
+@app.command("sources")
+def sources_list(as_json: Annotated[bool, typer.Option("--json")] = False) -> None:
+    """Log sources the data map knows: what the lab can generate and coverage can score."""
+    from praxis import ops
+
+    _out(ops.sources(_repo()), as_json)
+
+
+@app.command("source-add")
+def source_add(
+    spec: Annotated[Path, typer.Argument(help="YAML or JSON file; see --help for its fields.")],
+) -> None:
+    """Add a log source to the data map from a spec file.
+
+    Fields: source (e.g. logs-endpoint.events.dns), name, what_it_is (a few
+    sentences), components (ATT&CK data component -> list of fields an analyst
+    needs), sample (one representative ECS event).
+    """
+    import yaml
+
+    from praxis import ops
+
+    data = yaml.safe_load(spec.read_text())
+    path = _op(lambda: ops.source_add(get_settings().content_dir, **data))
+    console.print(f"wrote {path}")
+
+
+@client_app.command("add")
+def client_add(
+    client_id: Annotated[str, typer.Argument(help="Lower case, letters, digits, hyphens.")],
+    name: Annotated[str, typer.Option(help="Display name. Invented: never a real company.")],
+    sector: Annotated[str, typer.Option(help="Must have a threat profile; see `sector list`.")],
+    endpoints: Annotated[int, typer.Option(help="Hosts expected to report.")],
+    pack: Annotated[list[str] | None, typer.Option(help="Content pack; repeatable.")] = None,
+    as_json: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Create a client: manifest, lab telemetry profile for its rules, and packs.lock."""
+    from praxis import ops
+
+    result = _op(
+        lambda: ops.client_add(get_settings().content_dir, client_id, name, sector, endpoints, pack)
+    )
+    _out(result, as_json)
+
+
+@client_app.command("list")
+def client_list(as_json: Annotated[bool, typer.Option("--json")] = False) -> None:
+    """Every client with its sector, packs and detections."""
+    from praxis import ops
+
+    _out(ops.status(get_settings().content_dir)["clients"], as_json)
+
+
+@client_app.command("show")
+def client_show(client_id: str, as_json: Annotated[bool, typer.Option("--json")] = False) -> None:
+    """One client's manifest, the detections it runs, tuning and lock state."""
+    from praxis import ops
+
+    _out(_op(lambda: ops.client_show(_repo(), client_id)), as_json)
+
+
+@client_app.command("subscribe")
+def client_subscribe(
+    client_id: str,
+    pack: Annotated[list[str] | None, typer.Option(help="Content pack; repeatable.")] = None,
+    detection: Annotated[list[str] | None, typer.Option(help="Detection id; repeatable.")] = None,
+    remove: Annotated[bool, typer.Option(help="Take them away instead of adding.")] = False,
+    as_json: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Give a client content packs or single detections (or take them away)."""
+    from praxis import ops
+
+    if not pack and not detection:
+        err.print("[red]error[/red] name at least one --pack or --detection")
+        raise typer.Exit(1)
+    result = _op(
+        lambda: ops.client_subscribe(get_settings().content_dir, client_id, pack, detection, remove)
+    )
+    _out(result, as_json)
+
+
+@client_app.command("provision")
+def client_provision(
+    client_id: str,
+    rotate: Annotated[bool, typer.Option(help="Replace existing keys.")] = False,
+) -> None:
+    """Connect a client to its SIEM: space, scoped keys, and a check that they work.
+
+    Runs on the server, where the admin identity lives. Safe to repeat.
+    """
+    _client(_repo(), client_id)
+    _server("provision", client_id, *(["--rotate"] if rotate else []))
+
+
+@client_app.command("check")
+def client_check(client_id: str) -> None:
+    """Prove the client's read and deploy identities work (runs on the server)."""
+    _client(_repo(), client_id)
+    _server("check", client_id)
+
+
+@client_app.command("offboard")
+def client_offboard(
+    client_id: str,
+    yes: Annotated[bool, typer.Option("--yes", help="Required. This cannot be undone.")] = False,
+    delete_space: Annotated[bool, typer.Option(help="Also delete the Kibana space.")] = False,
+    delete_data: Annotated[bool, typer.Option(help="Also delete the client's telemetry.")] = False,
+) -> None:
+    """Remove a client from its SIEM (rules, keys) and from the content. Cannot be undone.
+
+    Commit the content change and merge it afterwards, as with any change.
+    """
+    from praxis import ops
+
+    _client(_repo(), client_id)
+    if not yes:
+        err.print(
+            f"[red]error[/red] this deletes {client_id}'s rules and keys in the SIEM"
+            + (", its Kibana space" if delete_space else "")
+            + (", its telemetry" if delete_data else "")
+            + ". Ask the person you work for, then repeat with --yes."
+        )
+        raise typer.Exit(1)
+    deploy_dir = get_settings().deploy_dir
+    flags = (["--delete-space"] if delete_space else []) + (
+        ["--delete-data"] if delete_data else []
+    )
+    code = subprocess.run(
+        [str(deploy_dir / "remote.sh"), "deprovision", client_id, *flags]
+    ).returncode
+    if code != 0:
+        raise typer.Exit(code)
+    removed = _op(lambda: ops.client_remove(get_settings().content_dir, client_id))
+    console.print(
+        f"removed {len(removed)} content files for {client_id}; commit and merge the change"
+    )
+
+
+@sector_app.command("list")
+def sector_list(as_json: Annotated[bool, typer.Option("--json")] = False) -> None:
+    """Sectors with a threat profile, and the groups each one tracks."""
+    from praxis import attack
+
+    groups = attack.bundle()["groups"]
+    data = {
+        sector: {
+            "description": p.description.strip(),
+            "groups": {g: groups[g]["name"] for g in p.groups},
+        }
+        for sector, p in _repo().threat_profiles.items()
+    }
+    _out(data, as_json)
+
+
+@sector_app.command("add")
+def sector_add(
+    sector: Annotated[str, typer.Argument(help="Lower case slug, e.g. construction.")],
+    description: Annotated[str, typer.Option(help="One or two sentences on who targets it.")],
+    group: Annotated[list[str], typer.Option(help="ATT&CK group id (G1024); repeatable.")],
+    technique: Annotated[
+        list[str] | None, typer.Option(help="Extra weight, as T1490=0.3; repeatable.")
+    ] = None,
+    replace: Annotated[bool, typer.Option(help="Overwrite an existing profile.")] = False,
+) -> None:
+    """Create a sector's threat profile. Find group ids with `praxis attack groups`."""
+    from praxis import ops
+
+    weights = {}
+    for item in technique or []:
+        name, _, value = item.partition("=")
+        weights[name.strip()] = float(value)
+    path = _op(
+        lambda: ops.sector_add(
+            get_settings().content_dir, sector, description, group, weights, replace
+        )
+    )
+    console.print(f"wrote {path}")
+
+
+@attack_app.command("groups")
+def attack_groups(query: str, as_json: Annotated[bool, typer.Option("--json")] = False) -> None:
+    """Find ATT&CK groups by name or id, e.g. `praxis attack groups akira`."""
+    from praxis import ops
+
+    _out(ops.attack_groups(query), as_json)
+
+
+@attack_app.command("technique")
+def attack_technique(
+    technique_id: str, as_json: Annotated[bool, typer.Option("--json")] = False
+) -> None:
+    """A technique's name, tactics (TA ids) and data components."""
+    from praxis import ops
+
+    _out(_op(lambda: ops.attack_technique(technique_id)), as_json)
+
+
+@detection_app.command("list")
+def detection_list(as_json: Annotated[bool, typer.Option("--json")] = False) -> None:
+    """Every detection in the library and who runs it."""
+    from praxis.agents.toolbox import Toolbox
+
+    _out(Toolbox(get_settings().content_dir).list_detections(), as_json)
+
+
+@detection_app.command("show")
+def detection_show(
+    detection_id: str, as_json: Annotated[bool, typer.Option("--json")] = False
+) -> None:
+    """One detection's metadata, README, query and test names."""
+    from praxis.agents.toolbox import Toolbox
+
+    _out(_op(lambda: Toolbox(get_settings().content_dir).read_detection(detection_id)), as_json)
+
+
+@detection_app.command("write")
+def detection_write(
+    spec: Annotated[
+        Path | None, typer.Argument(help="JSON or YAML file with the detection; - for stdin.")
+    ] = None,
+    schema: Annotated[bool, typer.Option(help="Print the spec's JSON schema and stop.")] = False,
+    as_json: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Create a detection from one spec file: metadata, query, README text and test events.
+
+    PRAXIS assigns the id, lays out the folder and writes the README on the
+    template. The detection starts `staged` (shadow mode). Next: `lab test`,
+    then `detection assign`.
+    """
+    import sys
+
+    import yaml
+
+    from praxis.agents.llm import _check, model_schema
+    from praxis.agents.toolbox import Toolbox
+
+    box = Toolbox(get_settings().content_dir, owner="detection-engineering")
+    tool = box.tools()["write_detection"]
+    if schema:
+        print(json.dumps(model_schema(tool.schema), indent=2))
+        return
+    if spec is None:
+        err.print("[red]error[/red] give a spec file, or --schema to see its format")
+        raise typer.Exit(1)
+    text = sys.stdin.read() if str(spec) == "-" else spec.read_text()
+    data = yaml.safe_load(text)
+    data.pop("detection_id", None)
+
+    def write():
+        _check(data, tool.schema, "spec")
+        return box.write_detection(**data)
+
+    result = _op(write)
+    _out(result, as_json)
+    if result["validation_errors"]:
+        raise typer.Exit(1)
+
+
+@detection_app.command("assign")
+def detection_assign(
+    detection_id: str,
+    client: Annotated[list[str] | None, typer.Option(help="Client id; repeatable.")] = None,
+    content_pack: Annotated[
+        str | None, typer.Option(help="Add it to a standing pack, for every subscriber.")
+    ] = None,
+) -> None:
+    """Give a detection to clients, or add it to a content pack such as baseline."""
+    import yaml
+
+    from praxis import ops
+
+    content_dir = get_settings().content_dir
+    if not client and not content_pack:
+        err.print("[red]error[/red] name at least one --client or a --content-pack")
+        raise typer.Exit(1)
+    for client_id in client or []:
+        _op(lambda c=client_id: ops.client_subscribe(content_dir, c, detections=[detection_id]))
+        console.print(f"{client_id} now runs {detection_id}")
+    if content_pack:
+        path = content_dir / "content-packs" / f"{content_pack}.yml"
+        if not path.is_file():
+            err.print(f"[red]error[/red] unknown content pack {content_pack!r}")
+            raise typer.Exit(1)
+        pack = yaml.safe_load(path.read_text())
+        if detection_id not in pack["detections"]:
+            pack["detections"].append(detection_id)
+            path.write_text(yaml.safe_dump(pack, sort_keys=False))
+        repo = _repo()
+        for each in repo.clients.values():
+            core.write_lock(repo, each)
+        console.print(f"{detection_id} is in content pack {content_pack}")
+
+
+def _lifecycle(detection_id: str, lifecycle: str) -> None:
+    from praxis import ops
+
+    result = _op(
+        lambda: ops.detection_lifecycle(get_settings().content_dir, detection_id, lifecycle)
+    )
+    console.print(f"{detection_id}: {result['was']} -> {result['now']}")
+
+
+@detection_app.command("promote")
+def detection_promote(detection_id: str) -> None:
+    """Take a staged detection out of shadow mode: its alerts reach the SOC."""
+    _lifecycle(detection_id, "production")
+
+
+@detection_app.command("stage")
+def detection_stage(detection_id: str) -> None:
+    """Put a detection in shadow mode: it runs, quietly."""
+    _lifecycle(detection_id, "staged")
+
+
+@detection_app.command("deprecate")
+def detection_deprecate(detection_id: str) -> None:
+    """Retire a detection: the next deploy removes it from every SIEM."""
+    _lifecycle(detection_id, "deprecated")
+
+
+@change_app.command("submit")
+def change_submit(
+    title: Annotated[str, typer.Argument(help="What the change does, as a short sentence.")],
+    body: Annotated[str, typer.Option(help="More detail for the reviewer.")] = "",
+    as_json: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Put the working tree's changes on a branch and open a pull request."""
+    from praxis import changes
+
+    result = _op(lambda: changes.submit(get_settings().content_dir, title, body))
+    _out(result, as_json)
+
+
+@change_app.command("status")
+def change_status(
+    number: Annotated[int | None, typer.Argument(help="Pull request number.")] = None,
+    as_json: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """A pull request's checks, or every open pull request."""
+    from praxis import changes
+
+    _out(_op(lambda: changes.status(get_settings().content_dir, number)), as_json)
+
+
+@change_app.command("merge")
+def change_merge(
+    number: int,
+    wait: Annotated[int, typer.Option(help="Seconds to wait for checks and the deploy.")] = 900,
+    as_json: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Wait for a pull request's checks, merge it, and wait for the deploy to finish.
+
+    Merging deploys. Exit code 1 if a check or the deploy fails.
+    """
+    from praxis import changes
+
+    result = _op(lambda: changes.merge(get_settings().content_dir, number, wait))
+    _out(result, as_json)
+    if not result["ok"]:
+        raise typer.Exit(1)
+
+
+@admin_app.command("deprovision")
+def admin_deprovision(
+    client_id: str,
+    yes: Annotated[bool, typer.Option("--yes")] = False,
+    delete_space: bool = False,
+    delete_data: bool = False,
+) -> None:
+    """Server side of offboarding. Use `praxis client offboard` instead."""
+    if not yes:
+        err.print("[red]error[/red] pass --yes; this cannot be undone")
+        raise typer.Exit(1)
+    repo = _repo()
+    client = _client(repo, client_id)
+    for platform_name in client.platforms.enabled():
+        for item in get_platform(platform_name).deprovision(client, delete_space, delete_data):
+            console.print(f"removed {item}")
 
 
 if __name__ == "__main__":

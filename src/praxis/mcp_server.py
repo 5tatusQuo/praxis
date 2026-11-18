@@ -4,8 +4,7 @@ The same registry the in-process agents use (`praxis.agents.toolbox`). It can
 read coverage, search and score rules, run lab tests and backtests, and write
 proposals into the working tree. It holds no deploy credentials.
 
-Claude Code: add to `.mcp.json`
-    {"mcpServers": {"praxis": {"command": "uv", "args": ["run", "praxis", "mcp"]}}}
+Claude Code picks it up from `.mcp.json` at the repo root, which runs `./px mcp`.
 """
 
 from __future__ import annotations

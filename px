@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# The one way to run PRAXIS from a workstation:   ./px <command> [options]
+#
+# It runs `praxis` connected to the server named in .env, so every command
+# works the same way: file edits, SIEM reads, lab tests, agents, and the steps
+# that hand off to the server. Try `./px status` first, and `./px --help`.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+exec "$ROOT/deploy/with-server.sh" uv run --quiet praxis "$@"

@@ -251,18 +251,24 @@ def datamap_csv(inventory: Inventory) -> str:
 
 
 def drift(repo: ContentRepo, client: Client) -> list[str]:
-    """Differences between what packs.lock pins and what the SIEM runs."""
+    """Differences between what Git renders and what the client's SIEM runs.
+
+    Catches console edits (a changed query, severity, schedule, exception or
+    an on/off switch) as well as rules that are missing or that PRAXIS no
+    longer renders.
+    """
     problems = []
-    lock = build_lock(repo, client)["platforms"]
     for platform_name in client.platforms.enabled():
-        deployed = {r.detection_id: r for r in get_platform(platform_name).collect_rules(client)}
-        for rule_id, pinned in lock[platform_name].items():
-            health = deployed.pop(rule_id, None)
-            if health is None:
-                problems.append(f"{platform_name}: {rule_id} is pinned but not deployed")
-            elif health.deployed_hash != pinned["hash"][:16]:
-                problems.append(f"{platform_name}: {rule_id} differs from packs.lock")
-        problems += [f"{platform_name}: {r} is deployed but not pinned" for r in deployed]
+        platform = get_platform(platform_name)
+        rendered = {r.detection_id: r for r in render_client(repo, client, platform_name)}
+        deployed = {r.detection_id for r in platform.collect_rules(client)}
+        for rule_id, rule in rendered.items():
+            for difference in platform.live_differences(rule, client):
+                problems.append(f"{platform_name}: {rule_id}: {difference}")
+        problems += [
+            f"{platform_name}: {rule_id}: deployed, but Git no longer renders it"
+            for rule_id in sorted(deployed - set(rendered))
+        ]
     return problems
 
 

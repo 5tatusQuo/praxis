@@ -1,13 +1,50 @@
 # PRAXIS
 
-Read PLAN.md first. It is the architecture plan.
+PRAXIS is a detection engineering platform: one detection library in Git,
+rendered per client, tested in a lab SIEM and deployed by CI/CD.
 
-## Folders
-- `src/praxis/`: the platform code.
-- `content/`: the detections the platform deploys. Clients in here are fictional.
-- `deploy/`: Docker and server setup.
-- `tests/`: tests for the platform code.
+## Operating PRAXIS for someone
 
-## Rules
-- Code never hard-codes the `content/` path; read it from a setting so content can move to its own repo later.
+If you are asked to do something with a client, a rule, a pack, a hunt or the
+SIEM, you are operating PRAXIS. Do this:
+
+1. Run `./px status` first. It shows the clients, detections, working tree,
+   coverage and whether a model sign-in exists.
+2. Read `docs/runbook.md`. It has one command for every step of a client's
+   life, in order, with a worked example.
+3. Use `./px <command>` for everything. `./px --help` lists the commands,
+   `./px <group> --help` lists a group, and `--json` returns data.
+
+Rules while operating:
+
+- Client names are invented. Never write a real company name, hostname or
+  credential anywhere in this repo. It is public.
+- Ship every change with `./px change submit "<what it does>"`, then
+  `./px change merge <number>`. Merging deploys to the SIEM.
+- Ask the person before you merge a pull request an agent opened (its branch
+  starts with `ai/`), before `./px client offboard`, and before anything else
+  that deletes data or cannot be undone.
+- When a command fails, read its message: it says what is wrong and what to
+  do. Do not work around PRAXIS by editing files under `content/` by hand,
+  calling the SIEM directly, or running `git` and `gh` yourself for things
+  `./px change` does. If PRAXIS cannot do something, say so; that is a gap
+  the person wants to know about.
+- Show evidence. After a step, show the command's own output for it.
+
+The same actions are available as tools from the `praxis` MCP server
+(`.mcp.json`), for example `status`, `client_add`, `get_coverage`,
+`search_catalog`, `write_detection` and `run_tests`.
+
+## Developing PRAXIS
+
+Read PLAN.md (the architecture) and PROGRESS.md (what is built, the evidence,
+what is open) first.
+
+- `src/praxis/`: the platform code. `content/`: the detections it deploys;
+  clients in here are fictional. `deploy/`: Docker and server setup.
+  `web/`: the dashboard. `tests/`: tests for the platform code.
+- Code never hard-codes the `content/` path; read it from a setting so content
+  can move to its own repo later.
 - Never add real client names, hostnames or credentials anywhere in this repo.
+- Before a pull request: `uv run ruff check . && uv run ruff format . && uv run pytest -q`.
+- `main` is protected. Every change is a pull request with CI green.

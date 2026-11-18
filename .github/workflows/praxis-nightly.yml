@@ -50,10 +50,46 @@ jobs:
         env:
           PRAXIS_ENV_FILE: /etc/praxis/read.env
         run: uv run praxis coverage "$CLIENT" --store
-      - name: Drift check, SIEM against packs.lock (read-only identity)
+      - name: Drift check (read-only identity)
+        id: drift
+        continue-on-error: true
         env:
           PRAXIS_ENV_FILE: /etc/praxis/read.env
-        run: uv run praxis drift "$CLIENT"
+        run: uv run praxis drift "$CLIENT" 2>&1 | tee drift.txt
+      # Git is the source of truth: a change made in the SIEM console is put
+      # back, and an issue records what was undone.
+      - name: Undo console edits
+        if: steps.drift.outcome == 'failure'
+        env:
+          PRAXIS_ENV_FILE: /etc/praxis/deploy/${{ matrix.client }}.env
+        run: uv run praxis release "$CLIENT" --force
+      - name: Record what was undone
+        if: steps.drift.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "The nightly check found rules in the SIEM that differ from Git for \`$CLIENT\`, and put them back:"
+            echo
+            echo '```'
+            cat drift.txt
+            echo '```'
+            echo
+            echo "If the change was wanted, make it in a pull request. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } > issue.md
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "Drift undone for $CLIENT ($(date -u +%F))" --body-file issue.md
+
+  catalog:
+    name: Rebuild the candidate catalog
+    runs-on: [self-hosted, praxis]
+    env:
+      PRAXIS_ENV_FILE: /etc/praxis/read.env
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --locked
+      - name: Sync pinned upstream sources and score them against the library
+        run: uv run praxis catalog sync
 
   expiry:
     name: Expired tuning and detections

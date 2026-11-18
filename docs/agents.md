@@ -86,10 +86,14 @@ Anthropic SDK: log in with `ant auth login` or set `ANTHROPIC_API_KEY`
 Every model call, tool call and guardrail decision is stored in the audit log
 and shown on the dashboard's Audit page.
 
-## Any MCP client
+## Any MCP client, and your own AI assistant
 
-`praxis mcp` serves the same tools over the Model Context Protocol. For Claude Code:
+`./px mcp` serves PRAXIS's tools over the Model Context Protocol. Claude Code
+picks it up from `.mcp.json` at the repo root. Besides the tools PRAXIS's own
+agents use, it offers operator tools: `status`, `client_add`,
+`client_subscribe`, `sector_add` and `detection_lifecycle`. PRAXIS's agents are
+not given those: only a person's own assistant can create a client or promote
+a rule.
 
-```json
-{"mcpServers": {"praxis": {"command": "deploy/with-server.sh", "args": ["uv", "run", "praxis", "mcp"]}}}
-```
+An assistant can also drive PRAXIS through the command line: `CLAUDE.md` tells
+it how, and `docs/runbook.md` has a command for every step.
