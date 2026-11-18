@@ -40,6 +40,57 @@ class ToolError(Exception):
     """A problem the agent can fix; returned to it as an error result."""
 
 
+def _unique(items: list) -> list:
+    """The items in order, each once (compared by content)."""
+    seen, out = set(), []
+    for item in items:
+        key = yaml.safe_dump(item, sort_keys=True)
+        if key not in seen:
+            seen.add(key)
+            out.append(item)
+    return out
+
+
+def _conditions(exclusion: dict) -> dict[str, set[str]] | None:
+    """An exclusion as field -> allowed values. None if it uses more than equals and in."""
+    out: dict[str, set[str]] = {}
+    for c in (exclusion, *exclusion.get("also", [])):
+        if c.get("op") not in ("equals", "in") or c["field"] in out:
+            return None
+        values = c["value"] if isinstance(c["value"], list) else [c["value"]]
+        out[c["field"]] = {str(v) for v in values}
+    return out
+
+
+def without_covered(exclusions: list[dict]) -> list[dict]:
+    """Drop an exclusion that another one already covers.
+
+    Exclusions are alternatives, so one is redundant when another has no extra
+    condition and allows every value it allows. Kept simple on purpose: only
+    exclusions built from `equals` and `in` are compared.
+    """
+    kept = _unique(exclusions)
+    shapes = [_conditions(e) for e in kept]
+
+    def covers(wide, narrow) -> bool:
+        return (
+            wide is not None
+            and narrow is not None
+            and set(wide) <= set(narrow)
+            and all(narrow[field] <= wide[field] for field in wide)
+        )
+
+    out = []
+    for i, exclusion in enumerate(kept):
+        redundant = any(
+            j != i and covers(shapes[j], shapes[i]) and (shapes[j] != shapes[i] or j < i)
+            for j in range(len(kept))
+        )
+        if not redundant:
+            out.append(exclusion)
+    return out
+
+
 HUNT_TOO_BROAD = 1000  # the backtest stops counting here
 
 
@@ -855,8 +906,8 @@ class Toolbox:
             "evidence": evidence,
             "author": "ai:tuner",  # approval is the merge of its pull request
             "expires": expires,
-            "exclude": [*existing.get("exclude", []), *exclude],
-            "examples": [*existing.get("examples", []), *examples],
+            "exclude": without_covered([*existing.get("exclude", []), *exclude]),
+            "examples": _unique([*existing.get("examples", []), *examples]),
         }
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(yaml.safe_dump(tuning, sort_keys=False, width=88))

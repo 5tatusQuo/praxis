@@ -97,6 +97,9 @@ Removed with the new commands, as test data: the seven sector profiles, five
 pack records and seven hunt records the test clients left. Git history keeps
 them.
 
+After run 10: a tuning proposal no longer keeps an exclusion that another one
+already covers, or the same example twice (unit test; not yet used by a run).
+
 Still open from the test:
 
 - In runs 8, 9 and 10 the sub-agent's own session refused its first merge of an
