@@ -11,3 +11,5 @@ platforms:
     namespace: brindlewick
 packs:
 - baseline
+detections:
+- PRX-000013

@@ -1,0 +1,28 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "name": "ws-lab-12",
+    "os": {
+      "type": "windows"
+    }
+  },
+  "user": {
+    "name": "j.doe"
+  },
+  "process": {
+    "name": "lsass.exe",
+    "executable": "C:\\Users\\j.doe\\AppData\\Local\\Temp\\lsass.exe",
+    "command_line": "C:\\Users\\j.doe\\AppData\\Local\\Temp\\lsass.exe",
+    "parent": {
+      "name": "explorer.exe"
+    }
+  }
+}

@@ -1,0 +1,28 @@
+id: PRX-000013
+name: Windows system process name running from an unusual path
+intent: Detects a program named like a core Windows system process starting from outside the
+  Windows system folders, a common way to hide malware in plain sight.
+version: 1
+lifecycle: staged
+owner: detection-engineering
+severity: high
+risk_score: 73
+attack:
+- technique: T1036.005
+  tactic: TA0005
+data_components:
+- Process Creation
+pyramid_tier: ttp
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.process-*
+provenance:
+  source: praxis
+  licence: Apache-2.0
+references:
+- https://attack.mitre.org/techniques/T1036/005/
+false_positives:
+- Software installers or repair tools that unpack a copy of a system binary to a temporary
+  folder.
+- Third-party programs that ship an executable with the same name as a Windows process.

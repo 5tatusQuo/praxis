@@ -1,0 +1,28 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "name": "ws-lab-07",
+    "os": {
+      "type": "windows"
+    }
+  },
+  "user": {
+    "name": "j.doe"
+  },
+  "process": {
+    "name": "updater.exe",
+    "executable": "C:\\ProgramData\\Vendor\\updater.exe",
+    "command_line": "C:\\ProgramData\\Vendor\\updater.exe /check",
+    "parent": {
+      "name": "explorer.exe"
+    }
+  }
+}
