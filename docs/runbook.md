@@ -20,7 +20,7 @@ Use `./px` from the repo root for everything:
 
 `./px` runs `praxis` connected to the server named in `.env`, so SIEM reads,
 lab tests, agents and server steps all work the same way. Add `--json` to get
-data instead of a table. A failed command exits with code 1 and one line
+data instead of a table. A failed command exits with a code that is not 0 and one line
 saying what is wrong and what to do.
 
 ## Rules
@@ -423,6 +423,16 @@ a `./px` command is not named in this guide or in `CLAUDE.md`.
 | `./px mcp` | Serves the MCP tools; Claude Code starts it from `.mcp.json` | Claude Code |
 | `./px db-migrate` | Applies database migrations | Server setup |
 | `./px admin provision`, `./px admin deprovision` | Server side of `client provision` and `client offboard`. Use those instead | PRAXIS itself |
+
+Options the steps above do not use:
+
+| Option | On | What it does |
+| --- | --- | --- |
+| `--no-pr` | `pack plan`, `tune`, `hunt` | Keeps the proposal on its local branch and opens no pull request |
+| `--kind`, `--from-client` | `lab replay` | `--kind negative` replays the negative tests; `--kind examples` replays the client's tuning examples, or another client's with `--from-client` |
+| `--events-per-day`, `--remove` | `lab source` | Sets a source's volume, or drops the source from the lab |
+| `--replace` | `sector add` | Overwrites an existing sector profile |
+| `--no-delete-space`, `--no-delete-data` | `client offboard` | The defaults: the space and telemetry are kept unless you pass `--delete-space` and `--delete-data` |
 
 ## What PRAXIS does not do yet
 
