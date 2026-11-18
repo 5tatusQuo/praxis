@@ -6,6 +6,60 @@
 name: praxis
 
 services:
+  # ---- core: both modes --------------------------------------------------
+  postgres:
+    profiles: [core]
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: praxis
+      POSTGRES_USER: praxis
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${PG_BIND:-127.0.0.1}:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U praxis -d praxis"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  praxis-api:
+    profiles: [core]
+    build:
+      context: ..
+      dockerfile: deploy/docker/api.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PRAXIS_DATABASE_URL: postgresql://praxis:${POSTGRES_PASSWORD}@postgres:5432/praxis
+      PRAXIS_API_TOKEN: ${PRAXIS_API_TOKEN}
+    ports:
+      - "${API_BIND:-127.0.0.1}:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  praxis-web:
+    profiles: [core]
+    build:
+      context: ../web
+    restart: unless-stopped
+    depends_on:
+      praxis-api:
+        condition: service_healthy
+    environment:
+      PRAXIS_API_URL: http://praxis-api:8000
+      PRAXIS_API_TOKEN: ${PRAXIS_API_TOKEN}
+    ports:
+      - "${WEB_BIND:-127.0.0.1}:3000:3000"
+
+  # ---- elk: Full mode only -------------------------------------------------
   # One-shot: creates the CA and the node certificate on first start.
   elk-certs:
     profiles: [elk]
@@ -94,6 +148,7 @@ services:
       retries: 90
 
 volumes:
+  pgdata:
   certs:
   esdata01:
   kibanadata:

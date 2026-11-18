@@ -1,0 +1,75 @@
+name: praxis-nightly
+
+# Every night: refresh each client's coverage snapshot, check that the SIEM
+# still matches packs.lock, and flag tuning that has expired.
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: praxis-nightly
+  cancel-in-progress: false
+
+jobs:
+  clients:
+    name: List clients
+    runs-on: ubuntu-latest
+    outputs:
+      clients: ${{ steps.list.outputs.clients }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --locked
+      - id: list
+        run: echo "clients=$(uv run praxis clients --json)" >> "$GITHUB_OUTPUT"
+
+  coverage:
+    name: Coverage and drift for ${{ matrix.client }}
+    needs: clients
+    strategy:
+      fail-fast: false
+      matrix:
+        client: ${{ fromJSON(needs.clients.outputs.clients) }}
+    runs-on: [self-hosted, praxis]
+    env:
+      CLIENT: ${{ matrix.client }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --locked
+      - name: Top up lab telemetry (fictional clients only)
+        env:
+          PRAXIS_ENV_FILE: /etc/praxis/lab.env
+        run: uv run praxis lab seed "$CLIENT"
+      - name: Coverage snapshot (read-only identity)
+        env:
+          PRAXIS_ENV_FILE: /etc/praxis/read.env
+        run: uv run praxis coverage "$CLIENT" --store
+      - name: Drift check, SIEM against packs.lock (read-only identity)
+        env:
+          PRAXIS_ENV_FILE: /etc/praxis/read.env
+        run: uv run praxis drift "$CLIENT"
+
+  expiry:
+    name: Expired tuning and detections
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --locked
+      - name: List expired and expiring items
+        id: expiry
+        run: uv run praxis expiry --within 30
+      - name: Open an issue when something has expired
+        if: failure() && steps.expiry.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create --repo "$GITHUB_REPOSITORY" \
+            --title "Expired tuning or detections ($(date -u +%F))" \
+            --body "The nightly expiry check found expired items. Run \`praxis expiry\` and either renew each one with fresh evidence or remove it. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"

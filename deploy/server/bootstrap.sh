@@ -12,21 +12,24 @@ ETC_DIR=/etc/praxis
 
 rand() { openssl rand -hex "$1"; }
 
-if [ ! -f "$ENV_FILE" ]; then
-  umask 077
-  cat > "$ENV_FILE" <<ENV
-STACK_VERSION=9.5.5
-ES_HEAP=4g
-ES_BIND=127.0.0.1
-KIBANA_BIND=127.0.0.1
-ELASTIC_PASSWORD=$(rand 16)
-KIBANA_PASSWORD=$(rand 16)
-KIBANA_KEY_SECURITY=$(rand 24)
-KIBANA_KEY_SAVED_OBJECTS=$(rand 24)
-KIBANA_KEY_REPORTING=$(rand 24)
-ENV
-  echo "Generated $ENV_FILE"
-fi
+# Add any setting that is missing; never change one that exists.
+umask 077
+touch "$ENV_FILE"
+ensure() { grep -q "^$1=" "$ENV_FILE" || { echo "$1=$2" >> "$ENV_FILE"; echo "Generated $1"; }; }
+ensure STACK_VERSION 9.5.5
+ensure ES_HEAP 4g
+ensure ES_BIND 127.0.0.1
+ensure KIBANA_BIND 127.0.0.1
+ensure PG_BIND 127.0.0.1
+ensure API_BIND 127.0.0.1
+ensure WEB_BIND 127.0.0.1
+ensure ELASTIC_PASSWORD "$(rand 16)"
+ensure KIBANA_PASSWORD "$(rand 16)"
+ensure KIBANA_KEY_SECURITY "$(rand 24)"
+ensure KIBANA_KEY_SAVED_OBJECTS "$(rand 24)"
+ensure KIBANA_KEY_REPORTING "$(rand 24)"
+ensure POSTGRES_PASSWORD "$(rand 16)"
+ensure PRAXIS_API_TOKEN "$(rand 24)"
 
 case "$MODE" in
   full) PROFILES=(--profile core --profile elk) ;;
@@ -35,7 +38,7 @@ case "$MODE" in
 esac
 
 cd "$DEPLOY_DIR"
-docker compose "${PROFILES[@]}" up -d
+docker compose "${PROFILES[@]}" up -d --build
 # `up --wait` fails when a one-shot container exits, so wait here.
 wait_healthy() {
   local id; id="$(docker compose ps -q "$1")"
@@ -48,6 +51,7 @@ wait_healthy() {
   echo " timed out"; return 1
 }
 if [ "$MODE" = full ]; then wait_healthy es01; wait_healthy kibana; fi
+wait_healthy postgres; wait_healthy praxis-api
 
 if [ "$MODE" = full ]; then
   sudo install -d -m 755 "$ETC_DIR"

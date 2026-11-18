@@ -3,6 +3,8 @@
 # /opt/praxis/keys.env into the env files the self-hosted runner reads:
 #   /etc/praxis/lab.env             lab key (pull-request lab staging)
 #   /etc/praxis/deploy/<client>.env that client's deploy key (CD only)
+#   /etc/praxis/read.env            every client's read key and the database
+#                                   URL (collectors, coverage snapshots, drift)
 # SIEM credentials stay on this machine; they are never stored in GitHub.
 set -euo pipefail
 KEYS=/opt/praxis/keys.env
@@ -27,3 +29,9 @@ grep -o '^PRAXIS_ELASTIC_LAB_DEPLOY_API_KEY_[A-Z0-9_]*' "$KEYS" | while read -r 
   write "/etc/praxis/deploy/$client.env" "$CONNECTION
 $(grep "^$name=" "$KEYS")"
 done
+
+DEPLOY_ENV="$(cd "$(dirname "$0")/.." && pwd)/.env"
+PG_PASSWORD="$(grep '^POSTGRES_PASSWORD=' "$DEPLOY_ENV" | cut -d= -f2)"
+write /etc/praxis/read.env "$CONNECTION
+$(grep '^PRAXIS_ELASTIC_LAB_READ_API_KEY_' "$KEYS")
+PRAXIS_DATABASE_URL=postgresql://praxis:${PG_PASSWORD}@localhost:5432/praxis"

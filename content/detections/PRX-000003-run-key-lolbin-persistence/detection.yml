@@ -1,0 +1,32 @@
+id: PRX-000003
+name: Run key set to a script host or a world-writable path
+intent: >-
+  Detects a registry Run or RunOnce value being pointed at a script host,
+  another living-off-the-land binary, or a program in a world-writable folder,
+  a common way to make malware start again at every logon.
+version: 1
+lifecycle: production
+owner: detection-engineering
+severity: medium
+risk_score: 47
+attack:
+  - technique: T1547.001
+    tactic: TA0003
+data_components:
+  - Windows Registry Key Modification
+pyramid_tier: ttp
+log_sources:
+  elastic:
+    indices:
+      - logs-endpoint.events.registry-*
+schedule:
+  interval: 5m
+  lookback: 6m
+provenance:
+  source: praxis
+  licence: Apache-2.0
+references:
+  - https://attack.mitre.org/techniques/T1547/001/
+false_positives:
+  - Software deployment tools that stage an installer in ProgramData and register it under RunOnce.
+  - Logon scripts registered by administrators through a Run value that calls PowerShell.

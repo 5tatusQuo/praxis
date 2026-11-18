@@ -56,3 +56,8 @@ jobs:
         env:
           CLIENT: ${{ matrix.client }}
         run: uv run praxis release "$CLIENT"
+      - name: Refresh the coverage snapshot (read-only identity)
+        env:
+          CLIENT: ${{ matrix.client }}
+          PRAXIS_ENV_FILE: /etc/praxis/read.env
+        run: uv run praxis coverage "$CLIENT" --store

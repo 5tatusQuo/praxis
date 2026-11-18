@@ -78,6 +78,26 @@ def main(stix_path: str) -> None:
     for technique_id, names in found.items():
         techniques[technique_id]["data_components"] = sorted(names)
 
+    # Groups and the techniques they are reported to use. A sub-technique also
+    # counts for its parent.
+    groups = {}
+    for o in objects:
+        if o["type"] == "intrusion-set" and live(o):
+            groups[o["id"]] = {"id": external_id(o), "name": o["name"], "techniques": set()}
+    for o in objects:
+        if o["type"] != "relationship" or o.get("relationship_type") != "uses" or not live(o):
+            continue
+        group = groups.get(o["source_ref"])
+        target = by_stix_id.get(o["target_ref"])
+        if group and target and target["type"] == "attack-pattern":
+            technique_id = external_id(target)
+            if technique_id in techniques:
+                group["techniques"].update({technique_id, technique_id.split(".")[0]})
+    groups_out = {
+        g["id"]: {"name": g["name"], "techniques": sorted(g["techniques"])}
+        for g in sorted(groups.values(), key=lambda g: g["id"])
+    }
+
     OUT.write_text(
         json.dumps(
             {
@@ -85,6 +105,7 @@ def main(stix_path: str) -> None:
                 "tactics": dict(sorted(tactics.items())),
                 "techniques": dict(sorted(techniques.items())),
                 "data_components": sorted(set(components.values())),
+                "groups": groups_out,
             },
             indent=1,
             sort_keys=False,
@@ -94,7 +115,8 @@ def main(stix_path: str) -> None:
     with_dc = sum(1 for t in techniques.values() if t["data_components"])
     print(
         f"ATT&CK {version}: {len(tactics)} tactics, {len(techniques)} techniques "
-        f"({with_dc} with data components), {len(components)} data components -> {OUT}"
+        f"({with_dc} with data components), {len(components)} data components, "
+        f"{len(groups_out)} groups -> {OUT}"
     )
 
 

@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+/* PRAXIS palette (PLAN.md, "Brand, icon and theming"). Dark first. */
+@theme {
+  --color-obsidian: #0e1116;
+  --color-slate: #1b222c;
+  --color-line: #2a3340;
+  --color-brass: #d4a24c;
+  --color-teal: #2ec4b6;
+  --color-ember: #e5533d;
+  --color-fog: #c9d1d9;
+  --color-mute: #8b97a5;
+  --color-unseen: #3a4553;
+  --font-display: var(--font-space-grotesk), system-ui, sans-serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+
+body {
+  background: var(--color-obsidian);
+  color: var(--color-fog);
+}
+
+/* Hex cell: the heatmap unit, echoing the lenses of the mark. */
+.hex {
+  width: 14px;
+  height: 16px;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  display: block;
+}
+.hex:hover {
+  filter: brightness(1.35);
+}

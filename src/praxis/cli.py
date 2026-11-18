@@ -11,9 +11,11 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from praxis import core
+from praxis import core, lab
 from praxis.platforms import get_platform
 from praxis.settings import get_settings, load_env_files
+from praxis.visibility.engine import top_gaps
+from praxis.visibility.navigator import coverage_layer
 
 app = typer.Typer(no_args_is_help=True, help="PRAXIS: detection engineering platform.")
 lab_app = typer.Typer(no_args_is_help=True, help="Lab SIEM: replay test events.")
@@ -173,6 +175,125 @@ def lab_replay(
         console.print(f"{platform_name}: wrote {count} {kind} events for {client.id}")
 
 
+@lab_app.command("seed")
+def lab_seed(client_ids: Annotated[list[str] | None, typer.Argument()] = None) -> None:
+    """Top up a fictional client's synthetic telemetry (clients/<id>/lab/telemetry.yml)."""
+    repo = _repo()
+    for client_id in client_ids or sorted(repo.lab_telemetry):
+        written = lab.seed(repo, _client(repo, client_id))
+        for source, count in written.items():
+            console.print(f"{client_id}: {source} +{count} events")
+
+
+def _print_snapshot(snapshot: dict) -> None:
+    summary = snapshot["summary"]
+    weighted = summary["weighted_coverage_pct"]
+    console.print(
+        f"[bold]{snapshot['client']}[/bold] at {snapshot['taken_at']} "
+        f"(ATT&CK {snapshot['attack_version']})\n"
+        f"covered {summary['covered']} | detection gaps {summary['detection_gap']} | "
+        f"visibility gaps {summary['visibility_gap']} | blind rules {summary['blind_rule']} "
+        f"of {summary['techniques']} techniques\n"
+        f"coverage {summary['coverage_pct']}% | threat-weighted "
+        f"{'n/a' if weighted is None else f'{weighted}%'} | visible {summary['visible_pct']}%"
+    )
+    components = Table("data component", "score", "source", "detail", title="visibility (0-4)")
+    for c in snapshot["components"]:
+        d = c["detail"]
+        missing = [k for k, ok in c["factors"].items() if not ok]
+        detail = (
+            "silent: no events in 24h"
+            if c["silent"]
+            else (
+                f"{d['hosts']}/{d['expected_hosts']} hosts, fields {d['field_population']:.0%}"
+                + (f", missing: {', '.join(missing)}" if missing else "")
+            )
+        )
+        components.add_row(c["name"], str(c["score"]), c["source"], detail)
+    console.print(components)
+    rules = Table("rule", "status", "last run", "alerts 30d", "techniques", title="rules")
+    for r in snapshot["rules"]:
+        colour = {"healthy": "green", "blind": "red"}.get(r["status"], "yellow")
+        rules.add_row(
+            r["id"],
+            f"[{colour}]{r['status']}[/{colour}]",
+            r["last_status"] or "never",
+            str(r["alerts_30d"]),
+            ", ".join(r["techniques"]),
+        )
+    console.print(rules)
+    gaps = Table("technique", "name", "weight", "visibility", title="top detection gaps")
+    for t in top_gaps(snapshot, "detection_gap", 10):
+        gaps.add_row(t["id"], t["name"], f"{t['weight']:.2f}", str(t["visibility"]))
+    console.print(gaps)
+    unmapped = [s["table"] for s in snapshot["sources"] if not s["mapped"]]
+    if unmapped:
+        console.print(f"[yellow]tables with no datamap-catalog note:[/yellow] {unmapped}")
+
+
+@app.command()
+def coverage(
+    client_id: str,
+    out: Annotated[
+        Path | None,
+        typer.Option(help="Write snapshot.json, navigator-layer.json and tables.csv here."),
+    ] = None,
+    store: Annotated[bool, typer.Option(help="Save the snapshot to the database.")] = False,
+    as_json: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Collect telemetry and rule health (read-only) and classify every ATT&CK technique."""
+    repo = _repo()
+    client = _client(repo, client_id)
+    inventory, snapshot = core.coverage(repo, client)
+    if out:
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "snapshot.json").write_text(json.dumps(snapshot, indent=1) + "\n")
+        (out / "inventory.json").write_text(json.dumps(inventory.to_dict(), indent=1) + "\n")
+        (out / "navigator-layer.json").write_text(json.dumps(coverage_layer(snapshot)) + "\n")
+        (out / "tables.csv").write_text(core.datamap_csv(inventory))
+    if store:
+        from praxis import db
+
+        with db.connect() as conn:
+            snapshot_id = db.save_snapshot(conn, snapshot, inventory.to_dict())
+        err.print(f"stored snapshot {snapshot_id}")
+    if as_json:
+        print(json.dumps(snapshot))
+    else:
+        _print_snapshot(snapshot)
+
+
+@app.command()
+def drift(client_id: str) -> None:
+    """Compare what packs.lock pins with what the client's SIEM runs (read-only)."""
+    repo = _repo()
+    problems = core.drift(repo, _client(repo, client_id))
+    for problem in problems:
+        err.print(f"[red]drift[/red] {problem}")
+    if problems:
+        raise typer.Exit(1)
+    console.print(f"[green]ok[/green] {client_id}: the SIEM matches packs.lock")
+
+
+@app.command()
+def expiry(
+    within: Annotated[
+        int, typer.Option(help="Also list items expiring within this many days.")
+    ] = 30,
+) -> None:
+    """List tuning and detections that have expired or are about to. Expired items fail."""
+    repo = _repo()
+    rows = core.expiring(repo, within)
+    table = Table("item", "expires", "state")
+    for row in rows:
+        colour = "red" if row["expired"] else "yellow"
+        state = "EXPIRED" if row["expired"] else "expiring"
+        table.add_row(row["item"], row["expires"], f"[{colour}]{state}[/{colour}]")
+    console.print(table if rows else "nothing expires soon")
+    if any(row["expired"] for row in rows):
+        raise typer.Exit(1)
+
+
 @app.command()
 def lock(
     check: Annotated[bool, typer.Option(help="Fail if any packs.lock is out of date.")] = False,
@@ -296,6 +417,16 @@ def admin_provision(
         console.print(f"wrote {len(lines)} keys to {env_out}")
     else:
         print(text, end="")
+
+
+@app.command("db-migrate")
+def db_migrate() -> None:
+    """Apply database migrations."""
+    from praxis import db
+
+    with db.connect() as conn:
+        applied = db.migrate(conn)
+    console.print(f"applied: {applied or 'nothing new'}")
 
 
 @app.command("schema")

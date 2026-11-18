@@ -2,6 +2,8 @@ id: acme
 name: Acme Health (fictional)
 sector: healthcare
 fictional: true
+assets:
+  endpoints: 20
 platforms:
   elastic:
     connection: lab

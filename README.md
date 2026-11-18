@@ -21,7 +21,10 @@ content/                       the detections PRAXIS deploys (clients are fictio
   clients/<id>/client.yml      a client's SIEM, sector and subscribed packs
   clients/<id>/tuning/         that client's tuning, one file per detection
   clients/<id>/packs.lock      exact rule versions and hashes the client runs
-src/praxis/                    the platform: schemas, renderers, lab tests, deploy, CLI
+  datamap-catalog/             schema notes: what each log source can show
+  threat-profiles/             which ATT&CK groups matter to each sector
+src/praxis/                    the platform: schemas, renderers, collectors, gap engine, API, CLI
+web/                           the dashboard (Next.js)
 deploy/                        Docker Compose for the stack and server setup
 .github/workflows/             CI on every pull request, CD on merge
 ```
@@ -40,6 +43,15 @@ carry an example event, and the lab proves two things on every pull request:
 the example is silenced, and every positive test still fires.
 `clients/<id>/packs.lock` pins the exact hash of every rule a client runs; CD
 deploys nothing the lock does not pin.
+
+**Measured coverage.** A read-only collector inventories each client's
+telemetry and rule health. Code then scores visibility per ATT&CK data
+component (0 to 4) and puts every technique in one class: covered, detection
+gap, visibility gap or blind rule (a rule that is deployed but cannot see or
+run). Gaps are ranked by how much the sector's known threat actors use the
+technique. The rules are written down in
+[docs/visibility-scoring.md](docs/visibility-scoring.md), and the dashboard
+shows the result for every client.
 
 ## Quick start
 
@@ -71,7 +83,13 @@ export PRAXIS_ELASTIC_LAB_DEPLOY_API_KEY=...
 
 uv run praxis lab test            # replay test events in the lab SIEM
 uv run praxis release acme        # deploy a client's rules and smoke-check them
+uv run praxis coverage acme       # collect (read-only) and classify every technique
+uv run praxis drift acme          # does the SIEM still match packs.lock?
 ```
+
+The dashboard listens on port 3000 of the server, on localhost only. Reach it
+through an SSH tunnel: `ssh -L 3000:localhost:3000 <server>`, then open
+http://localhost:3000.
 
 ## Credits
 
