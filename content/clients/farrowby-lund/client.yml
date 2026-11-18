@@ -1,0 +1,13 @@
+id: farrowby-lund
+name: Farrowby Lund Building & Engineering (fictional)
+sector: sitebuild
+fictional: true
+assets:
+  endpoints: 50
+platforms:
+  elastic:
+    connection: lab
+    space: farrowby_lund
+    namespace: farrowby_lund
+packs:
+- baseline
