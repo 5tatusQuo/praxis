@@ -3,7 +3,7 @@ name: Domain controllers or computers enumerated with nltest or dsquery
 intent: Detects nltest or dsquery listing domain controllers and computers, a discovery step
   ransomware crews run before moving laterally.
 version: 1
-lifecycle: staged
+lifecycle: production
 owner: detection-engineering
 severity: medium
 risk_score: 47
