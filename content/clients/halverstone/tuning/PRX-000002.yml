@@ -1,0 +1,38 @@
+rule: PRX-000002
+reason: The backup agent prunes the oldest shadow copy on volume D:. Match its full path,
+  the child executable, and the exact command.
+evidence:
+- alert:6fae47730677
+- alert:81c62a72bd8d
+- alert:dae03cca1a74
+author: ai:tuner
+expires: '2027-02-19'
+exclude:
+- field: process.parent.executable
+  op: equals
+  value: C:\Program Files\Backup\agent.exe
+  also:
+  - field: process.executable
+    op: equals
+    value: C:\Windows\System32\vssadmin.exe
+  - field: process.command_line
+    op: equals
+    value: 'vssadmin.exe delete shadows /for=D: /oldest /quiet'
+examples:
+- event:
+    category:
+    - process
+    type:
+    - start
+  host:
+    os:
+      type: windows
+  process:
+    name: vssadmin.exe
+    executable: C:\Windows\System32\vssadmin.exe
+    command_line: 'vssadmin.exe delete shadows /for=D: /oldest /quiet'
+    pe:
+      original_file_name: VSSADMIN.EXE
+    parent:
+      name: agent.exe
+      executable: C:\Program Files\Backup\agent.exe
