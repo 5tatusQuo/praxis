@@ -1,0 +1,27 @@
+id: PRX-000032
+name: Domain controllers or computers enumerated with nltest or dsquery
+intent: Detects nltest or dsquery listing domain controllers and computers, a discovery step
+  ransomware crews run before moving laterally.
+version: 1
+lifecycle: staged
+owner: detection-engineering
+severity: medium
+risk_score: 47
+attack:
+- technique: T1018
+  tactic: TA0007
+data_components:
+- Process Creation
+- Command Execution
+pyramid_tier: ttp
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.process-*
+provenance:
+  source: praxis
+  licence: Apache-2.0
+references: []
+false_positives:
+- Domain administrators who check domain controller health by hand.
+- Logon scripts or inventory tools that call nltest to find a domain controller.
