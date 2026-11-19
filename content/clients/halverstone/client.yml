@@ -11,3 +11,5 @@ platforms:
     namespace: halverstone
 packs:
 - baseline
+detections:
+- PRX-000032

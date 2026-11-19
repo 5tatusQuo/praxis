@@ -1,0 +1,24 @@
+{
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "name": "ws-lab-07",
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "nltest.exe",
+    "command_line": "nltest.exe /sc_query:corp.example.invalid",
+    "pe": {
+      "original_file_name": "nltestrk.exe"
+    }
+  }
+}

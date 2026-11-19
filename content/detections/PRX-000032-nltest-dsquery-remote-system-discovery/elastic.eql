@@ -1,0 +1,7 @@
+process where host.os.type == "windows" and event.type == "start" and
+  (
+    ((process.name : "nltest.exe" or ?process.pe.original_file_name : "nltestrk.exe") and
+      process.command_line : ("*dclist*", "*dsgetdc*")) or
+    ((process.name : "dsquery.exe" or ?process.pe.original_file_name : "dsquery.exe") and
+      process.command_line : ("* computer*", "* server*"))
+  )
