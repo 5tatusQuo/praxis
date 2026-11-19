@@ -1,0 +1,27 @@
+{
+  "@timestamp": "2026-01-01T00:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "end"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "winget.exe",
+    "args": [
+      "winget.exe",
+      "install",
+      "-m",
+      "package.yaml"
+    ],
+    "command_line": "winget.exe install -m package.yaml"
+  }
+}

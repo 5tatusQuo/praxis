@@ -1,0 +1,33 @@
+id: PRX-000033
+name: Winget installation from a local manifest
+intent: Detects installation attempts with a local manifest because attackers can use the
+  manifest to download and run a payload.
+version: 1
+lifecycle: staged
+owner: ai:platform-engineer-elastic
+severity: medium
+risk_score: 47
+attack:
+- technique: T1059
+  tactic: TA0002
+data_components:
+- Process Creation
+- Command Execution
+pyramid_tier: ttp
+log_sources:
+  elastic:
+    indices:
+    - logs-endpoint.events.process-*
+    - logs-windows.sysmon_operational-*
+provenance:
+  source: sigmahq
+  upstream_id: 313d6012-51a0-4d93-8dfc-de8553239e25
+  upstream_commit: 088855f00b65a19e345b09c1619272b44f92fea4
+  upstream_author: Sreeman, Florian Roth (Nextron Systems), frack113
+  licence: DRL-1.1
+references:
+- https://learn.microsoft.com/en-us/windows/package-manager/winget/install#local-install
+- https://lolbas-project.github.io/lolbas/Binaries/Winget/
+- https://web.archive.org/web/20250828100901/https://github.com/nasbench/Misc-Research/tree/b9596e8109dcdb16ec353f316678927e507a5b8d/LOLBINs/Winget
+false_positives:
+- Administrators and developers can install approved software with local manifests.

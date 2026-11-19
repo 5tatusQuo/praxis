@@ -1,0 +1,78 @@
+id: halverstone-2026.12.0
+client: halverstone
+month: 2026-12
+created: '2026-11-19'
+status: proposed
+budget: 2
+snapshot:
+  taken_at: '2026-11-19T00:18:42Z'
+  summary:
+    rules:
+      blind: 0
+      shadow: 0
+      healthy: 4
+      disabled: 0
+    covered: 8
+    blind_rule: 0
+    techniques: 706
+    visible_pct: 74.93
+    coverage_pct: 1.13
+    detection_gap: 521
+    visibility_gap: 177
+    weighted_coverage_pct: 4.82
+brief:
+  headline: This pack detects package installation through local manifests, a narrow execution path that
+    attackers can abuse.
+  adds:
+  - Detects package installation through a local manifest.
+  leaves_open:
+  - Abuse of remote services remains open.
+  - Use of stolen accounts remains open.
+  - Exploitation of public applications remains open.
+picks:
+- detection: PRX-000033
+  name: Winget installation from a local manifest
+  candidate: sigma:313d6012-51a0-4d93-8dfc-de8553239e25
+  technique: T1059
+  weight: 0.833
+  why: This rule detects installation through a local manifest, which provides stronger execution evidence
+    than adding a package source.
+  caveat: Confirm whether approved application tests use local manifests before adding exceptions.
+  justification: ''
+  changed: Replaced substring checks with argument matching and a command line fallback, preserved renamed
+    executable detection, and added process start filtering to reduce false matches.
+  quality:
+    score: 88
+    passes: true
+    tier: ttp
+    parts:
+      specificity: 30
+      pyramid: 25
+      durability: 10
+      maturity: 9
+      overlap: 4
+      backtest: 10
+    closest_existing: PRX-000027
+    closest_similarity: 0.12
+    flags:
+    - 'crowded: 2 rules already on this technique'
+    backtest:
+      hits: 0
+      days: 30
+  lab:
+    passed: true
+    cases: 11
+rejected: []
+review:
+  verdict: pass
+  summary: The query matches the stated installation attempt. The checks found no blocking defects or
+    unresolved concerns.
+  comments: []
+failed_candidates: []
+agents:
+  model: gpt-6.1-sol
+usage:
+  llm_calls: 18
+  input_tokens: 297544
+  output_tokens: 4662
+  tool_calls: 32

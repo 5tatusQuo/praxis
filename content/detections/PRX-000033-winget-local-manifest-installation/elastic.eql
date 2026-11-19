@@ -1,0 +1,6 @@
+process where host.os.type == "windows" and event.type == "start" and
+  (process.name : "winget.exe" or ?process.pe.original_file_name : "winget.exe") and
+  ((?process.args : ("install", "add") and ?process.args : ("-m", "--manifest", "--manifest=*")) or
+   (?process.args == null and
+    process.command_line : ("* install *", "* add *") and
+    process.command_line : ("* -m *", "* --manifest *", "* --manifest=*")))

@@ -1,0 +1,30 @@
+{
+  "@timestamp": "2026-01-01T00:00:00Z",
+  "event": {
+    "category": [
+      "process"
+    ],
+    "type": [
+      "start"
+    ],
+    "kind": "event"
+  },
+  "host": {
+    "os": {
+      "type": "windows"
+    }
+  },
+  "process": {
+    "name": "update.exe",
+    "pe": {
+      "original_file_name": "WinGet.exe"
+    },
+    "args": [
+      "update.exe",
+      "ADD",
+      "--MANIFEST",
+      "C:\\Temp\\package.yaml"
+    ],
+    "command_line": "update.exe ADD --MANIFEST C:\\Temp\\package.yaml"
+  }
+}
