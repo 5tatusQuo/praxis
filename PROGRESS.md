@@ -9,7 +9,7 @@ is the state of the build.
 2026-11-18 and v1.0.0 is released. Phase 5 does not start until the PLAN.md
 items listed under "Not built yet" below are done.
 
-## Operator test: PRAXIS driven by an AI (passed on the seventh run, 2026-11-19)
+## Operator test: PRAXIS driven by an AI (passed on runs 7 and 11, 2026-11-19)
 
 Goal set by the owner: make PRAXIS fully operable by an AI agent with no
 rough spots, and prove it with a fresh sub-agent that takes a new fictional
@@ -30,6 +30,7 @@ client. Reports, with every finding and its fix, are in `docs/audits/`.
 | 8 | `thackwell` (building and engineering) | Exercised the fixes made after run 7. `WORKAROUNDS: 0`, `UNDOCUMENTED COMMANDS: 0`, `STEPS NOT RUN BY ME: 1`: the sub-agent's own session refused one merge (PR #97), which the main session ran on the owner's word. Not a PRAXIS fault | `2026-11-19-operator-test-8.md` |
 | 9 | `dunmerrow` (building and engineering) | On the current product, in under an hour. `WORKAROUNDS: 0`, `UNDOCUMENTED COMMANDS: 0`, `STEPS NOT RUN BY ME: 1`: again the sub-agent's session refused its first merge of an agent-opened pull request (#106), which the main session ran. Not a PRAXIS fault | `2026-11-19-operator-test-9.md` |
 | 10 | `farrowby-lund` (building and engineering) | On `main` after PR #110. `WORKAROUNDS: 0`, `UNDOCUMENTED COMMANDS: 0`, `STEPS NOT RUN BY ME: 1`: the same refusal of the pack merge (#114), run by the main session. Third run in a row; no further run started | `2026-11-19-operator-test-10.md` |
+| 11 | `halverstone` (building and engineering) | **On the current product (`main` after PR #119), all 11 steps by the agent alone in about 28 minutes. `WORKAROUNDS: 0`, `UNDOCUMENTED COMMANDS: 0`, `STEPS NOT COMPLETED OR NOT RUN BY ME: 0`. Pass** | `2026-11-19-operator-test-11.md` |
 
 The one undocumented command in run 5 was `./px change status <number>`, a
 read-only form the agent found through the documented `./px change --help`.
@@ -49,7 +50,8 @@ Pull requests:
   #83 (run 6), #91 (run 7 and the evidence), #92 (failed hunt queries as data,
   group lookup, `sector remove`, `pack remove`), #93 (what the MCP tools do
   not cover), #101 (run 8 and the evidence), #102 (fixes from run 8, clean-up of test
-  records), #110 (run 9 and the evidence), and this change (run 10 and the evidence).
+  records), #110 (run 9 and the evidence), #118 (run 10 and the evidence), #119 (no
+  redundant tuning exclusions), and this change (run 11 and the evidence).
   All merged by the main session.
 - Run 1: #30 to #35 merged by the sub-agent, the agent-opened #33, #34, #35
   on the main session's approval as the user; #37 (offboarding) by the main
@@ -71,6 +73,8 @@ Pull requests:
   merged by the main session after the sub-agent's session refused it.
 - Run 10: #111 to #113 and #115 to #117 merged by the sub-agent; #114
   (pack) merged by the main session after the sub-agent's session refused it.
+- Run 11: #120 to #126 merged by the sub-agent, the agent-opened #123
+  (pack), #124 (tuning) and #125 (hunt) under approvals written into its task.
 
 What an operator reads: `CLAUDE.md`, then `docs/runbook.md`. Every step is a
 `./px` command; reading and authoring actions are also MCP tools (`.mcp.json`).
@@ -81,7 +85,7 @@ sub-agent does not load a project's MCP servers, so the runs used `./px`.
 A separate fresh headless Claude Code session, allowed only the `praxis` MCP
 tools, called `status`, `get_coverage` and `search_catalog` with no errors
 (details in the run 8 report).
-After runs 3, 5, 7, 8, 9 and 10, a direct read-only query of the SIEM showed data, keys
+After runs 3, 5, 7, 8, 9, 10 and 11, a direct read-only query of the SIEM showed data, keys
 and Kibana spaces for `acme` and `globex` only.
 
 After run 8 (PR #102): every friction item in its report was fixed in the
@@ -98,15 +102,16 @@ pack records and seven hunt records the test clients left. Git history keeps
 them.
 
 After run 10: a tuning proposal no longer keeps an exclusion that another one
-already covers, or the same example twice (unit test; not yet used by a run).
+already covers, or the same example twice (run 11's tuning wrote one exclusion).
 
 Still open from the test:
 
-- In runs 8, 9 and 10 the sub-agent's own session refused its first merge of an
-  agent-opened pull request, so the main session ran that one command. Runs 3
-  to 7 were not refused. A permission rule for `./px change merge` in the
-  owner's Claude Code settings would remove this; it is the owner's to add.
-
+- In runs 8, 9 and 10 the sub-agent's own session refused its first merge of
+  an agent-opened pull request, so the main session ran that one command. For
+  run 11 the owner had a permission rule for `./px change merge` added to the
+  project's local Claude Code settings (not in Git), and nothing was refused.
+- From run 11: a pack that stops below its budget does not say why; a pull
+  request body can say "1 detections".
 - Runbook limits that cannot be fixed here, each stated there with its
   reason: lab telemetry is synthetic (no Fleet Server or Elastic Agent in the
   stack); one SIEM connection (no second SIEM here to test against); Elastic
@@ -117,7 +122,7 @@ Still open from the test:
   when a proposal fails review, which no run can force.
 - No sub-agent can use the MCP server: a sub-agent's session does not load a
   project's MCP servers. A fresh headless session did (run 8 report).
-- The tests left detections PRX-000008 to 000031 in the library with no
+- The tests left detections PRX-000008 to 000033 in the library with no
   client. They are kept on purpose: each passed its lab tests and is there
   for the next client. PRX-000019 is staged; read its query before promoting,
   because the Reviewer disagreed with itself about it in run 5.
